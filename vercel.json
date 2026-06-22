@@ -1,4 +1,6 @@
 {
   "version": 2,
-  "outputDirectory": "public"
+  "buildCommand": "echo 'Static HTML files'",
+  "outputDirectory": "public",
+  "framework": null
 }
