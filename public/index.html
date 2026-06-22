@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOJPE C2H Phase 1 - Welcome</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #1F4E78 0%, #2E5C8A 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 90%;
+        }
+
+        .welcome-card {
+            background: white;
+            border-radius: 12px;
+            padding: 50px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo-circle {
+            width: 60px;
+            height: 60px;
+            background: #4CAF50;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+        }
+
+        h1 {
+            font-size: 36px;
+            color: #1F4E78;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 40px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .status-item {
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .status-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .status-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1F4E78;
+        }
+
+        .status-item.ready .status-value {
+            color: #4CAF50;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            padding: 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: #1F4E78;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #162a4f;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(31, 78, 120, 0.3);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #1F4E78;
+            border: 2px solid #1F4E78;
+        }
+
+        .btn-secondary:hover {
+            background: #f5f5f5;
+            transform: translateY(-2px);
+        }
+
+        .btn-icon {
+            font-size: 24px;
+        }
+
+        .features {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .features h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1F4E78;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 20px;
+        }
+
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .feature-item {
+            font-size: 12px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkmark {
+            color: #4CAF50;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+            padding-top: 30px;
+            border-top: 1px solid #eee;
+        }
+
+        .api-status {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e9;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #2e7d32;
+        }
+
+        .api-status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #eee;
+            border-radius: 2px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #4CAF50;
+            width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .status-grid,
+            .action-buttons,
+            .feature-list {
+                grid-template-columns: 1fr;
+            }
+
+            .welcome-card {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="welcome-card">
+            <!-- Logo & Title -->
+            <div class="logo-section">
+                <div class="logo-circle"></div>
+                <h1>The Weekly ScorecCard</h1>
+                <p class="subtitle">SOJPE C2H Phase 1 - Recruiting Operations Intelligence Platform</p>
+            </div>
+
+            <!-- Status Grid -->
+            <div class="status-grid">
+                <div class="status-item ready">
+                    <div class="status-label">🎯 Phase 1 Status</div>
+                    <div class="status-value">✓ COMPLETE</div>
+                </div>
+                <div class="status-item ready">
+                    <div class="status-label">🚀 Platform Status</div>
+                    <div class="status-value">✓ READY</div>
+                </div>
+                <div class="status-item ready">
+                    <div class="status-label">📊 Pipeline Status</div>
+                    <div class="status-value">✓ 83 STEPS</div>
+                </div>
+                <div class="status-item ready">
+                    <div class="status-label">⚙️ API Status</div>
+                    <div class="status-value" id="apiStatus">Checking...</div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <a href="dashboard.html" class="btn btn-primary">
+                    <span class="btn-icon">📊</span>
+                    <span>View Dashboard</span>
+                </a>
+                <a href="upload.html" class="btn btn-primary">
+                    <span class="btn-icon">📁</span>
+                    <span>Upload Files</span>
+                </a>
+                <a href="javascript:void(0)" class="btn btn-secondary" onclick="checkAPI()">
+                    <span class="btn-icon">🔌</span>
+                    <span>Check API</span>
+                </a>
+                <a href="PHASE1_COMPLETE.md" class="btn btn-secondary" target="_blank">
+                    <span class="btn-icon">📖</span>
+                    <span>Documentation</span>
+                </a>
+            </div>
+
+            <!-- API Status Message -->
+            <div id="apiMessage" class="api-status" style="display: none;"></div>
+
+            <!-- Features -->
+            <div class="features">
+                <h3>✨ What's Included</h3>
+                <div class="feature-list">
+                    <div class="feature-item">
+                        <span class="checkmark">✓</span>
+                        <span>5 Dashboard Views (Recruitment, Management, Productivity, Director)</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="checkmark">✓</span>
+                        <span>Complete 83-Step Data Pipeline</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="checkmark">✓</span>
+                        <span>7-File Ingestion (Ceipal & HRMS)</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="checkmark">✓</span>
+                        <span>All 8 Metrics Computed Server-Side</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="checkmark">✓</span>
+                        <span>Timestamped Reports & Versioning</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="checkmark">✓</span>
+                        <span>Draft → Approve → Publish Workflow</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="checkmark">✓</span>
+                        <span>Data Lineage & File Download</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="checkmark">✓</span>
+                        <span>RAG Status Indicators (Green/Amber/Red)</span>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                <p>SOJPE C2H Phase 1 - Complete & Production-Ready | June 22, 2026</p>
+                <p>Dashboard: http://localhost:8000/dashboard.html | API: http://localhost:5000</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check API health on page load
+        window.addEventListener('load', () => {
+            checkAPI();
+        });
+
+        async function checkAPI() {
+            const statusElement = document.getElementById('apiStatus');
+            const messageElement = document.getElementById('apiMessage');
+
+            try {
+                const response = await fetch('http://localhost:5000/api/health', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    statusElement.textContent = '✓ CONNECTED';
+                    statusElement.parentElement.classList.add('ready');
+                    messageElement.textContent = '✓ API is running and responding correctly. All systems operational.';
+                    messageElement.style.display = 'block';
+                    messageElement.classList.remove('error');
+                } else {
+                    throw new Error('API returned non-200 status');
+                }
+            } catch (error) {
+                statusElement.textContent = '⚠ OFFLINE';
+                statusElement.parentElement.classList.remove('ready');
+                messageElement.textContent = '⚠ API is not responding. Make sure Flask server is running (python app.py). Click "Check API" to retry.';
+                messageElement.style.display = 'block';
+                messageElement.classList.add('error');
+            }
+        }
+    </script>
+</body>
+</html>

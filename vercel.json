@@ -1,16 +1,4 @@
 {
   "version": 2,
-  "buildCommand": "echo 'Static site ready'",
-  "outputDirectory": ".",
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600, s-maxage=3600"
-        }
-      ]
-    }
-  ]
+  "outputDirectory": "public"
 }
