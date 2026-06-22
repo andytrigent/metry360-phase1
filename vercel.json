@@ -1,9 +1,6 @@
 {
-  "name": "sojpe-c2h-dashboard",
   "version": 2,
   "public": false,
-  "buildCommand": "echo 'Frontend ready'",
-  "installCommand": "npm ci --prefer-offline",
   "env": {
     "API_BASE_URL": {
       "description": "Backend API base URL (AWS Lambda)",
@@ -15,7 +12,6 @@
     }
   },
   "regions": ["iad1", "sin1"],
-  "framework": "static",
   "functions": {
     "api/**/*.js": {
       "maxDuration": 60
