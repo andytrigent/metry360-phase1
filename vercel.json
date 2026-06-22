@@ -1,21 +1,8 @@
 {
   "version": 2,
-  "public": false,
   "env": {
-    "API_BASE_URL": {
-      "description": "Backend API base URL (AWS Lambda)",
-      "default": "https://api.trigent-c2h.com"
-    },
-    "AWS_REGION": {
-      "description": "AWS region for backend services",
-      "default": "ap-south-1"
-    }
-  },
-  "regions": ["iad1", "sin1"],
-  "functions": {
-    "api/**/*.js": {
-      "maxDuration": 60
-    }
+    "API_BASE_URL": "@api_base_url",
+    "AWS_REGION": "@aws_region"
   },
   "headers": [
     {
@@ -34,21 +21,12 @@
           "value": "DENY"
         }
       ]
-    },
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
     }
   ],
-  "redirects": [
+  "rewrites": [
     {
-      "source": "/",
-      "destination": "/index.html"
+      "source": "/:path*",
+      "destination": "/:path*"
     }
   ]
 }
