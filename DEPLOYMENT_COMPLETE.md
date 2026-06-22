@@ -15,6 +15,12 @@
 ✅ Build: Static HTML/CSS/JS (no build step)
 ✅ Framework: None (pure static)
 ✅ Region: CDN Global
+
+⚠️  IMPORTANT: Currently on personal account (trigent-ark-os)
+   ACTION NEEDED: Transfer to Trigent's paid Vercel account
+   - Contact Vercel support for organization transfer
+   - Redeploy to new account
+   - Update DNS if using custom domain
 ```
 
 ### Backend - AWS Lambda

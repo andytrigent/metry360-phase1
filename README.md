@@ -1,6 +1,10 @@
 # SOJPE C2H Phase 1 - Complete Automation Platform
 
-**Status:** ✅ **COMPLETE & READY FOR PRODUCTION**
+**Status:** ✅ **DEPLOYED TO PRODUCTION**
+
+**🌐 Live Dashboard**: https://metry360-phase1-evl2ll827-trigent-ark-os.vercel.app  
+**🔌 API Endpoint**: https://2g852sgu1i.execute-api.ap-south-1.amazonaws.com/prod  
+**📦 GitHub Repository**: https://github.com/andytrigent/metry360-phase1
 
 A complete, production-ready solution that automates the 83-step weekly reporting process for recruiting operations intelligence. Transforms raw data into actionable insights through an intelligent dashboard.
 
@@ -61,42 +65,91 @@ metry360-phase1/
 
 ---
 
-## 🚀 Quick Start (< 2 Minutes)
+## 🚀 Quick Access (Production)
 
-### **Windows (Automatic)**
+### **🌐 Live Dashboard**
+Open in browser: **https://metry360-phase1-evl2ll827-trigent-ark-os.vercel.app**
 
-```powershell
-cd D:\experiments\gcc-qmetry\metry360-phase1
-.\run.ps1
+- 📊 Main Dashboard (Recruitment view)
+- 👥 Management Summary (Collapsed/Expanded)
+- 💼 AM Productivity Analysis
+- 🎯 Director Drilldown
+- 📋 Report History with approval workflow
+- 📤 File Upload & Processing
+
+### **🔌 API Endpoint**
+Base URL: `https://2g852sgu1i.execute-api.ap-south-1.amazonaws.com/prod`
+
+```bash
+# Health check
+curl https://2g852sgu1i.execute-api.ap-south-1.amazonaws.com/prod/api/health
+
+# Response
+{
+  "status": "healthy",
+  "service": "sojpe-c2h-api",
+  "version": "1.0.0-lambda"
+}
 ```
 
-This automatically:
-- ✓ Installs Python dependencies
-- ✓ Starts HTTP server (port 8000)
-- ✓ Starts Flask API (port 5000)
-- ✓ Opens dashboard
+### **Local Development (Optional)**
 
-### **Windows (Manual)**
+If you want to run locally:
 
 ```powershell
-# Step 1: Install dependencies
-pip install -r requirements.txt
+# Clone repository
+git clone https://github.com/andytrigent/metry360-phase1.git
+cd metry360-phase1
 
-# Step 2: Start HTTP server (Terminal 1)
+# Option 1: Windows (Automatic)
+.\run.ps1
+
+# Option 2: Manual
+# Terminal 1: HTTP server
 python -m http.server 8000
 
-# Step 3: Start Flask API (Terminal 2)
+# Terminal 2: Flask backend
+cd backend
 python app.py
-
-# Step 4: Open browser
-Start-Process "http://localhost:8000"
 ```
 
-### **Access Points**
-- **Welcome Page:** http://localhost:8000
-- **Dashboard:** http://localhost:8000/dashboard.html
-- **Upload Panel:** http://localhost:8000/upload.html
-- **API Status:** http://localhost:5000/api/health
+Local access:
+- Dashboard: http://localhost:8000/dashboard.html
+- API: http://localhost:5000/api/health
+
+---
+
+## 📊 Deployment Architecture
+
+### **Production Environment**
+
+```
+Frontend (Vercel)
+└─ https://metry360-phase1-evl2ll827-trigent-ark-os.vercel.app
+   ├─ HTML/CSS/JS (global CDN)
+   ├─ 5 dashboard views
+   ├─ Upload interface
+   └─ Report history
+
+Backend (AWS Lambda)
+└─ https://2g852sgu1i.execute-api.ap-south-1.amazonaws.com/prod
+   ├─ Python 3.11 runtime
+   ├─ 15-minute timeout (83-step pipeline)
+   ├─ Auto-scaling
+   └─ CloudWatch logging
+
+Storage (AWS S3)
+└─ trigent-c2h-files (ap-south-1)
+   ├─ 7 raw Excel files
+   ├─ Versioning enabled
+   └─ Secure access
+
+Database (AWS DynamoDB)
+└─ sojpe-reports (ap-south-1)
+   ├─ Report metadata
+   ├─ Pay-per-request billing
+   └─ Auto-scaling
+```
 
 ---
 
@@ -413,6 +466,55 @@ A: Yes, edit the date fields in app.py (search for "Report Period").
 - Review API logs in console
 - Verify database: `sqlite3 reports.db .tables`
 - Check Flask logs for processing errors
+
+---
+
+## 🚀 Production Deployment Status
+
+### **✅ Currently Deployed**
+
+| Component | URL | Status | Region |
+|-----------|-----|--------|--------|
+| **Frontend** | https://metry360-phase1-evl2ll827-trigent-ark-os.vercel.app | ✅ LIVE | Global CDN |
+| **API** | https://2g852sgu1i.execute-api.ap-south-1.amazonaws.com/prod | ✅ LIVE | ap-south-1 |
+| **GitHub** | https://github.com/andytrigent/metry360-phase1 | ✅ SYNCED | - |
+| **Backend** | AWS Lambda (sojpe-data-pipeline) | ✅ DEPLOYED | ap-south-1 |
+| **Storage** | AWS S3 (trigent-c2h-files) | ✅ READY | ap-south-1 |
+| **Database** | AWS DynamoDB (sojpe-reports) | ✅ READY | ap-south-1 |
+
+### **⚠️ Important: Vercel Account Transfer Needed**
+
+Currently deployed on personal Vercel account (`trigent-ark-os`).  
+**Action Required**: Transfer to Trigent's paid Vercel account.
+
+**Steps to Transfer:**
+1. Contact Vercel support to transfer project to Trigent's organization
+2. Update domain DNS if using custom domain
+3. Update environment variables in new Vercel project
+4. Redeploy frontend: `vercel --prod --scope trigent-organization`
+
+**Temporary URL** (valid until transfer): https://metry360-phase1-evl2ll827-trigent-ark-os.vercel.app
+
+### **AWS Deployment Details**
+
+All AWS resources deployed under:
+- **Account ID**: 302954730716
+- **Region**: ap-south-1 (Mumbai)
+- **Resources**:
+  - Lambda: sojpe-data-pipeline
+  - API Gateway: sojpe-c2h-api (2g852sgu1i)
+  - S3: trigent-c2h-files
+  - DynamoDB: sojpe-reports
+  - IAM Role: sojpe-lambda-role
+
+### **Cost Estimates**
+
+- Lambda: ~$2-5/month
+- API Gateway: ~$0.35/month
+- S3: ~$0.23/month
+- DynamoDB: ~$1-3/month
+- Vercel: $20/month (Pro plan recommended)
+- **Total**: ~$25-30/month
 
 ---
 
