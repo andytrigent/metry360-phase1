@@ -1,0 +1,12 @@
+app.py
+requirements.txt
+*.pyc
+__pycache__
+venv/
+env/
+.env
+.env.local
+reports.db
+reports/
+uploads/
+*.py
