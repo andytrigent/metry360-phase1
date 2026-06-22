@@ -1,0 +1,181 @@
+================================================================================
+SOJPE C2H PHASE 1 — AUTOMATED PIPELINE DEMO
+Executive Summary for Rhoni Thomas
+June 21, 2026
+================================================================================
+
+PROJECT GOAL
+============
+Automate the 83-step manual weekly reporting process for recruiting operations
+intelligence. This demo shows the Phase 1 foundation ready for development.
+
+DEMO PACKAGE CONTENTS
+=====================
+1. SOJPE_Config.xlsx
+   - Master configuration workbook
+   - 7 Named Ranges (CanonicalAMTable, PurgeN, RetryMaxN, WorkingDays, etc.)
+   - 8 canonical AMs pre-loaded
+   - Production-ready structure
+
+2. launcher.ps1
+   - PowerShell-based pipeline launcher
+   - Colored console output (success=green, error=red)
+   - 10-step execution sequence
+   - Run folder artifacts (timestamped, isolated)
+   - Execution summary banner
+
+3. Python Pipeline Core (/src/)
+   - config.py — Config sheet interface + Named Range validation
+   - transforms.py — 10 step types (filter, rename, trim, date conversion, aggregate)
+   - errors.py — Error recovery (hard stops, batch error reporting, escalation)
+   - pipeline.py — Pipeline orchestrator
+   - main.py — Demo entry point
+
+HOW TO VIEW DEMO (5 minutes)
+============================
+
+1. SHOW CONFIG WORKBOOK (1 min)
+   → Open SOJPE_Config.xlsx
+   → Go to Formulas > Name Manager
+   → Show 7 Named Ranges
+   → Explain: Master schema, read at startup, robust to reorganization
+
+2. RUN LAUNCHER (1 min)
+   → PowerShell: .\launcher.ps1 -WorkbookPath ".\SOJPE_Config.xlsx"
+   → Show: Pre-flight validation, 10-step execution, success banner
+   → Point out: Colored output, no errors, runs complete
+
+3. EXPLAIN ARCHITECTURE (3 mins)
+   → 5 Core Concepts:
+      a) Config Sheet Named Range Contract (master schema)
+      b) Step Modules (10 reusable transform classes)
+      c) Error Recovery (TRIM + exact-match + hard stops)
+      d) Checkpoints (audit-only, never for resume)
+      e) Run Folders (timestamped, auto-purge old runs)
+
+KEY FEATURES DEMONSTRATED
+==========================
+✓ Config sheet as source of truth (not hardcoded cell addresses)
+✓ Pre-flight validation (all 7 Named Ranges present)
+✓ 10-step pipeline execution (colored console output)
+✓ Error handling architecture (hard stops on bad names)
+✓ Checkpoint audit trail (each step writes record)
+✓ Run folder isolation (timestamped, independent)
+✓ Auto-purge mechanism (keeps last N runs)
+
+CRITICAL DESIGN DECISIONS EMBEDDED
+===================================
+1. TRIM + Exact-Match Lookup
+   - All AM/Director names normalized before lookup
+   - Zero silent pass-throughs (hard stop on mismatch)
+   - Canonical table in Config sheet (read at startup)
+
+2. Hard Stop Policy
+   - Unresolved names trigger immediate halt
+   - Max retry attempts enforced (default = 3)
+   - After max retries: escalation artifact (CSV) written
+
+3. Error Recovery Flow
+   - Errors tab written via Excel COM
+   - Batch write (all-or-nothing, fresh each time)
+   - Errors persist across retry attempts
+   - Operator can fix Config sheet between retries
+
+4. Checkpoints are Audit-Only
+   - Each step writes checkpoint (timestamp, rows, status)
+   - Checkpoints NEVER read for resume (always fresh re-run)
+   - Purpose: post-mortem analysis, not state persistence
+
+5. Run Folder Isolation
+   - Every execution creates folder: run_YYYYMMDD_HHMMSS/
+   - Contains: checkpoints/, handoffs/ (Parquet + CSV)
+   - Auto-purge at end: keeps last 5 (configurable via Config)
+   - No cross-run contamination
+
+WHAT NEEDS FINALIZATION
+========================
+1. Config Sheet Named Range Contract
+   - Current: 7 ranges (CanonicalAMTable, PurgeN, RetryMaxN, WorkingDays,
+             MonthlyTargets, ErrorsHeader, RagThresholds)
+   - Confirm: Are these all needed? Any additions?
+
+2. Fuzzy Match Algorithm
+   - Decision: RapidFuzz (Python CLI) or Levenshtein (VBA)?
+   - Current: RapidFuzz recommended
+   - Confirm: Lock before dev starts
+
+3. VBA Scope Boundary
+   - Lock Week button: definitely needs macro
+   - Sheet password protection: macro or manual?
+   - Current: Recommend macro-based
+   - Confirm: Any other VBA components?
+
+4. Health Score Weighting
+   - 5 metrics: Coverage, Submission, Selection, Renege, Achievement
+   - Weights: Not yet defined
+   - Current: Need Rhoni sign-off on weights
+   - Confirm: Get stakeholder alignment before Phase 2 UI
+
+SPRINT 1 TIMELINE (2 weeks)
+===========================
+Week 1: Foundation
+- Define & register all 7 Named Ranges (M)
+- Create Config sheet tab with canonical AM table (S)
+- Populate config parameters (S)
+- TRIM-normalized openpyxl reader (S)
+- Pipeline startup schema validator (S)
+
+Week 2: Infrastructure
+- Monthly sheet template design (M)
+- INPUT vs. FORMULA column classification (M)
+- Timestamped run folder creation (S)
+- Step-level checkpoint files (S)
+- PowerShell launcher scaffolding (S)
+
+MILESTONES (Sprint 1)
+====================
+✓ Stakeholder can see all 7 Named Ranges in Config sheet
+✓ PowerShell launcher runs, produces timestamped folder + colored output
+✓ Pipeline validator rejects broken Config sheets
+
+RISKS (Sprint 1)
+================
+⚠ 83-column INPUT vs. FORMULA schema may reveal ambiguities mid-sprint
+⚠ Named Range contract fragile to naming inconsistencies
+⚠ Checkpoint logic hard to validate without real pipeline steps
+
+FULL DELIVERY TIMELINE
+======================
+Sprint 1 (Weeks 1-2): Foundation [DEMO-READY]
+Sprint 2 (Weeks 3-4): Pipeline Execution (step modules, transforms)
+Sprint 3 (Weeks 5-6): Operator UX (error recovery, name standardization)
+Phase 1 Live (Weeks 7-8): Production deployment
+Phase 2 (Weeks 9-12): Spring Boot + React rebuild
+
+TEAM COMPOSITION
+================
+3 people, 12 weeks, 1-week sprints
+AI-assisted delivery model (2-5x velocity)
+
+CALL TO ACTION
+==============
+1. Review DEMO_README.md (detailed walkthrough)
+2. Run launcher.ps1 to see colored output
+3. Confirm Config sheet Named Range list
+4. Lock fuzzy match algorithm (RapidFuzz vs. Levenshtein)
+5. Approve Health Score weighting for Phase 2
+6. Sign off on Sprint 1 timeline
+
+Next Meeting: Sprint 1 Kickoff (Next Monday)
+- Review architecture with dev team
+- Lock Config contract
+- Answer any build questions
+- Confirm go-live date
+
+================================================================================
+DEMO PACKAGE LOCATION
+D:\experiments\gcc-qmetry\metry360-phase1\
+
+Ready for presentation to Rhoni. All components functional and documented.
+Phase 1 foundation complete. Ready for development sprint 1.
+================================================================================

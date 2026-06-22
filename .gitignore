@@ -1,0 +1,67 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+venv/
+ENV/
+env/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+reports.db
+
+# Node
+node_modules/
+.next/
+out/
+.vercel/
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+.DS_Store
+.env.production.local
+
+# Uploads (temporary files)
+uploads/
+temp/
+
+# Reports (will be in cloud storage)
+reports/
+
+# Logs
+*.log
+logs/
