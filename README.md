@@ -1,10 +1,16 @@
 # SOJPE C2H Phase 1 - Complete Automation Platform
 
-**Status:** ✅ **DEPLOYED TO PRODUCTION**
+**Status:** ✅ **DEPLOYED TO PRODUCTION** | **Organization:** trigent-ark-os | **Date:** June 23, 2026
 
-**🌐 Live Dashboard**: https://metry360-phase1-evl2ll827-trigent-ark-os.vercel.app  
-**🔌 API Endpoint**: https://2g852sgu1i.execute-api.ap-south-1.amazonaws.com/prod  
-**📦 GitHub Repository**: https://github.com/andytrigent/metry360-phase1
+### 🌐 Live URLs
+
+| URL | Status | Purpose |
+|-----|--------|---------|
+| **https://app.arkos.studio** | ⏳ DNS Propagating (5-30 min) | **Recommended Production URL** |
+| https://metry360-phase1-k9b9yjz94-trigent-ark-os.vercel.app | ✅ LIVE NOW | Vercel Default (always works) |
+| https://2g852sgu1i.execute-api.ap-south-1.amazonaws.com/prod | ✅ LIVE | Backend API Endpoint |
+| https://github.com/andytrigent/metry360-phase1 | ✅ SYNCED | GitHub Repository |
+| https://vercel.com/trigent-ark-os/metry360-phase1 | ✅ ACTIVE | Vercel Dashboard |
 
 A complete, production-ready solution that automates the 83-step weekly reporting process for recruiting operations intelligence. Transforms raw data into actionable insights through an intelligent dashboard.
 
