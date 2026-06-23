@@ -2,17 +2,23 @@
 
 ## 🌐 Live Application
 
-**Dashboard**: https://metry360-phase1-evl2ll827-trigent-ark-os.vercel.app
+**Primary Dashboard**: https://metry360.arkos.studio (DNS propagating 5-30 min)  
+**Fallback URL**: https://metry360-phase1-k9b9yjz94-trigent-ark-os.vercel.app (works immediately)
 
-Open this URL in your browser to access the live dashboard.
+Open one of these URLs in your browser to access the live dashboard.
 
 ---
 
 ## 📍 Production URLs
 
-### Frontend (Vercel)
+### Frontend (Custom Domain - Recommended)
 ```
-https://metry360-phase1-evl2ll827-trigent-ark-os.vercel.app
+https://metry360.arkos.studio
+```
+
+### Frontend (Vercel Default - Always Works)
+```
+https://metry360-phase1-k9b9yjz94-trigent-ark-os.vercel.app
 ```
 
 ### Backend API (AWS Lambda)

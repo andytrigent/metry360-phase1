@@ -30,7 +30,7 @@ https://metry360-phase1-k9b9yjz94-trigent-ark-os.vercel.app
 
 **Option 2: Custom Subdomain** (Recommended)
 ```
-https://app.arkos.studio
+https://metry360.arkos.studio
 ```
 ✅ Status: CONFIGURED  
 ✅ DNS: Vercel nameservers  

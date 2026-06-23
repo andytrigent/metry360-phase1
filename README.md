@@ -6,7 +6,7 @@
 
 | URL | Status | Purpose |
 |-----|--------|---------|
-| **https://app.arkos.studio** | ⏳ DNS Propagating (5-30 min) | **Recommended Production URL** |
+| **https://metry360.arkos.studio** | ⏳ DNS Propagating (5-30 min) | **Recommended Production URL** |
 | https://metry360-phase1-k9b9yjz94-trigent-ark-os.vercel.app | ✅ LIVE NOW | Vercel Default (always works) |
 | https://2g852sgu1i.execute-api.ap-south-1.amazonaws.com/prod | ✅ LIVE | Backend API Endpoint |
 | https://github.com/andytrigent/metry360-phase1 | ✅ SYNCED | GitHub Repository |
