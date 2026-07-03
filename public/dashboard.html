@@ -653,7 +653,7 @@
                 <div class="table-section">
                     <div class="table-header">
                         <span>Recruitment Scorecard</span>
-                        <span style="font-size: 11px; font-weight: normal; color: #999;">Week 3 | June 17-21, 2026</span>
+                        <span style="font-size: 11px; font-weight: normal; color: #999;" id="weekDisplay">Week 3 | June 17-21, 2026</span>
                     </div>
                     <table>
                         <thead>
@@ -1245,12 +1245,12 @@
                     </div>
                 </div>
 
-                <div id="view-week3" class="view-section active">
+                <div id="view-week3" class="view-section">
                     <div class="empty-state">
                         <div class="empty-state-icon">📅</div>
                         <h2>Week 3 Report</h2>
-                        <p>June 17-21, 2026 (Current)</p>
-                        <p style="color: #666; margin-top: 15px;">Showing recruitment data for Week 3. This is the current week's performance metrics and team analytics.</p>
+                        <p>June 17-21, 2026</p>
+                        <p style="color: #666; margin-top: 15px;">Showing recruitment data for Week 3. This week's performance metrics and team analytics.</p>
                         <button class="btn-primary" onclick="showView('recruitment')">View Current Dashboard</button>
                     </div>
                 </div>
@@ -1869,6 +1869,67 @@
                         plugins: { legend: { display: false } }
                     }
                 });
+            }
+        }
+
+        // Calculate week number using ISO week formula (similar to WEEKNUM)
+        function getISOWeekNumber(date) {
+            // Make a copy of the date
+            const d = new Date(date);
+            // Thursday in current week decides year
+            d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+            // January 4
+            const yearStart = new Date(d.getFullYear(), 0, 4);
+            // Adjust to Thursday in week 1 and count number of weeks from date to yearStart
+            const weekNumber = Math.round(((d - yearStart) / 86400000 + 1) / 7);
+            return weekNumber;
+        }
+
+        // Initialize on page load - set active week based on current date
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const currentWeek = getISOWeekNumber(today);
+
+            // Log for debugging
+            console.log('Today:', today.toDateString());
+            console.log('Current Week Number:', currentWeek);
+
+            // Show the current week's data
+            if (currentWeek >= 1 && currentWeek <= 4) {
+                // Remove active class from all week sections
+                document.querySelectorAll('[id^="view-week"]').forEach(el => {
+                    el.classList.remove('active');
+                });
+
+                // Add active class to current week
+                const currentWeekView = document.getElementById(`view-week${currentWeek}`);
+                if (currentWeekView) {
+                    currentWeekView.classList.add('active');
+                    console.log(`Activated week ${currentWeek}`);
+                }
+            }
+
+            // Update the header to show current week
+            updateWeekHeader(currentWeek);
+
+            // Initialize charts
+            initRecruitmentChart();
+        });
+
+        // Update week header to show which week is current
+        function updateWeekHeader(weekNumber) {
+            // Week date ranges
+            const weekRanges = {
+                1: 'June 3-7, 2026',
+                2: 'June 10-14, 2026',
+                3: 'June 17-21, 2026',
+                4: 'June 24-28, 2026'
+            };
+
+            // Update the week display element
+            const weekDisplay = document.getElementById('weekDisplay');
+            if (weekDisplay) {
+                weekDisplay.textContent = `Week ${weekNumber} | ${weekRanges[weekNumber] || 'TBD'}`;
             }
         }
     </script>
