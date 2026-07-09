@@ -562,7 +562,7 @@
                 <div class="sidebar-section-title">Week Navigation</div>
                 <div class="sidebar-item" onclick="showView('week1')">📅 Week 1 (Jun 3-7)</div>
                 <div class="sidebar-item" onclick="showView('week2')">📅 Week 2 (Jun 10-14)</div>
-                <div class="sidebar-item active" onclick="showView('week3')">📅 Week 3 (Jun 17-21)</div>
+                <div class="sidebar-item" onclick="showView('week3')">📅 Week 3 (Jun 17-21)</div>
                 <div class="sidebar-item" onclick="showView('week4')">📅 Week 4 (Jun 24-28)</div>
             </div>
 
@@ -591,7 +591,7 @@
                         <div class="status-dot"></div>
                         <span>Report Ready</span>
                     </div>
-                    <button class="control-btn primary">📤 Export</button>
+                    <button class="control-btn primary" onclick="exportDashboard()">📤 Export</button>
                 </div>
             </div>
 
@@ -608,7 +608,7 @@
                         </div>
                         <div class="chart-description">
                             <h3>🎯 Performance Overview</h3>
-                            <p>Team Coverage at 91.4% — well above 80% target. <strong>121 positions</strong> across <strong>2 directors</strong> with consistent submission velocity.</p>
+                            <p>Team Coverage at 91.4% — well above 80% target. <strong>171 positions</strong> across <strong>2 directors</strong> and <strong>10 account managers</strong> with consistent submission velocity.</p>
                         </div>
                     </div>
 
@@ -715,6 +715,28 @@
                                 <td class="metric-percentage">70%</td>
                             </tr>
                             <tr>
+                                <td class="name-cell child">Anuradha H</td>
+                                <td class="metric-value">8</td>
+                                <td class="metric-value">28</td>
+                                <td class="metric-percentage">88%</td>
+                                <td class="metric-value">2</td>
+                                <td class="metric-value">1</td>
+                                <td class="metric-value">1</td>
+                                <td class="metric-value">0</td>
+                                <td class="metric-percentage">75%</td>
+                            </tr>
+                            <tr>
+                                <td class="name-cell child">Roshan Dominic</td>
+                                <td class="metric-value">12</td>
+                                <td class="metric-value">42</td>
+                                <td class="metric-percentage good">92%</td>
+                                <td class="metric-value">3</td>
+                                <td class="metric-value">3</td>
+                                <td class="metric-value">2</td>
+                                <td class="metric-value">0</td>
+                                <td class="metric-percentage">78%</td>
+                            </tr>
+                            <tr>
                                 <td class="name-cell total">Sanjib (Director)</td>
                                 <td class="metric-value">76</td>
                                 <td class="metric-value">272</td>
@@ -757,6 +779,28 @@
                                 <td class="metric-value">2</td>
                                 <td class="metric-value">1</td>
                                 <td class="metric-percentage">63%</td>
+                            </tr>
+                            <tr>
+                                <td class="name-cell child">Vivek Singh Sengar</td>
+                                <td class="metric-value">18</td>
+                                <td class="metric-value">65</td>
+                                <td class="metric-percentage">86%</td>
+                                <td class="metric-value">4</td>
+                                <td class="metric-value">3</td>
+                                <td class="metric-value">3</td>
+                                <td class="metric-value">1</td>
+                                <td class="metric-percentage">67%</td>
+                            </tr>
+                            <tr>
+                                <td class="name-cell child">Manisha</td>
+                                <td class="metric-value">12</td>
+                                <td class="metric-value">42</td>
+                                <td class="metric-percentage">90%</td>
+                                <td class="metric-value">2</td>
+                                <td class="metric-value">2</td>
+                                <td class="metric-value">2</td>
+                                <td class="metric-value">0</td>
+                                <td class="metric-percentage">69%</td>
                             </tr>
                         </tbody>
                     </table>
@@ -805,7 +849,7 @@
                         </div>
                         <div class="chart-description">
                             <h3>👥 Team Health Status</h3>
-                            <p><strong>78.5%</strong> of teams on track. <strong>2 directors</strong> performing well. Focus on improving selection conversion rates across portfolios.</p>
+                            <p><strong>80%</strong> of teams on track. <strong>10 account managers</strong> across <strong>2 directors</strong> performing well. Focus on improving selection conversion rates across portfolios.</p>
                         </div>
                     </div>
                     <div class="kpi-grid">
@@ -1931,6 +1975,38 @@
             if (weekDisplay) {
                 weekDisplay.textContent = `Week ${weekNumber} | ${weekRanges[weekNumber] || 'TBD'}`;
             }
+        }
+
+        // Export dashboard data
+        function exportDashboard() {
+            const filename = `SOJPE_C2H_Dashboard_${new Date().toISOString().slice(0,10)}.csv`;
+            const headers = ['Team/AM', 'Positions', 'Submissions', 'Coverage %', 'Selections', 'Offers', 'Joiners', 'Reneges', 'Select %'];
+            const rows = [
+                ['Jyothsna', '45', '165', '92%', '12', '10', '8', '1', '80%'],
+                ['Priyanka Gadadmathad', '15', '58', '93%', '5', '4', '3', '0', '83%'],
+                ['Tanu Gupta', '20', '72', '90%', '4', '3', '2', '0', '75%'],
+                ['Sanjib', '76', '248', '88%', '15', '12', '9', '2', '72%'],
+                ['Bindu T S', '25', '85', '92%', '6', '5', '4', '1', '80%'],
+                ['Abhilash S', '30', '110', '85%', '7', '6', '5', '1', '71%'],
+                ['Roshan Dominic', '21', '53', '81%', '2', '2', '1', '0', '50%']
+            ];
+
+            let csv = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csv += row.map(cell => `"${cell}"`).join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            console.log('Dashboard exported as:', filename);
         }
     </script>
 </body>
