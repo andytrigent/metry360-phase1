@@ -1855,18 +1855,16 @@
         function showView(view) {
             console.log('Showing view:', view);
 
-            // Handle week clicks - update header
+            // Handle week clicks - update header with dynamic data
             if (view.startsWith('week')) {
                 const weekNum = parseInt(view.replace('week', ''));
-                const weekRanges = {
-                    1: 'Jun 3-7',
-                    2: 'Jun 10-14',
-                    3: 'Jun 17-21',
-                    4: 'Jun 24-28'
-                };
+                const weekData = window.dynamicWeekData || {};
                 const headerBtn = document.querySelector('.header-controls button:first-child');
-                if (headerBtn && weekRanges[weekNum]) {
-                    headerBtn.textContent = `Week ${weekNum} (${weekRanges[weekNum]})`;
+                if (headerBtn && weekData[`week${weekNum}`]) {
+                    const weekInfo = weekData[`week${weekNum}`];
+                    headerBtn.textContent = `Week ${weekNum} (${weekInfo.start} - ${weekInfo.end})`;
+                } else if (headerBtn) {
+                    headerBtn.textContent = `Week ${weekNum}`;
                 }
             }
 
@@ -2066,14 +2064,26 @@
             return date.toLocaleString('default', { month: 'long' });
         }
 
-        // Fetch reporting period from API
+        // Fetch reporting period from API and calculate week dates
         async function fetchReportingPeriod() {
             try {
                 const response = await fetch('/api/reporting-period');
                 if (!response.ok) throw new Error('Failed to fetch reporting period');
                 const data = await response.json();
                 if (data.success && data.reporting_period) {
-                    return data.reporting_period;
+                    const period = data.reporting_period;
+
+                    // Calculate all 4 weeks for the month based on actual uploaded data
+                    const monthStart = new Date(period.month_number === 1 ? period.week_start.split('-')[0] - 1 : period.week_start.split('-')[0],
+                                                period.month_number - 1, 1);
+                    window.dynamicWeekData = {
+                        week1: { start: `${monthStart.getDate()}-${monthStart.toLocaleString('default', {month: 'short'})}`, end: `${monthStart.getDate() + 6}-${monthStart.toLocaleString('default', {month: 'short'})}` },
+                        week2: { start: `${monthStart.getDate() + 7}-${monthStart.toLocaleString('default', {month: 'short'})}`, end: `${monthStart.getDate() + 13}-${monthStart.toLocaleString('default', {month: 'short'})}` },
+                        week3: { start: `${monthStart.getDate() + 14}-${monthStart.toLocaleString('default', {month: 'short'})}`, end: `${monthStart.getDate() + 20}-${monthStart.toLocaleString('default', {month: 'short'})}` },
+                        week4: { start: `${monthStart.getDate() + 21}-${monthStart.toLocaleString('default', {month: 'short'})}`, end: `${monthStart.getDate() + 27}-${monthStart.toLocaleString('default', {month: 'short'})}` }
+                    };
+
+                    return period;
                 }
             } catch (error) {
                 console.log('Using default reporting period (API unavailable):', error);
