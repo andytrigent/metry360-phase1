@@ -2000,14 +2000,43 @@
             return date.toLocaleString('default', { month: 'long' });
         }
 
-        // Initialize on page load - set active week based on current date
-        document.addEventListener('DOMContentLoaded', function() {
-            const today = new Date();
-            const currentWeekOfMonth = getWeekOfMonth(today);
-            const monthName = getMonthName(today);
+        // Fetch reporting period from API
+        async function fetchReportingPeriod() {
+            try {
+                const response = await fetch('/api/reporting-period');
+                if (!response.ok) throw new Error('Failed to fetch reporting period');
+                const data = await response.json();
+                if (data.success && data.reporting_period) {
+                    return data.reporting_period;
+                }
+            } catch (error) {
+                console.log('Using default reporting period (API unavailable):', error);
+            }
+            return null;
+        }
+
+        // Initialize on page load - set active week based on latest uploads
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Try to get reporting period from API first
+            const reportingPeriod = await fetchReportingPeriod();
+
+            let currentWeekOfMonth, monthName, weekStart, weekEnd;
+
+            if (reportingPeriod) {
+                currentWeekOfMonth = reportingPeriod.week;
+                monthName = reportingPeriod.month.split(' ')[0];  // Get month name only
+                weekStart = reportingPeriod.week_start;
+                weekEnd = reportingPeriod.week_end;
+                console.log('Loaded from API - Week', currentWeekOfMonth, 'of', reportingPeriod.month);
+            } else {
+                // Fallback to current date if API is unavailable
+                const today = new Date();
+                currentWeekOfMonth = getWeekOfMonth(today);
+                monthName = getMonthName(today);
+                console.log('Using fallback - Week', currentWeekOfMonth, 'of', monthName);
+            }
 
             // Log for debugging
-            console.log('Today:', today.toDateString());
             console.log('Current Week of Month:', currentWeekOfMonth);
 
             // Update week header
@@ -2028,8 +2057,8 @@
                 }
             }
 
-            // Update the header to show current week
-            updateWeekHeader(currentWeek);
+            // Update the header to show current week with dates
+            updateWeekHeader(currentWeekOfMonth, weekStart, weekEnd);
 
             // Initialize charts
             initRecruitmentChart();
@@ -2070,20 +2099,33 @@
             });
         }
 
-        // Update week header to show which week is current
-        function updateWeekHeader(weekNumber) {
-            // Week date ranges
-            const weekRanges = {
-                1: 'June 3-7, 2026',
-                2: 'June 10-14, 2026',
-                3: 'June 17-21, 2026',
-                4: 'June 24-28, 2026'
-            };
+        // Update week header to show which week is current with dates from API
+        function updateWeekHeader(weekNumber, weekStart, weekEnd) {
+            // Use dates from API if available, otherwise use hardcoded ranges
+            let dateRange;
+            if (weekStart && weekEnd) {
+                dateRange = `${weekStart} - ${weekEnd}`;
+            } else {
+                // Fallback hardcoded ranges
+                const weekRanges = {
+                    1: 'June 3-7, 2026',
+                    2: 'June 10-14, 2026',
+                    3: 'June 17-21, 2026',
+                    4: 'June 24-28, 2026'
+                };
+                dateRange = weekRanges[weekNumber] || 'TBD';
+            }
 
-            // Update the week display element
+            // Update the header button
+            const weekHeaderBtn = document.querySelector('.header-controls button:first-child');
+            if (weekHeaderBtn) {
+                weekHeaderBtn.textContent = `Week ${weekNumber} (${dateRange})`;
+            }
+
+            // Also update the week display element if it exists
             const weekDisplay = document.getElementById('weekDisplay');
             if (weekDisplay) {
-                weekDisplay.textContent = `Week ${weekNumber} | ${weekRanges[weekNumber] || 'TBD'}`;
+                weekDisplay.textContent = `Week ${weekNumber} | ${dateRange}`;
             }
         }
 
