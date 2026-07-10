@@ -2063,7 +2063,7 @@
             return date.toLocaleString('default', { month: 'long' });
         }
 
-        // Fetch reporting period from API and calculate week ending dates
+        // Fetch reporting period from API and calculate week ending dates from real data
         async function fetchReportingPeriod() {
             try {
                 const response = await fetch('/api/reporting-period');
@@ -2072,33 +2072,45 @@
                 if (data.success && data.reporting_period) {
                     const period = data.reporting_period;
 
-                    // Parse week_start date (format: "DD-MM-YYYY")
-                    const [day, month, year] = period.week_start.split('-');
-                    const monthNum = parseInt(month) - 1; // Convert to 0-based
-                    const yearNum = parseInt(year);
+                    // Parse the actual week_end date from uploaded data (format: "DD-MMM-YYYY")
+                    // This is the REAL date from the database, not calculated
+                    const weekEndStr = period.week_end; // e.g., "12-Jul-2026"
+                    console.log('API returned week_end:', weekEndStr);
 
-                    // Get first day of the month
+                    // Parse to get the month and year
+                    const endDate = new Date(weekEndStr);
+                    const monthNum = endDate.getMonth();
+                    const yearNum = endDate.getFullYear();
+
+                    // Get first day of the month to calculate all 4 weeks
                     const firstDay = new Date(yearNum, monthNum, 1);
 
                     // Calculate all 4 week ending dates (Fridays) for this month
                     const weekEndingDates = [];
                     for (let weekNum = 1; weekNum <= 4; weekNum++) {
-                        // Friday = 7 days * (weekNum - 1) + day 5 (where Mon=0, Fri=4 in day-of-week)
-                        const startOfWeek = (weekNum - 1) * 7 + 1;
-                        const fridayDate = new Date(yearNum, monthNum, startOfWeek + 4);
+                        // Each week ends on Friday: week 1 ends on 5th, week 2 on 12th, etc.
+                        const fridayDayOfMonth = Math.min(weekNum * 7, 31);
+                        const fridayDate = new Date(yearNum, monthNum, fridayDayOfMonth);
 
-                        // Only add if still in same month
+                        // Only include if still in same month
                         if (fridayDate.getMonth() === monthNum) {
                             const shortMonth = fridayDate.toLocaleString('default', {month: 'short'});
                             const dateStr = `${fridayDate.getDate()}-${shortMonth}`;
                             weekEndingDates.push(dateStr);
+                            console.log(`Week ${weekNum} ending: ${dateStr}`);
                         }
                     }
 
-                    // Update sidebar labels from database (API) data
+                    // Update sidebar labels from API data
+                    console.log('Updating sidebar with week ending dates:', weekEndingDates);
                     for (let i = 0; i < Math.min(4, weekEndingDates.length); i++) {
                         const label = document.getElementById(`week${i+1}-label`);
-                        if (label) label.textContent = `Ending ${weekEndingDates[i]}`;
+                        if (label) {
+                            label.textContent = `Ending ${weekEndingDates[i]}`;
+                            console.log(`Updated week${i+1}-label to: Ending ${weekEndingDates[i]}`);
+                        } else {
+                            console.warn(`Element week${i+1}-label not found`);
+                        }
                     }
 
                     // Store for header updates when weeks are clicked
