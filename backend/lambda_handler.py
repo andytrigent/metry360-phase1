@@ -9,7 +9,7 @@ import sys
 import uuid
 import boto3
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import parse_qs
 
 # AWS Clients
@@ -544,67 +544,57 @@ def reprocess_report(event, context, report_id):
         return error_response(500, 'REPROCESS_FAILED', str(e))
 
 def get_reporting_period(event, context):
-    """GET /api/reporting-period - Get the current reporting week/month from latest uploads"""
+    """GET /api/reporting-period - Week-ending (Friday) dates derived from latest uploaded data"""
     try:
         # Get latest report from DynamoDB
         table = dynamodb.Table(DYNAMODB_TABLE)
-
-        # Scan for the most recent report
         response_data = table.scan(Limit=50)
         reports = response_data.get('Items', [])
 
-        if not reports:
-            return error_response(404, 'NO_REPORTS', 'No reports found')
+        latest_dt = None
+        report_id = None
+        source = 'uploads'
 
-        # Sort by created_at to find latest
-        latest_report = max(reports, key=lambda x: x.get('created_at', ''))
+        if reports:
+            latest_report = max(reports, key=lambda x: x.get('created_at', ''))
+            report_id = latest_report.get('report_id')
+            created = str(latest_report.get('created_at', ''))
+            try:
+                latest_dt = datetime.fromisoformat(created.replace('Z', '+00:00')).replace(tzinfo=None)
+            except (ValueError, TypeError):
+                latest_dt = None
 
-        report_id = latest_report.get('report_id')
+        if latest_dt is None:
+            # No uploads yet - report the current week so the dashboard stays usable
+            latest_dt = datetime.utcnow()
+            source = 'current_date'
 
-        # Get files from S3 for this report
-        files_list = list_report_files(report_id)
+        # Friday of the week the data belongs to (Mon=0 .. Fri=4; Sat/Sun map back to that Friday)
+        week_ending = latest_dt + timedelta(days=4 - latest_dt.weekday())
 
-        # Extract dates from file metadata
-        dates_found = []
-        for file_info in files_list:
-            uploaded_time = file_info.get('uploaded', '')
-            if uploaded_time:
-                dates_found.append(uploaded_time)
+        # All Fridays in that month drive the sidebar week list
+        d = latest_dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        d = d + timedelta(days=(4 - d.weekday()) % 7)
+        fridays = []
+        while d.month == latest_dt.month:
+            fridays.append(d)
+            d += timedelta(days=7)
 
-        # Determine reporting period
-        if dates_found:
-            latest_date = max(dates_found)
-            latest_dt = datetime.fromisoformat(latest_date.replace('Z', '+00:00'))
-        else:
-            latest_dt = datetime.fromisoformat(latest_report.get('created_at'))
+        week_num = next((i + 1 for i, f in enumerate(fridays) if f.date() == week_ending.date()), 1)
 
-        # Calculate week and month
-        month_name = latest_dt.strftime('%B %Y')
-        month_num = latest_dt.month
-
-        # Calculate week of month
-        day_of_month = latest_dt.day
-        week_of_month = (day_of_month - 1) // 7 + 1
-
-        # Get week start and end dates
-        first_day = latest_dt.replace(day=1)
-        week_start_day = (week_of_month - 1) * 7 + 1
-        week_end_day = min(week_start_day + 6, 31)
-
-        week_start = latest_dt.replace(day=week_start_day)
-        week_end = latest_dt.replace(day=week_end_day)
-
-        log_event('GetReportingPeriod', {'month': month_name, 'week': week_of_month})
+        log_event('GetReportingPeriod', {'month': latest_dt.strftime('%B %Y'), 'week': week_num})
 
         return response(200, {
             'success': True,
             'reporting_period': {
-                'month': month_name,
-                'month_number': month_num,
-                'week': week_of_month,
-                'week_start': week_start.strftime('%d-%b-%Y'),
-                'week_end': week_end.strftime('%d-%b-%Y'),
-                'latest_upload': latest_date,
+                'month': latest_dt.strftime('%B %Y'),
+                'month_number': latest_dt.month,
+                'week': week_num,
+                'week_ending': week_ending.strftime('%d-%b-%Y'),
+                'week_endings': [f.strftime('%d-%b-%Y') for f in fridays],
+                'week_start': (week_ending - timedelta(days=4)).strftime('%d-%b-%Y'),
+                'week_end': week_ending.strftime('%d-%b-%Y'),
+                'source': source,
                 'report_id': report_id
             },
             'timestamp': datetime.utcnow().isoformat()

@@ -2,5 +2,11 @@
   "version": 2,
   "buildCommand": "echo 'Static HTML files'",
   "outputDirectory": "public",
-  "framework": null
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://2g852sgu1i.execute-api.ap-south-1.amazonaws.com/prod/api/:path*"
+    }
+  ]
 }

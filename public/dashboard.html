@@ -585,10 +585,11 @@
 
             <div class="sidebar-section">
                 <div class="sidebar-section-title">Week Navigation</div>
-                <div class="sidebar-item" onclick="showView('week1')">📅 <span id="week1-label">Loading...</span></div>
-                <div class="sidebar-item" onclick="showView('week2')">📅 <span id="week2-label">Loading...</span></div>
-                <div class="sidebar-item" onclick="showView('week3')">📅 <span id="week3-label">Loading...</span></div>
-                <div class="sidebar-item" onclick="showView('week4')">📅 <span id="week4-label">Loading...</span></div>
+                <div class="sidebar-item" id="week1-nav" onclick="showView('week1')">📅 <span id="week1-label">Loading...</span></div>
+                <div class="sidebar-item" id="week2-nav" onclick="showView('week2')">📅 <span id="week2-label">Loading...</span></div>
+                <div class="sidebar-item" id="week3-nav" onclick="showView('week3')">📅 <span id="week3-label">Loading...</span></div>
+                <div class="sidebar-item" id="week4-nav" onclick="showView('week4')">📅 <span id="week4-label">Loading...</span></div>
+                <div class="sidebar-item" id="week5-nav" onclick="showView('week5')" style="display: none;">📅 <span id="week5-label">Loading...</span></div>
             </div>
 
             <div class="sidebar-section">
@@ -606,7 +607,7 @@
                 <div class="header-left">
                     <h1>The Weekly ScorecCard</h1>
                     <div class="header-controls">
-                        <button class="control-btn">Week 3 (17-21 Jun)</button>
+                        <button class="control-btn" id="currentWeekBtn">Loading...</button>
                         <button class="control-btn">View: Jyothsna</button>
                         <button class="control-btn">All Roles</button>
                     </div>
@@ -678,7 +679,7 @@
                 <div class="table-section">
                     <div class="table-header">
                         <span>Recruitment Scorecard</span>
-                        <span style="font-size: 11px; font-weight: normal; color: #999;" id="weekDisplay">Week 3 | June 17-21, 2026</span>
+                        <span style="font-size: 11px; font-weight: normal; color: #999;" class="week-display" id="weekDisplay">Loading...</span>
                     </div>
                     <table>
                         <thead>
@@ -937,7 +938,7 @@
                 <div class="table-section">
                     <div class="table-header">
                         <span>Team Performance Summary</span>
-                        <span style="font-size: 11px; font-weight: normal; color: #999;">Week 3 | June 17-21, 2026</span>
+                        <span style="font-size: 11px; font-weight: normal; color: #999;" class="week-display">Loading...</span>
                     </div>
                     <table>
                         <thead>
@@ -1031,7 +1032,7 @@
                 <div class="table-section">
                     <div class="table-header">
                         <span>Individual AM Performance (Expanded)</span>
-                        <span style="font-size: 11px; font-weight: normal; color: #999;">Week 3 | June 17-21, 2026</span>
+                        <span style="font-size: 11px; font-weight: normal; color: #999;" class="week-display">Loading...</span>
                     </div>
                     <table>
                         <thead>
@@ -1221,7 +1222,7 @@
                 <div class="table-section">
                     <div class="table-header">
                         <span>AM-Level Productivity</span>
-                        <span style="font-size: 11px; font-weight: normal; color: #999;">Week 3 | June 17-21, 2026</span>
+                        <span style="font-size: 11px; font-weight: normal; color: #999;" class="week-display">Loading...</span>
                     </div>
                     <table>
                         <thead>
@@ -1323,7 +1324,7 @@
                 <div class="table-section">
                     <div class="table-header">
                         <span>Director Comparative Analysis</span>
-                        <span style="font-size: 11px; font-weight: normal; color: #999;">Week 3 | June 17-21, 2026</span>
+                        <span style="font-size: 11px; font-weight: normal; color: #999;" class="week-display">Loading...</span>
                     </div>
                     <table>
                         <thead>
@@ -1386,9 +1387,9 @@
                 <div id="view-week1" class="view-section">
                     <div class="empty-state">
                         <div class="empty-state-icon">📅</div>
-                        <h2>Week 1 Report</h2>
-                        <p>June 3-7, 2026</p>
-                        <p style="color: #666; margin-top: 15px;">Showing recruitment data for Week 1. This week's performance metrics and team analytics.</p>
+                        <h2 id="view-week1-title">Weekly Report</h2>
+                        <p id="view-week1-date"></p>
+                        <p style="color: #666; margin-top: 15px;">Showing recruitment data for this week. Performance metrics and team analytics.</p>
                         <button class="btn-primary" onclick="showView('recruitment')">View Current Dashboard</button>
                     </div>
                 </div>
@@ -1396,9 +1397,9 @@
                 <div id="view-week2" class="view-section">
                     <div class="empty-state">
                         <div class="empty-state-icon">📅</div>
-                        <h2>Week 2 Report</h2>
-                        <p>June 10-14, 2026</p>
-                        <p style="color: #666; margin-top: 15px;">Showing recruitment data for Week 2. This week's performance metrics and team analytics.</p>
+                        <h2 id="view-week2-title">Weekly Report</h2>
+                        <p id="view-week2-date"></p>
+                        <p style="color: #666; margin-top: 15px;">Showing recruitment data for this week. Performance metrics and team analytics.</p>
                         <button class="btn-primary" onclick="showView('recruitment')">View Current Dashboard</button>
                     </div>
                 </div>
@@ -1406,9 +1407,9 @@
                 <div id="view-week3" class="view-section">
                     <div class="empty-state">
                         <div class="empty-state-icon">📅</div>
-                        <h2>Week 3 Report</h2>
-                        <p>June 17-21, 2026</p>
-                        <p style="color: #666; margin-top: 15px;">Showing recruitment data for Week 3. This week's performance metrics and team analytics.</p>
+                        <h2 id="view-week3-title">Weekly Report</h2>
+                        <p id="view-week3-date"></p>
+                        <p style="color: #666; margin-top: 15px;">Showing recruitment data for this week. Performance metrics and team analytics.</p>
                         <button class="btn-primary" onclick="showView('recruitment')">View Current Dashboard</button>
                     </div>
                 </div>
@@ -1416,9 +1417,19 @@
                 <div id="view-week4" class="view-section">
                     <div class="empty-state">
                         <div class="empty-state-icon">📅</div>
-                        <h2>Week 4 Report</h2>
-                        <p>June 24-28, 2026</p>
-                        <p style="color: #666; margin-top: 15px;">Showing recruitment data for Week 4. This week's performance metrics and team analytics.</p>
+                        <h2 id="view-week4-title">Weekly Report</h2>
+                        <p id="view-week4-date"></p>
+                        <p style="color: #666; margin-top: 15px;">Showing recruitment data for this week. Performance metrics and team analytics.</p>
+                        <button class="btn-primary" onclick="showView('recruitment')">View Current Dashboard</button>
+                    </div>
+                </div>
+
+                <div id="view-week5" class="view-section">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📅</div>
+                        <h2 id="view-week5-title">Weekly Report</h2>
+                        <p id="view-week5-date"></p>
+                        <p style="color: #666; margin-top: 15px;">Showing recruitment data for this week. Performance metrics and team analytics.</p>
                         <button class="btn-primary" onclick="showView('recruitment')">View Current Dashboard</button>
                     </div>
                 </div>
@@ -1855,15 +1866,14 @@
         function showView(view) {
             console.log('Showing view:', view);
 
-            // Handle week clicks - update header with week ending date from API
+            // Handle week clicks - header and view text follow the selected week's ending date
             if (view.startsWith('week')) {
                 const weekNum = parseInt(view.replace('week', ''));
-                const weekEndingDates = window.dynamicWeekEndingDates || [];
-                const headerBtn = document.querySelector('.header-controls button:first-child');
-                if (headerBtn && weekEndingDates[weekNum - 1]) {
-                    headerBtn.textContent = `📅 Week Ending ${weekEndingDates[weekNum - 1]}`;
-                } else if (headerBtn) {
-                    headerBtn.textContent = `📅 Week ${weekNum}`;
+                updateWeekHeader(weekNum);
+                const dates = window.dynamicWeekEndingDates || [];
+                const dateEl = document.getElementById(`view-${view}-date`);
+                if (dateEl) {
+                    dateEl.textContent = dates[weekNum - 1] ? `Week Ending ${dates[weekNum - 1]}` : '';
                 }
             }
 
@@ -2063,64 +2073,58 @@
             return date.toLocaleString('default', { month: 'long' });
         }
 
-        // Fetch reporting period from API and calculate week ending dates from real data
+        // Shorten "10-Jul-2026" -> "10-Jul" for compact sidebar display
+        function shortenWeekEnding(s) {
+            const parts = String(s).split('-');
+            return parts.length >= 2 ? `${parseInt(parts[0], 10)}-${parts[1]}` : s;
+        }
+
+        // Fallback only when API is unreachable: this month's Fridays from the live clock (never hardcoded)
+        function computeFridaysOfCurrentMonth() {
+            const now = new Date();
+            const fridays = [];
+            const d = new Date(now.getFullYear(), now.getMonth(), 1);
+            d.setDate(d.getDate() + (5 - d.getDay() + 7) % 7); // first Friday (Sun=0..Fri=5)
+            while (d.getMonth() === now.getMonth()) {
+                fridays.push(`${d.getDate()}-${d.toLocaleString('default', {month: 'short'})}`);
+                d.setDate(d.getDate() + 7);
+            }
+            return fridays;
+        }
+
+        // Populate sidebar week items from week-ending dates; hide items with no matching week
+        function applyWeekEndings(weekEndings) {
+            const shorts = weekEndings.map(shortenWeekEnding);
+            window.dynamicWeekEndingDates = shorts;
+            for (let i = 1; i <= 5; i++) {
+                const item = document.getElementById(`week${i}-nav`);
+                const label = document.getElementById(`week${i}-label`);
+                if (!item) continue;
+                if (shorts[i - 1]) {
+                    item.style.display = '';
+                    if (label) label.textContent = `Ending ${shorts[i - 1]}`;
+                } else {
+                    item.style.display = 'none';
+                }
+            }
+        }
+
+        // Fetch reporting period from API; week-ending dates come from the uploaded data
         async function fetchReportingPeriod() {
             try {
                 const response = await fetch('/api/reporting-period');
-                if (!response.ok) throw new Error('Failed to fetch reporting period');
+                if (!response.ok) throw new Error(`API returned ${response.status}`);
                 const data = await response.json();
                 if (data.success && data.reporting_period) {
                     const period = data.reporting_period;
-
-                    // Parse the actual week_end date from uploaded data (format: "DD-MMM-YYYY")
-                    // This is the REAL date from the database, not calculated
-                    const weekEndStr = period.week_end; // e.g., "12-Jul-2026"
-                    console.log('API returned week_end:', weekEndStr);
-
-                    // Parse to get the month and year
-                    const endDate = new Date(weekEndStr);
-                    const monthNum = endDate.getMonth();
-                    const yearNum = endDate.getFullYear();
-
-                    // Get first day of the month to calculate all 4 weeks
-                    const firstDay = new Date(yearNum, monthNum, 1);
-
-                    // Calculate all 4 week ending dates (Fridays) for this month
-                    const weekEndingDates = [];
-                    for (let weekNum = 1; weekNum <= 4; weekNum++) {
-                        // Each week ends on Friday: week 1 ends on 5th, week 2 on 12th, etc.
-                        const fridayDayOfMonth = Math.min(weekNum * 7, 31);
-                        const fridayDate = new Date(yearNum, monthNum, fridayDayOfMonth);
-
-                        // Only include if still in same month
-                        if (fridayDate.getMonth() === monthNum) {
-                            const shortMonth = fridayDate.toLocaleString('default', {month: 'short'});
-                            const dateStr = `${fridayDate.getDate()}-${shortMonth}`;
-                            weekEndingDates.push(dateStr);
-                            console.log(`Week ${weekNum} ending: ${dateStr}`);
-                        }
-                    }
-
-                    // Update sidebar labels from API data
-                    console.log('Updating sidebar with week ending dates:', weekEndingDates);
-                    for (let i = 0; i < Math.min(4, weekEndingDates.length); i++) {
-                        const label = document.getElementById(`week${i+1}-label`);
-                        if (label) {
-                            label.textContent = `Ending ${weekEndingDates[i]}`;
-                            console.log(`Updated week${i+1}-label to: Ending ${weekEndingDates[i]}`);
-                        } else {
-                            console.warn(`Element week${i+1}-label not found`);
-                        }
-                    }
-
-                    // Store for header updates when weeks are clicked
-                    window.dynamicWeekEndingDates = weekEndingDates;
-
+                    console.log('Reporting period from API:', period);
+                    applyWeekEndings(period.week_endings || []);
                     return period;
                 }
             } catch (error) {
-                console.log('Using default reporting period (API unavailable):', error);
+                console.warn('Reporting period API unavailable, deriving weeks from current date:', error);
             }
+            applyWeekEndings(computeFridaysOfCurrentMonth());
             return null;
         }
 
@@ -2129,45 +2133,22 @@
             // Try to get reporting period from API first
             const reportingPeriod = await fetchReportingPeriod();
 
-            let currentWeekOfMonth, monthName, weekStart, weekEnd;
+            let currentWeekOfMonth;
 
             if (reportingPeriod) {
                 currentWeekOfMonth = reportingPeriod.week;
-                monthName = reportingPeriod.month.split(' ')[0];  // Get month name only
-                weekStart = reportingPeriod.week_start;
-                weekEnd = reportingPeriod.week_end;
-                console.log('Loaded from API - Week', currentWeekOfMonth, 'of', reportingPeriod.month);
+                console.log('Loaded from API - Week', currentWeekOfMonth, 'of', reportingPeriod.month,
+                            '- ending', reportingPeriod.week_ending, '(source:', reportingPeriod.source + ')');
             } else {
-                // Fallback to current date if API is unavailable
+                // API unavailable: pick the week whose Friday is closest to today
                 const today = new Date();
-                currentWeekOfMonth = getWeekOfMonth(today);
-                monthName = getMonthName(today);
-                console.log('Using fallback - Week', currentWeekOfMonth, 'of', monthName);
+                const dates = window.dynamicWeekEndingDates || [];
+                currentWeekOfMonth = Math.max(1, dates.findIndex(d => parseInt(d, 10) >= today.getDate()) + 1) || 1;
+                console.log('Using fallback - Week', currentWeekOfMonth);
             }
 
-            // Log for debugging
-            console.log('Current Week of Month:', currentWeekOfMonth);
-
-            // Update week header
-            const weekDisplay = document.querySelector('.header-status') || {};
-
-            // Show the current week's data
-            if (currentWeekOfMonth >= 1 && currentWeekOfMonth <= 4) {
-                // Remove active class from all week sections
-                document.querySelectorAll('[id^="view-week"]').forEach(el => {
-                    el.classList.remove('active');
-                });
-
-                // Add active class to current week
-                const currentWeekView = document.getElementById(`view-week${currentWeekOfMonth}`);
-                if (currentWeekView) {
-                    currentWeekView.classList.add('active');
-                    console.log(`Activated week ${currentWeekOfMonth}`);
-                }
-            }
-
-            // Update the header to show current week with dates
-            updateWeekHeader(currentWeekOfMonth, weekStart, weekEnd);
+            // Update the header to show the current week's ending date
+            updateWeekHeader(currentWeekOfMonth);
 
             // Initialize charts
             initRecruitmentChart();
@@ -2298,34 +2279,20 @@
             });
         }
 
-        // Update week header to show which week is current with dates from API
-        function updateWeekHeader(weekNumber, weekStart, weekEnd) {
-            // Use dates from API if available, otherwise use hardcoded ranges
-            let dateRange;
-            if (weekStart && weekEnd) {
-                dateRange = `${weekStart} - ${weekEnd}`;
-            } else {
-                // Fallback hardcoded ranges
-                const weekRanges = {
-                    1: 'July 1-5, 2026',
-                    2: 'July 8-12, 2026',
-                    3: 'July 15-19, 2026',
-                    4: 'July 22-26, 2026'
-                };
-                dateRange = weekRanges[weekNumber] || 'TBD';
-            }
+        // Update week header from the week-ending dates loaded off the uploaded data
+        function updateWeekHeader(weekNumber) {
+            const dates = window.dynamicWeekEndingDates || [];
+            const ending = dates[weekNumber - 1];
+            const text = ending ? `Week Ending ${ending}` : `Week ${weekNumber}`;
 
-            // Update the header button
-            const weekHeaderBtn = document.querySelector('.header-controls button:first-child');
+            const weekHeaderBtn = document.getElementById('currentWeekBtn');
             if (weekHeaderBtn) {
-                weekHeaderBtn.textContent = `Week ${weekNumber} (${dateRange})`;
+                weekHeaderBtn.textContent = text;
             }
 
-            // Also update the week display element if it exists
-            const weekDisplay = document.getElementById('weekDisplay');
-            if (weekDisplay) {
-                weekDisplay.textContent = `Week ${weekNumber} | ${dateRange}`;
-            }
+            document.querySelectorAll('.week-display').forEach(el => {
+                el.textContent = text;
+            });
         }
 
         // Export dashboard data
