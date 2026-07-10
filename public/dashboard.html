@@ -347,6 +347,31 @@
             color: #666;
         }
 
+        /* Director row styles */
+        tbody tr.director-row {
+            cursor: pointer;
+            background: #f9f9f9;
+        }
+
+        tbody tr.director-row:hover {
+            background: #f0f0f0;
+        }
+
+        tbody tr.director-row .name-cell::before {
+            content: '▼ ';
+            color: var(--primary);
+            font-size: 10px;
+            margin-right: 4px;
+        }
+
+        tbody tr.director-row.collapsed .name-cell::before {
+            content: '▶ ';
+        }
+
+        tbody tr.child-row.hidden {
+            display: none;
+        }
+
         .name-cell.total {
             background: var(--gray-light);
             font-weight: 600;
@@ -608,7 +633,7 @@
                         </div>
                         <div class="chart-description">
                             <h3>🎯 Performance Overview</h3>
-                            <p>Team Coverage at 91.4% — well above 80% target. <strong>171 positions</strong> across <strong>2 directors</strong> and <strong>10 account managers</strong> with consistent submission velocity.</p>
+                            <p>Team Coverage at 91.4% — well above 80% target. <strong>171 positions</strong> across <strong>3 directors</strong> and <strong>13 account managers</strong> with consistent submission velocity.</p>
                         </div>
                     </div>
 
@@ -670,7 +695,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
+                            <tr class="director-row">
                                 <td class="name-cell total">Jyothsna (Director)</td>
                                 <td class="metric-value">45</td>
                                 <td class="metric-value">165</td>
@@ -681,7 +706,7 @@
                                 <td class="metric-value">1</td>
                                 <td class="metric-percentage good">80%</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Priyanka Gadadmathad</td>
                                 <td class="metric-value">15</td>
                                 <td class="metric-value">58</td>
@@ -692,7 +717,7 @@
                                 <td class="metric-value">0</td>
                                 <td class="metric-percentage">83%</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Tanu Gupta</td>
                                 <td class="metric-value">20</td>
                                 <td class="metric-value">72</td>
@@ -703,7 +728,7 @@
                                 <td class="metric-value">1</td>
                                 <td class="metric-percentage">75%</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Bharath C N</td>
                                 <td class="metric-value">10</td>
                                 <td class="metric-value">35</td>
@@ -714,7 +739,7 @@
                                 <td class="metric-value">0</td>
                                 <td class="metric-percentage">70%</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Anuradha H</td>
                                 <td class="metric-value">8</td>
                                 <td class="metric-value">28</td>
@@ -725,7 +750,7 @@
                                 <td class="metric-value">0</td>
                                 <td class="metric-percentage">75%</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Roshan Dominic</td>
                                 <td class="metric-value">12</td>
                                 <td class="metric-value">42</td>
@@ -736,7 +761,7 @@
                                 <td class="metric-value">0</td>
                                 <td class="metric-percentage">78%</td>
                             </tr>
-                            <tr>
+                            <tr class="director-row">
                                 <td class="name-cell total">Sanjib (Director)</td>
                                 <td class="metric-value">76</td>
                                 <td class="metric-value">272</td>
@@ -747,7 +772,7 @@
                                 <td class="metric-value">5</td>
                                 <td class="metric-percentage warning">72%</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Bindu T S</td>
                                 <td class="metric-value">25</td>
                                 <td class="metric-value">92</td>
@@ -758,7 +783,7 @@
                                 <td class="metric-value">2</td>
                                 <td class="metric-percentage">78%</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Abhilash S</td>
                                 <td class="metric-value">28</td>
                                 <td class="metric-value">104</td>
@@ -769,7 +794,7 @@
                                 <td class="metric-value">2</td>
                                 <td class="metric-percentage">69%</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Kavita Nyamagoud</td>
                                 <td class="metric-value">23</td>
                                 <td class="metric-value">76</td>
@@ -780,7 +805,7 @@
                                 <td class="metric-value">1</td>
                                 <td class="metric-percentage">63%</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Vivek Singh Sengar</td>
                                 <td class="metric-value">18</td>
                                 <td class="metric-value">65</td>
@@ -791,7 +816,7 @@
                                 <td class="metric-value">1</td>
                                 <td class="metric-percentage">67%</td>
                             </tr>
-                            <tr>
+                            <tr class="director-row">
                                 <td class="name-cell total">Manisha (Director)</td>
                                 <td class="metric-value">35</td>
                                 <td class="metric-value">127</td>
@@ -802,7 +827,7 @@
                                 <td class="metric-value">1</td>
                                 <td class="metric-percentage good">75%</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Sathish Kumar B</td>
                                 <td class="metric-value">12</td>
                                 <td class="metric-value">42</td>
@@ -813,7 +838,7 @@
                                 <td class="metric-value">0</td>
                                 <td class="metric-percentage">75%</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Nishant Tyagi</td>
                                 <td class="metric-value">12</td>
                                 <td class="metric-value">42</td>
@@ -824,7 +849,7 @@
                                 <td class="metric-value">1</td>
                                 <td class="metric-percentage">77%</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Divya Lakshmi</td>
                                 <td class="metric-value">11</td>
                                 <td class="metric-value">43</td>
@@ -882,7 +907,7 @@
                         </div>
                         <div class="chart-description">
                             <h3>👥 Team Health Status</h3>
-                            <p><strong>80%</strong> of teams on track. <strong>10 account managers</strong> across <strong>2 directors</strong> performing well. Focus on improving selection conversion rates across portfolios.</p>
+                            <p><strong>80%</strong> of teams on track. <strong>13 account managers</strong> across <strong>3 directors</strong> performing well. Focus on improving selection conversion rates across portfolios.</p>
                         </div>
                     </div>
                     <div class="kpi-grid">
@@ -926,7 +951,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
+                            <tr class="director-row">
                                 <td class="name-cell total">Jyothsna (Director)</td>
                                 <td class="metric-value">4</td>
                                 <td class="metric-percentage good">92%</td>
@@ -934,7 +959,7 @@
                                 <td class="metric-value">8</td>
                                 <td>✓ On Track</td>
                             </tr>
-                            <tr>
+                            <tr class="director-row">
                                 <td class="name-cell total">Sanjib (Director)</td>
                                 <td class="metric-value">5</td>
                                 <td class="metric-percentage">87%</td>
@@ -1013,7 +1038,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
+                            <tr class="director-row">
                                 <td class="name-cell total">Jyothsna (Director)</td>
                                 <td class="metric-value">45</td>
                                 <td class="metric-percentage good">92%</td>
@@ -1022,7 +1047,7 @@
                                 <td class="metric-value">8</td>
                                 <td>✓ On Track</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Priyanka Gadadmathad</td>
                                 <td class="metric-value">15</td>
                                 <td class="metric-percentage">93%</td>
@@ -1031,7 +1056,7 @@
                                 <td class="metric-value">3</td>
                                 <td>✓ On Track</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Tanu Gupta</td>
                                 <td class="metric-value">20</td>
                                 <td class="metric-percentage">90%</td>
@@ -1040,7 +1065,7 @@
                                 <td class="metric-value">4</td>
                                 <td>✓ On Track</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Bharath C N</td>
                                 <td class="metric-value">10</td>
                                 <td class="metric-percentage">95%</td>
@@ -1049,7 +1074,7 @@
                                 <td class="metric-value">1</td>
                                 <td>⚠ Watch</td>
                             </tr>
-                            <tr>
+                            <tr class="director-row">
                                 <td class="name-cell total">Sanjib (Director)</td>
                                 <td class="metric-value">76</td>
                                 <td class="metric-percentage warning">88%</td>
@@ -1058,7 +1083,7 @@
                                 <td class="metric-value">12</td>
                                 <td>⚠ Review</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Bindu T S</td>
                                 <td class="metric-value">25</td>
                                 <td class="metric-percentage">91%</td>
@@ -1067,7 +1092,7 @@
                                 <td class="metric-value">5</td>
                                 <td>✓ On Track</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Abhilash S</td>
                                 <td class="metric-value">28</td>
                                 <td class="metric-percentage">85%</td>
@@ -1076,7 +1101,7 @@
                                 <td class="metric-value">5</td>
                                 <td>⚠ Watch</td>
                             </tr>
-                            <tr>
+                            <tr class="child-row">
                                 <td class="name-cell child">Kavita Nyamagoud</td>
                                 <td class="metric-value">23</td>
                                 <td class="metric-percentage">89%</td>
@@ -1961,40 +1986,45 @@
             }
         }
 
-        // Calculate week number using ISO week formula (similar to WEEKNUM)
-        function getISOWeekNumber(date) {
-            // Make a copy of the date
+        // Calculate week of month
+        function getWeekOfMonth(date) {
             const d = new Date(date);
-            // Thursday in current week decides year
-            d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-            // January 4
-            const yearStart = new Date(d.getFullYear(), 0, 4);
-            // Adjust to Thursday in week 1 and count number of weeks from date to yearStart
-            const weekNumber = Math.round(((d - yearStart) / 86400000 + 1) / 7);
-            return weekNumber;
+            const firstDay = new Date(d.getFullYear(), d.getMonth(), 1);
+            const firstMonday = new Date(firstDay);
+            firstMonday.setDate(firstMonday.getDate() + (1 - firstMonday.getDay() + 7) % 7);
+            if (d < firstMonday) return 1;
+            return Math.ceil((d.getDate() + firstDay.getDay() - 1) / 7);
+        }
+
+        function getMonthName(date) {
+            return date.toLocaleString('default', { month: 'long' });
         }
 
         // Initialize on page load - set active week based on current date
         document.addEventListener('DOMContentLoaded', function() {
             const today = new Date();
-            const currentWeek = getISOWeekNumber(today);
+            const currentWeekOfMonth = getWeekOfMonth(today);
+            const monthName = getMonthName(today);
 
             // Log for debugging
             console.log('Today:', today.toDateString());
-            console.log('Current Week Number:', currentWeek);
+            console.log('Current Week of Month:', currentWeekOfMonth);
+
+            // Update week header
+            const weekDisplay = document.querySelector('.header-status') || {};
 
             // Show the current week's data
-            if (currentWeek >= 1 && currentWeek <= 4) {
+            if (currentWeekOfMonth >= 1 && currentWeekOfMonth <= 4) {
                 // Remove active class from all week sections
                 document.querySelectorAll('[id^="view-week"]').forEach(el => {
                     el.classList.remove('active');
                 });
 
                 // Add active class to current week
-                const currentWeekView = document.getElementById(`view-week${currentWeek}`);
+                const currentWeekView = document.getElementById(`view-week${currentWeekOfMonth}`);
                 if (currentWeekView) {
                     currentWeekView.classList.add('active');
-                    console.log(`Activated week ${currentWeek}`);
+                    console.log(`Activated week ${currentWeekOfMonth}`);
                 }
             }
 
@@ -2003,7 +2033,42 @@
 
             // Initialize charts
             initRecruitmentChart();
+
+            // Setup collapse/expand for directors
+            setupDirectorToggle();
         });
+
+        // Setup director collapse/expand functionality
+        function setupDirectorToggle() {
+            const directorRows = document.querySelectorAll('tbody tr.director-row');
+            directorRows.forEach(row => {
+                row.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const directorName = this.querySelector('.name-cell').textContent.trim();
+                    const isCollapsed = this.classList.contains('collapsed');
+
+                    if (isCollapsed) {
+                        // Expand
+                        this.classList.remove('collapsed');
+                        // Show all child rows
+                        let nextRow = this.nextElementSibling;
+                        while (nextRow && nextRow.classList.contains('child-row')) {
+                            nextRow.classList.remove('hidden');
+                            nextRow = nextRow.nextElementSibling;
+                        }
+                    } else {
+                        // Collapse
+                        this.classList.add('collapsed');
+                        // Hide all child rows
+                        let nextRow = this.nextElementSibling;
+                        while (nextRow && nextRow.classList.contains('child-row')) {
+                            nextRow.classList.add('hidden');
+                            nextRow = nextRow.nextElementSibling;
+                        }
+                    }
+                });
+            });
+        }
 
         // Update week header to show which week is current
         function updateWeekHeader(weekNumber) {
