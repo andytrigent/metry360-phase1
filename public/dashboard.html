@@ -585,10 +585,10 @@
 
             <div class="sidebar-section">
                 <div class="sidebar-section-title">Week Navigation</div>
-                <div class="sidebar-item" onclick="showView('week1')">📅 Week 1 (Jun 3-7)</div>
-                <div class="sidebar-item" onclick="showView('week2')">📅 Week 2 (Jun 10-14)</div>
-                <div class="sidebar-item" onclick="showView('week3')">📅 Week 3 (Jun 17-21)</div>
-                <div class="sidebar-item" onclick="showView('week4')">📅 Week 4 (Jun 24-28)</div>
+                <div class="sidebar-item" onclick="showView('week1')">📅 Week 1 (Jul 1-5)</div>
+                <div class="sidebar-item" onclick="showView('week2')">📅 Week 2 (Jul 8-12)</div>
+                <div class="sidebar-item" onclick="showView('week3')">📅 Week 3 (Jul 15-19)</div>
+                <div class="sidebar-item" onclick="showView('week4')">📅 Week 4 (Jul 22-26)</div>
             </div>
 
             <div class="sidebar-section">
@@ -1855,6 +1855,21 @@
         function showView(view) {
             console.log('Showing view:', view);
 
+            // Handle week clicks - update header
+            if (view.startsWith('week')) {
+                const weekNum = parseInt(view.replace('week', ''));
+                const weekRanges = {
+                    1: 'Jun 3-7',
+                    2: 'Jun 10-14',
+                    3: 'Jun 17-21',
+                    4: 'Jun 24-28'
+                };
+                const headerBtn = document.querySelector('.header-controls button:first-child');
+                if (headerBtn && weekRanges[weekNum]) {
+                    headerBtn.textContent = `Week ${weekNum} (${weekRanges[weekNum]})`;
+                }
+            }
+
             // Hide all view sections
             document.querySelectorAll('.view-section').forEach(section => {
                 section.classList.remove('active');
@@ -2249,10 +2264,10 @@
             } else {
                 // Fallback hardcoded ranges
                 const weekRanges = {
-                    1: 'June 3-7, 2026',
-                    2: 'June 10-14, 2026',
-                    3: 'June 17-21, 2026',
-                    4: 'June 24-28, 2026'
+                    1: 'July 1-5, 2026',
+                    2: 'July 8-12, 2026',
+                    3: 'July 15-19, 2026',
+                    4: 'July 22-26, 2026'
                 };
                 dateRange = weekRanges[weekNumber] || 'TBD';
             }
