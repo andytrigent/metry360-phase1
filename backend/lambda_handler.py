@@ -9,6 +9,8 @@ import sys
 import uuid
 import boto3
 import io
+import re
+import zipfile
 from datetime import datetime, timedelta
 from decimal import Decimal
 from urllib.parse import parse_qs
@@ -388,6 +390,39 @@ def match_file_type(name):
             return ft
     return None
 
+def _read_shared_strings(content):
+    """Read the sharedStrings XML of an xlsx (works without any Excel library)"""
+    try:
+        z = zipfile.ZipFile(io.BytesIO(content))
+        return z.read('xl/sharedStrings.xml').decode('utf-8', 'ignore')
+    except Exception:
+        return ''
+
+def extract_data_period(file_map):
+    """Determine the reporting period from the DATA inside the raw files (not the upload date).
+    Ceipal Selects/Renege carry 'Period: dd/mm/yy To dd/mm/yy'; Joiners carries From/To dates."""
+    for ft in ['Weekly Selects Report', 'Weekly Renege Report']:
+        content = file_map.get(ft)
+        if not content:
+            continue
+        shared = _read_shared_strings(content)
+        m = re.search(r'Period:\s*(\d{2})/(\d{2})/(\d{2})\s*To\s*(\d{2})/(\d{2})/(\d{2})', shared)
+        if m:
+            start = datetime(2000 + int(m.group(3)), int(m.group(2)), int(m.group(1)))
+            end = datetime(2000 + int(m.group(6)), int(m.group(5)), int(m.group(4)))
+            return start, end
+
+    content = file_map.get('Weekly Joiners Report')
+    if content:
+        shared = _read_shared_strings(content)
+        m1 = re.search(r'From Date\s*:\s*(\d{4})-(\d{2})-(\d{2})', shared)
+        m2 = re.search(r'To Date\s*:\s*(\d{4})-(\d{2})-(\d{2})', shared)
+        if m1 and m2:
+            return (datetime(int(m1.group(1)), int(m1.group(2)), int(m1.group(3))),
+                    datetime(int(m2.group(1)), int(m2.group(2)), int(m2.group(3))))
+
+    return None, None
+
 def upload_files(event, context):
     """POST /api/upload - Store the 7 Excel files (base64 JSON body) in S3 and run pipeline"""
     try:
@@ -435,13 +470,30 @@ def upload_files(event, context):
         if not stored_files:
             return error_response(400, 'NO_FILES', 'No valid files could be stored')
 
+        # Reporting period comes from the DATA inside the files, not the upload date
+        period_start, period_end = extract_data_period(file_map)
+        data_week_ending = None
+        data_period = None
+        if period_end:
+            friday = period_end + timedelta(days=4 - period_end.weekday())
+            data_week_ending = friday.strftime('%d-%b-%Y')
+            data_period = f"{period_start.strftime('%d-%b-%Y')} to {period_end.strftime('%d-%b-%Y')}"
+
         report_data = {
             'report_id': report_id,
-            'month': datetime.utcnow().strftime('%B %Y'),
+            'month': (period_end or datetime.utcnow()).strftime('%B %Y'),
             'file_count': len(stored_files),
             'files': stored_files
         }
         store_report_metadata(report_data)
+
+        if data_week_ending:
+            table = dynamodb.Table(DYNAMODB_TABLE)
+            table.update_item(
+                Key={'report_id': report_id},
+                UpdateExpression='SET data_week_ending = :w, data_period = :p',
+                ExpressionAttributeValues={':w': data_week_ending, ':p': data_period}
+            )
 
         # Execute pipeline against the real file contents
         processor = DataPipelineProcessor(report_id, file_map)
@@ -460,6 +512,8 @@ def upload_files(event, context):
             'file_count': len(stored_files),
             'expected_files': EXPECTED_FILES,
             'files': [{'name': sf['name'], 'size': sf['size']} for sf in stored_files],
+            'data_week_ending': data_week_ending,
+            'data_period': data_period,
             'pipeline_progress': {
                 'completed_steps': pipeline_result.get('completed_steps', 0),
                 'total_steps': pipeline_result.get('total_steps', 83)
@@ -604,11 +658,22 @@ def get_reporting_period(event, context):
         if reports:
             latest_report = max(reports, key=lambda x: x.get('created_at', ''))
             report_id = latest_report.get('report_id')
-            created = str(latest_report.get('created_at', ''))
-            try:
-                latest_dt = datetime.fromisoformat(created.replace('Z', '+00:00')).replace(tzinfo=None)
-            except (ValueError, TypeError):
-                latest_dt = None
+
+            # Prefer the period detected inside the uploaded data over the upload timestamp
+            dwe = latest_report.get('data_week_ending')
+            if dwe:
+                try:
+                    latest_dt = datetime.strptime(str(dwe), '%d-%b-%Y')
+                    source = 'data_period'
+                except (ValueError, TypeError):
+                    latest_dt = None
+
+            if latest_dt is None:
+                created = str(latest_report.get('created_at', ''))
+                try:
+                    latest_dt = datetime.fromisoformat(created.replace('Z', '+00:00')).replace(tzinfo=None)
+                except (ValueError, TypeError):
+                    latest_dt = None
 
         if latest_dt is None:
             # No uploads yet - report the current week so the dashboard stays usable
