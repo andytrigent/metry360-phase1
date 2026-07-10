@@ -585,10 +585,10 @@
 
             <div class="sidebar-section">
                 <div class="sidebar-section-title">Week Navigation</div>
-                <div class="sidebar-item" onclick="showView('week1')">📅 Week 1 (Jul 1-5)</div>
-                <div class="sidebar-item" onclick="showView('week2')">📅 Week 2 (Jul 8-12)</div>
-                <div class="sidebar-item" onclick="showView('week3')">📅 Week 3 (Jul 15-19)</div>
-                <div class="sidebar-item" onclick="showView('week4')">📅 Week 4 (Jul 22-26)</div>
+                <div class="sidebar-item" onclick="showView('week1')">📅 <span id="week1-label">Loading...</span></div>
+                <div class="sidebar-item" onclick="showView('week2')">📅 <span id="week2-label">Loading...</span></div>
+                <div class="sidebar-item" onclick="showView('week3')">📅 <span id="week3-label">Loading...</span></div>
+                <div class="sidebar-item" onclick="showView('week4')">📅 <span id="week4-label">Loading...</span></div>
             </div>
 
             <div class="sidebar-section">
@@ -1855,16 +1855,15 @@
         function showView(view) {
             console.log('Showing view:', view);
 
-            // Handle week clicks - update header with dynamic data
+            // Handle week clicks - update header with week ending date from API
             if (view.startsWith('week')) {
                 const weekNum = parseInt(view.replace('week', ''));
-                const weekData = window.dynamicWeekData || {};
+                const weekEndingDates = window.dynamicWeekEndingDates || [];
                 const headerBtn = document.querySelector('.header-controls button:first-child');
-                if (headerBtn && weekData[`week${weekNum}`]) {
-                    const weekInfo = weekData[`week${weekNum}`];
-                    headerBtn.textContent = `Week ${weekNum} (${weekInfo.start} - ${weekInfo.end})`;
+                if (headerBtn && weekEndingDates[weekNum - 1]) {
+                    headerBtn.textContent = `📅 Week Ending ${weekEndingDates[weekNum - 1]}`;
                 } else if (headerBtn) {
-                    headerBtn.textContent = `Week ${weekNum}`;
+                    headerBtn.textContent = `📅 Week ${weekNum}`;
                 }
             }
 
@@ -2064,7 +2063,7 @@
             return date.toLocaleString('default', { month: 'long' });
         }
 
-        // Fetch reporting period from API and calculate week dates
+        // Fetch reporting period from API and calculate week ending dates
         async function fetchReportingPeriod() {
             try {
                 const response = await fetch('/api/reporting-period');
@@ -2073,15 +2072,37 @@
                 if (data.success && data.reporting_period) {
                     const period = data.reporting_period;
 
-                    // Calculate all 4 weeks for the month based on actual uploaded data
-                    const monthStart = new Date(period.month_number === 1 ? period.week_start.split('-')[0] - 1 : period.week_start.split('-')[0],
-                                                period.month_number - 1, 1);
-                    window.dynamicWeekData = {
-                        week1: { start: `${monthStart.getDate()}-${monthStart.toLocaleString('default', {month: 'short'})}`, end: `${monthStart.getDate() + 6}-${monthStart.toLocaleString('default', {month: 'short'})}` },
-                        week2: { start: `${monthStart.getDate() + 7}-${monthStart.toLocaleString('default', {month: 'short'})}`, end: `${monthStart.getDate() + 13}-${monthStart.toLocaleString('default', {month: 'short'})}` },
-                        week3: { start: `${monthStart.getDate() + 14}-${monthStart.toLocaleString('default', {month: 'short'})}`, end: `${monthStart.getDate() + 20}-${monthStart.toLocaleString('default', {month: 'short'})}` },
-                        week4: { start: `${monthStart.getDate() + 21}-${monthStart.toLocaleString('default', {month: 'short'})}`, end: `${monthStart.getDate() + 27}-${monthStart.toLocaleString('default', {month: 'short'})}` }
-                    };
+                    // Parse week_start date (format: "DD-MM-YYYY")
+                    const [day, month, year] = period.week_start.split('-');
+                    const monthNum = parseInt(month) - 1; // Convert to 0-based
+                    const yearNum = parseInt(year);
+
+                    // Get first day of the month
+                    const firstDay = new Date(yearNum, monthNum, 1);
+
+                    // Calculate all 4 week ending dates (Fridays) for this month
+                    const weekEndingDates = [];
+                    for (let weekNum = 1; weekNum <= 4; weekNum++) {
+                        // Friday = 7 days * (weekNum - 1) + day 5 (where Mon=0, Fri=4 in day-of-week)
+                        const startOfWeek = (weekNum - 1) * 7 + 1;
+                        const fridayDate = new Date(yearNum, monthNum, startOfWeek + 4);
+
+                        // Only add if still in same month
+                        if (fridayDate.getMonth() === monthNum) {
+                            const shortMonth = fridayDate.toLocaleString('default', {month: 'short'});
+                            const dateStr = `${fridayDate.getDate()}-${shortMonth}`;
+                            weekEndingDates.push(dateStr);
+                        }
+                    }
+
+                    // Update sidebar labels from database (API) data
+                    for (let i = 0; i < Math.min(4, weekEndingDates.length); i++) {
+                        const label = document.getElementById(`week${i+1}-label`);
+                        if (label) label.textContent = `Ending ${weekEndingDates[i]}`;
+                    }
+
+                    // Store for header updates when weeks are clicked
+                    window.dynamicWeekEndingDates = weekEndingDates;
 
                     return period;
                 }
