@@ -1,819 +1,202 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
-  title: SOJPE C2H Dashboard API
-  description: Backend API for SOJPE C2H (Staffing Operations & Jobs Performance Execution - Candidate to Hire) Dashboard
-  version: 1.0.0
-  contact:
-    name: Trigent Development Team
-    email: dev@trigent.com
-  license:
-    name: Proprietary
-    url: https://github.com/andytrigent/metry360-phase1
+  title: SOJPE C2H Phase 1 API
+  version: 1.1.0
+  description: |
+    Backend for the SOJPE C2H weekly reporting dashboard.
+    Runs on AWS Lambda (sojpe-data-pipeline) behind API Gateway; storage in S3 (trigent-c2h-files)
+    and DynamoDB (sojpe-reports). The Vercel frontend reaches it via a /api/* rewrite,
+    so all paths work both on the gateway host and relative to https://metry360.arkos.studio.
 
+    Reporting periods are derived from the DATA inside uploaded files (the "Period:" header
+    in the Selects/Renege reports), not from the upload timestamp.
 servers:
   - url: https://2g852sgu1i.execute-api.ap-south-1.amazonaws.com/prod
-    description: Production API
-    variables:
-      basePath:
-        default: /api
-  - url: http://localhost:5000
-    description: Local Development Server
-    variables:
-      basePath:
-        default: /api
-
-tags:
-  - name: Health
-    description: Service health and status endpoints
-  - name: Reports
-    description: Report management and retrieval
-  - name: Files
-    description: File upload and download operations
-  - name: Pipeline
-    description: Data pipeline execution endpoints
+  - url: https://metry360.arkos.studio
 
 paths:
   /api/health:
     get:
-      tags:
-        - Health
-      summary: Health Check
-      description: Returns the health status of the API service
-      operationId: healthCheck
+      summary: Health check
       responses:
         '200':
-          description: Service is healthy
+          description: Service healthy
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthResponse'
-        '503':
-          description: Service unavailable
+                type: object
+                properties:
+                  status: { type: string, example: healthy }
+                  service: { type: string, example: sojpe-c2h-api }
+                  version: { type: string }
+                  infrastructure:
+                    type: object
+                    properties:
+                      s3_bucket: { type: string }
+                      dynamodb_table: { type: string }
+                      region: { type: string }
+
+  /api/upload:
+    post:
+      summary: Upload the 7 weekly raw Excel files
+      description: |
+        Files are sent as base64 in a JSON body (not multipart). Each file is stored in S3 under
+        reports/{report_id}/{name}. The data period is auto-detected from file contents and
+        stored as data_week_ending. The pipeline then runs and the report lands in IN_REVIEW.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [files]
+              properties:
+                reportId:
+                  type: string
+                  description: Optional client-generated id (must start with REPORT-)
+                files:
+                  type: array
+                  items:
+                    type: object
+                    required: [name, content]
+                    properties:
+                      name: { type: string, example: Weekly Selects Report.xlsx }
+                      fileType: { type: string, example: Weekly Selects Report }
+                      size: { type: integer }
+                      content: { type: string, format: byte, description: base64 file contents }
+      responses:
+        '202':
+          description: Files stored, pipeline started
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                type: object
+                properties:
+                  success: { type: boolean }
+                  report_id: { type: string }
+                  status: { type: string, enum: [IN_REVIEW, ERROR] }
+                  file_count: { type: integer }
+                  data_week_ending: { type: string, nullable: true, example: 29-May-2026 }
+                  data_period: { type: string, nullable: true, example: 25-May-2026 to 29-May-2026 }
+        '400':
+          $ref: '#/components/responses/Error'
 
   /api/reports:
     get:
-      tags:
-        - Reports
-      summary: List All Reports
-      description: Returns a list of all available reports with pagination
-      operationId: listReports
-      parameters:
-        - name: page
-          in: query
-          description: Page number (default 1)
-          schema:
-            type: integer
-            default: 1
-        - name: limit
-          in: query
-          description: Items per page (default 10)
-          schema:
-            type: integer
-            default: 10
-        - name: status
-          in: query
-          description: Filter by report status
-          schema:
-            type: string
-            enum:
-              - DRAFT
-              - IN_REVIEW
-              - APPROVED
-              - PUBLISHED
+      summary: List reports (newest first)
       responses:
         '200':
-          description: List of reports retrieved successfully
+          description: Reports with metadata and stored file lists
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReportListResponse'
-        '400':
-          description: Invalid request parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-    post:
-      tags:
-        - Reports
-      summary: Create New Report
-      description: Creates a new report from uploaded files
-      operationId: createReport
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/CreateReportRequest'
-      responses:
-        '201':
-          description: Report created successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ReportResponse'
-        '400':
-          description: Invalid request or missing files
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                type: object
+                properties:
+                  success: { type: boolean }
+                  count: { type: integer }
+                  reports:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Report'
 
   /api/reports/{reportId}:
     get:
-      tags:
-        - Reports
-      summary: Get Report Details
-      description: Returns detailed information about a specific report
-      operationId: getReport
+      summary: Report details + S3 file listing
       parameters:
-        - name: reportId
-          in: path
-          required: true
-          description: The unique report identifier
-          schema:
-            type: string
+        - { name: reportId, in: path, required: true, schema: { type: string } }
       responses:
-        '200':
-          description: Report details retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ReportDetailResponse'
+        '200': { description: Report details }
         '404':
-          description: Report not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Error'
 
   /api/reports/{reportId}/approve:
     post:
-      tags:
-        - Reports
-      summary: Approve Report
-      description: Marks a report as approved by the reviewer (Akash)
-      operationId: approveReport
+      summary: Approve a report (unlocks downloads)
       parameters:
-        - name: reportId
-          in: path
-          required: true
-          description: The unique report identifier
-          schema:
-            type: string
+        - { name: reportId, in: path, required: true, schema: { type: string } }
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ApproveReportRequest'
+              type: object
+              properties:
+                reviewerName: { type: string }
+                decision: { type: string }
+                notes: { type: string }
       responses:
-        '200':
-          description: Report approved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ReportResponse'
-        '400':
-          description: Invalid request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Report not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+        '200': { description: Approved }
 
-  /api/reports/{reportId}/files:
-    get:
-      tags:
-        - Files
-      summary: List Report Files
-      description: Returns list of files associated with a report
-      operationId: listReportFiles
-      parameters:
-        - name: reportId
-          in: path
-          required: true
-          description: The unique report identifier
-          schema:
-            type: string
-      responses:
-        '200':
-          description: List of files retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FileListResponse'
-        '404':
-          description: Report not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /api/reports/{reportId}/download/{fileId}:
-    get:
-      tags:
-        - Files
-      summary: Download Report File
-      description: Downloads a specific file from a report
-      operationId: downloadFile
-      parameters:
-        - name: reportId
-          in: path
-          required: true
-          description: The unique report identifier
-          schema:
-            type: string
-        - name: fileId
-          in: path
-          required: true
-          description: The unique file identifier
-          schema:
-            type: string
-      responses:
-        '200':
-          description: File downloaded successfully
-          content:
-            application/octet-stream:
-              schema:
-                type: string
-                format: binary
-        '404':
-          description: File or report not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /api/pipeline/execute:
+  /api/reports/{reportId}/reprocess:
     post:
-      tags:
-        - Pipeline
-      summary: Execute Data Pipeline
-      description: Executes the 83-step data transformation pipeline
-      operationId: executePipeline
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PipelineExecutionRequest'
-      responses:
-        '202':
-          description: Pipeline execution started
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PipelineExecutionResponse'
-        '400':
-          description: Invalid request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /api/pipeline/{executionId}/status:
-    get:
-      tags:
-        - Pipeline
-      summary: Get Pipeline Execution Status
-      description: Returns the status of a pipeline execution
-      operationId: getPipelineStatus
+      summary: Re-run the pipeline for a report
       parameters:
-        - name: executionId
-          in: path
-          required: true
-          description: The pipeline execution identifier
-          schema:
-            type: string
+        - { name: reportId, in: path, required: true, schema: { type: string } }
+      responses:
+        '202': { description: Reprocessing started }
+
+  /api/reporting-period:
+    get:
+      summary: Current reporting week derived from the latest report's data period
       responses:
         '200':
-          description: Pipeline status retrieved successfully
+          description: Week/month info driving the dashboard's week-ending labels
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PipelineStatusResponse'
-        '404':
-          description: Execution not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                type: object
+                properties:
+                  success: { type: boolean }
+                  reporting_period:
+                    type: object
+                    properties:
+                      month: { type: string, example: May 2026 }
+                      month_number: { type: integer }
+                      week: { type: integer, description: 1-based index into week_endings }
+                      week_ending: { type: string, example: 29-May-2026 }
+                      week_endings:
+                        type: array
+                        description: All Fridays of the data month
+                        items: { type: string }
+                      week_start: { type: string }
+                      week_end: { type: string }
+                      source:
+                        type: string
+                        enum: [data_period, uploads, current_date]
+                        description: data_period = from file contents; uploads = upload timestamp fallback; current_date = empty database
+                      report_id: { type: string, nullable: true }
 
 components:
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: false }
+              error:
+                type: object
+                properties:
+                  code: { type: string }
+                  message: { type: string }
   schemas:
-    HealthResponse:
-      type: object
-      required:
-        - status
-        - service
-        - version
-      properties:
-        status:
-          type: string
-          enum:
-            - healthy
-            - degraded
-            - unhealthy
-          example: healthy
-        service:
-          type: string
-          example: sojpe-c2h-api
-        version:
-          type: string
-          example: 1.0.0-lambda
-        timestamp:
-          type: string
-          format: date-time
-          example: '2026-06-23T15:30:00Z'
-
-    ReportListResponse:
-      type: object
-      required:
-        - success
-        - data
-        - pagination
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/ReportSummary'
-        pagination:
-          type: object
-          properties:
-            page:
-              type: integer
-              example: 1
-            limit:
-              type: integer
-              example: 10
-            total:
-              type: integer
-              example: 25
-            pages:
-              type: integer
-              example: 3
-
-    ReportSummary:
-      type: object
-      required:
-        - id
-        - status
-        - createdAt
-        - updatedAt
-      properties:
-        id:
-          type: string
-          format: uuid
-          example: 550e8400-e29b-41d4-a716-446655440000
-        week:
-          type: integer
-          example: 1
-        month:
-          type: string
-          example: June 2026
-        status:
-          type: string
-          enum:
-            - DRAFT
-            - IN_REVIEW
-            - APPROVED
-            - PUBLISHED
-          example: IN_REVIEW
-        createdAt:
-          type: string
-          format: date-time
-          example: '2026-06-23T10:00:00Z'
-        updatedAt:
-          type: string
-          format: date-time
-          example: '2026-06-23T15:00:00Z'
-        fileCount:
-          type: integer
-          example: 7
-        metricsCount:
-          type: integer
-          example: 8
-
-    ReportResponse:
-      type: object
-      required:
-        - success
-        - data
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          $ref: '#/components/schemas/Report'
-
-    ReportDetailResponse:
-      type: object
-      required:
-        - success
-        - data
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          $ref: '#/components/schemas/ReportDetail'
-
     Report:
       type: object
-      required:
-        - id
-        - status
-        - createdAt
       properties:
-        id:
-          type: string
-          format: uuid
-        week:
-          type: integer
-        month:
-          type: string
-        status:
-          type: string
-          enum:
-            - DRAFT
-            - IN_REVIEW
-            - APPROVED
-            - PUBLISHED
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-        createdBy:
-          type: string
-        updatedBy:
-          type: string
-
-    ReportDetail:
-      allOf:
-        - $ref: '#/components/schemas/Report'
-        - type: object
-          properties:
-            files:
-              type: array
-              items:
-                $ref: '#/components/schemas/FileInfo'
-            metrics:
-              type: object
-              properties:
-                coverage:
-                  type: number
-                  format: float
-                avgSub:
-                  type: number
-                  format: float
-                select:
-                  type: number
-                  format: float
-                renege:
-                  type: number
-                  format: float
-                rpr:
-                  type: number
-                  format: float
-                targetAchievement:
-                  type: number
-                  format: float
-            pipelineStatus:
-              type: object
-              properties:
-                completedSteps:
-                  type: integer
-                totalSteps:
-                  type: integer
-                  example: 83
-                currentPhase:
-                  type: string
-                  enum:
-                    - PART_A
-                    - PART_B
-                    - PART_C
-                    - PART_D
-                    - PART_E
-                    - COMPLETE
-
-    CreateReportRequest:
-      type: object
-      required:
-        - week
-        - month
-      properties:
-        week:
-          type: integer
-          minimum: 1
-          maximum: 5
-          example: 1
-        month:
-          type: string
-          example: June 2026
+        report_id: { type: string }
+        status: { type: string, enum: [PROCESSING, IN_REVIEW, APPROVED, ERROR] }
+        created_at: { type: string, description: UTC ISO timestamp (upload time) }
+        month: { type: string, example: May 2026 }
+        data_week_ending: { type: string, nullable: true, example: 29-May-2026 }
+        data_period: { type: string, nullable: true }
+        file_count: { type: integer }
         files:
           type: array
           items:
-            type: string
-            format: binary
-          minItems: 7
-          maxItems: 7
-          description: "7 Excel files: Coverage Raw Report, Submissions (Avg Subs) Raw Report, Weekly Selects Report, Weekly Renege Report, Weekly Joiners Report, Weekly Exits Report, Staffing Report for YTJ & YTE"
-
-    ApproveReportRequest:
-      type: object
-      required:
-        - reviewerName
-        - decision
-      properties:
-        reviewerName:
-          type: string
-          example: Akash
-        decision:
-          type: string
-          enum:
-            - APPROVED
-            - REJECTED
-            - NEEDS_REVISION
-          example: APPROVED
-        notes:
-          type: string
-          example: All metrics validated. Data normalization verified. Ready for publication.
-
-    FileListResponse:
-      type: object
-      required:
-        - success
-        - data
-      properties:
-        success:
-          type: boolean
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/FileInfo'
-
-    FileInfo:
-      type: object
-      required:
-        - id
-        - name
-        - type
-        - size
-        - uploadedAt
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-          example: Coverage Raw Report.xlsx
-        type:
-          type: string
-          enum:
-            - COVERAGE
-            - SUBMISSIONS
-            - SELECTS
-            - RENEGE
-            - JOINERS
-            - EXITS
-            - STAFFING
-        size:
-          type: integer
-          description: File size in bytes
-          example: 524288
-        uploadedAt:
-          type: string
-          format: date-time
-        rows:
-          type: integer
-          example: 150
-        status:
-          type: string
-          enum:
-            - VALID
-            - PROCESSING
-            - ERROR
-
-    PipelineExecutionRequest:
-      type: object
-      required:
-        - reportId
-      properties:
-        reportId:
-          type: string
-          format: uuid
-        skipPhases:
-          type: array
-          items:
-            type: string
-            enum:
-              - PART_A
-              - PART_B
-              - PART_C
-              - PART_D
-              - PART_E
-          description: Optional phases to skip
-        dryRun:
-          type: boolean
-          default: false
-          description: Execute without saving results
-
-    PipelineExecutionResponse:
-      type: object
-      required:
-        - success
-        - executionId
-      properties:
-        success:
-          type: boolean
-        executionId:
-          type: string
-          format: uuid
-        status:
-          type: string
-          example: STARTED
-        startedAt:
-          type: string
-          format: date-time
-        estimatedDuration:
-          type: integer
-          description: Estimated duration in seconds
-          example: 60
-
-    PipelineStatusResponse:
-      type: object
-      required:
-        - success
-        - data
-      properties:
-        success:
-          type: boolean
-        data:
-          type: object
-          properties:
-            executionId:
-              type: string
-              format: uuid
-            status:
-              type: string
-              enum:
-                - STARTED
-                - IN_PROGRESS
-                - COMPLETED
-                - FAILED
-            progress:
-              type: object
-              properties:
-                completedSteps:
-                  type: integer
-                  example: 35
-                totalSteps:
-                  type: integer
-                  example: 83
-                percentComplete:
-                  type: number
-                  format: float
-                  example: 42.17
-            currentPhase:
-              type: string
-              enum:
-                - PART_A
-                - PART_B
-                - PART_C
-                - PART_D
-                - PART_E
-            startedAt:
-              type: string
-              format: date-time
-            completedAt:
-              type: string
-              format: date-time
-            duration:
-              type: integer
-              description: Duration in milliseconds
-            errors:
-              type: array
-              items:
-                type: object
-                properties:
-                  step:
-                    type: integer
-                  phase:
-                    type: string
-                  message:
-                    type: string
-
-    ErrorResponse:
-      type: object
-      required:
-        - success
-        - error
-      properties:
-        success:
-          type: boolean
-          example: false
-        error:
-          type: object
-          required:
-            - code
-            - message
-          properties:
-            code:
-              type: string
-              example: INVALID_REQUEST
-            message:
-              type: string
-              example: Missing required parameter 'reportId'
-            details:
-              type: object
-              additionalProperties: true
-
-  securitySchemes:
-    ApiKeyAuth:
-      type: apiKey
-      in: header
-      name: X-API-Key
-      description: Optional API key for authentication (Phase 2)
-
-security:
-  - {}
-
-x-aws-gateway:
-  type: REST_API
-  account_id: 302954730716
-  region: ap-south-1
-  api_id: 2g852sgu1i
-  stage: prod
-
-info:
-  x-internal-notes: |
-    - Phase 1: Public API (no auth required)
-    - Phase 2: Add JWT/OAuth authentication
-    - All timestamps in UTC (ISO 8601)
-    - Report IDs are UUIDs
-    - File uploads limited to 100MB each
-    - Timeout: 15 minutes for pipeline execution
+            type: object
+            properties:
+              name: { type: string }
+              size: { type: integer }
+              key: { type: string, description: S3 object key }
+              file_type: { type: string }
