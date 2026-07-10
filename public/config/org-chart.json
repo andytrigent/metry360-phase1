@@ -1,0 +1,193 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2026-07-10T00:00:00Z",
+  "organization": [
+    {
+      "id": "DIR_SANJIB",
+      "name": "Sanjib",
+      "title": "Vice President",
+      "portfolio": "GCC, SI, P&C",
+      "level": "director",
+      "parent": null,
+      "active": true,
+      "email": "sanjib@trigent.com",
+      "notes": "VP overseeing GCC, SI, P&C portfolios"
+    },
+    {
+      "id": "AM_KAVITA",
+      "name": "Kavita",
+      "title": "Account Manager",
+      "portfolio": "GCC, SI, P&C",
+      "level": "account_manager",
+      "parent": "DIR_SANJIB",
+      "active": true,
+      "email": "kavita@trigent.com",
+      "notes": ""
+    },
+    {
+      "id": "SR_BINDU",
+      "name": "Bindu T S",
+      "title": "Sr Manager",
+      "portfolio": "GCC, SI, P&C",
+      "level": "account_manager",
+      "parent": "DIR_SANJIB",
+      "active": true,
+      "email": "bindu@trigent.com",
+      "notes": "Sr Manager with delivery oversight"
+    },
+    {
+      "id": "AM_ABHILASH",
+      "name": "Abhilash S",
+      "title": "Account Manager",
+      "portfolio": "GCC, SI, P&C",
+      "level": "account_manager",
+      "parent": "DIR_SANJIB",
+      "active": true,
+      "email": "abhilash@trigent.com",
+      "notes": ""
+    },
+    {
+      "id": "AD_VIVEK",
+      "name": "Vivek Singh Sengar",
+      "title": "Associate Director",
+      "portfolio": "GCC, SI, P&C",
+      "level": "associate_director",
+      "parent": "DIR_SANJIB",
+      "active": true,
+      "email": "vivek@trigent.com",
+      "notes": "Associate Director"
+    },
+    {
+      "id": "AD_PRAVEEN",
+      "name": "Praveen",
+      "title": "Associate Director",
+      "portfolio": "GCC, SI, P&C",
+      "level": "associate_director",
+      "parent": "DIR_SANJIB",
+      "active": true,
+      "email": "praveen@trigent.com",
+      "notes": "Associate Director"
+    },
+    {
+      "id": "AMAM_SANKEERTH",
+      "name": "Sankeerth D",
+      "title": "Asst Mgr - Acct Mgmt",
+      "portfolio": "GCC, SI, P&C",
+      "level": "account_manager",
+      "parent": "AD_PRAVEEN",
+      "active": true,
+      "email": "sankeerth@trigent.com",
+      "notes": ""
+    },
+    {
+      "id": "AMAM_SACHIN",
+      "name": "Sachin L",
+      "title": "Asst Mgr - Acct Mgmt",
+      "portfolio": "GCC, SI, P&C",
+      "level": "account_manager",
+      "parent": "AD_PRAVEEN",
+      "active": true,
+      "email": "sachin@trigent.com",
+      "notes": ""
+    },
+    {
+      "id": "DIR_JYOTHSNA",
+      "name": "Jyothsna",
+      "title": "Director",
+      "portfolio": "GCC & Product",
+      "level": "director",
+      "parent": null,
+      "active": true,
+      "email": "jyothsna@trigent.com",
+      "notes": "Director for GCC & Product"
+    },
+    {
+      "id": "AM_PRIYANKA",
+      "name": "Priyanka Gadadmathad",
+      "title": "Account Manager",
+      "portfolio": "GCC & Product",
+      "level": "account_manager",
+      "parent": "DIR_JYOTHSNA",
+      "active": true,
+      "email": "priyanka@trigent.com",
+      "notes": ""
+    },
+    {
+      "id": "AM_BHARATH",
+      "name": "Bharath C N",
+      "title": "Account Manager",
+      "portfolio": "GCC & Product",
+      "level": "account_manager",
+      "parent": "DIR_JYOTHSNA",
+      "active": true,
+      "email": "bharath@trigent.com",
+      "notes": ""
+    },
+    {
+      "id": "AM_ANURADHA",
+      "name": "Anuradha H",
+      "title": "Account Manager",
+      "portfolio": "GCC & Product",
+      "level": "account_manager",
+      "parent": "DIR_JYOTHSNA",
+      "active": true,
+      "email": "anuradha@trigent.com",
+      "notes": ""
+    },
+    {
+      "id": "AM_ROSHAN",
+      "name": "Roshan Dominic",
+      "title": "Account Manager",
+      "portfolio": "GCC & Product",
+      "level": "account_manager",
+      "parent": "DIR_JYOTHSNA",
+      "active": true,
+      "email": "roshan@trigent.com",
+      "notes": ""
+    },
+    {
+      "id": "DIR_MANISHA",
+      "name": "Manisha",
+      "title": "Director",
+      "portfolio": "SI, 3-Dots, Pharma, Engg & CHT",
+      "level": "director",
+      "parent": null,
+      "active": true,
+      "email": "manisha@trigent.com",
+      "notes": "Independent span/lead for SI and Pharma"
+    },
+    {
+      "id": "SR_SATHISH",
+      "name": "Sathish Kumar B",
+      "title": "Sr Manager",
+      "portfolio": "SI, 3-Dots, Pharma, Engg & CHT",
+      "level": "account_manager",
+      "parent": "DIR_MANISHA",
+      "active": true,
+      "email": "sathish@trigent.com",
+      "notes": ""
+    },
+    {
+      "id": "AM_NISHANTH",
+      "name": "Nishant Tyagi",
+      "title": "Account Manager",
+      "portfolio": "SI, 3-Dots, Pharma, Engg & CHT",
+      "level": "account_manager",
+      "parent": "DIR_MANISHA",
+      "active": true,
+      "email": "nishant@trigent.com",
+      "notes": ""
+    },
+    {
+      "id": "SR_DIVYA",
+      "name": "Divya Lakshmi",
+      "title": "Sr Manager",
+      "portfolio": "SI, 3-Dots, Pharma, Engg & CHT",
+      "level": "account_manager",
+      "parent": "DIR_MANISHA",
+      "active": true,
+      "email": "divya@trigent.com",
+      "notes": ""
+    }
+  ]
+}

@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organization Chart Manager - SOJPE C2H</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-dark: #1a2942;
+            --primary: #1F4E78;
+            --secondary: #2E5C8A;
+            --accent: #4CAF50;
+            --amber: #FFC107;
+            --red: #F44336;
+            --gray-light: #F5F5F5;
+            --gray-border: #EBEBEB;
+            --gray-dark: #666;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: #FAFBFC;
+            color: #333;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 220px;
+            background: var(--primary-dark);
+            color: white;
+            padding: 24px 0;
+            position: fixed;
+            height: 100vh;
+            left: 0;
+            top: 0;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+        }
+
+        .sidebar-logo {
+            padding: 0 20px 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .sidebar-menu li {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 14px;
+        }
+
+        .sidebar-menu li:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .sidebar-menu li.active {
+            background: var(--primary);
+            border-left: 4px solid var(--accent);
+            padding-left: 16px;
+        }
+
+        .main-content {
+            margin-left: 220px;
+            flex: 1;
+            padding: 40px;
+        }
+
+        .header {
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: var(--primary-dark);
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: var(--gray-dark);
+            font-size: 14px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--secondary);
+        }
+
+        .btn-success {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #45a049;
+        }
+
+        .btn-warning {
+            background: var(--amber);
+            color: #333;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .btn-secondary {
+            background: var(--gray-light);
+            color: #333;
+            border: 1px solid var(--gray-border);
+        }
+
+        .btn-secondary:hover {
+            background: #eee;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid var(--gray-border);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--gray-dark);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .table-container {
+            background: white;
+            border: 1px solid var(--gray-border);
+            border-radius: 8px;
+            overflow: auto;
+            max-height: 600px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            background: var(--gray-light);
+            border-bottom: 2px solid var(--gray-border);
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--primary-dark);
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--gray-border);
+        }
+
+        tbody tr:hover {
+            background: #fafbfc;
+        }
+
+        input, select {
+            padding: 8px 12px;
+            border: 1px solid var(--gray-border);
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: inherit;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(31, 78, 120, 0.1);
+        }
+
+        .actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .action-btn {
+            padding: 6px 10px;
+            font-size: 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .edit-btn {
+            background: #E3F2FD;
+            color: var(--primary);
+        }
+
+        .edit-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .delete-btn {
+            background: #FFEBEE;
+            color: var(--red);
+        }
+
+        .delete-btn:hover {
+            background: var(--red);
+            color: white;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .modal-header {
+            margin-bottom: 24px;
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            color: var(--primary-dark);
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .alert-success {
+            background: #C8E6C9;
+            color: #2E7D32;
+            border: 1px solid #A5D6A7;
+        }
+
+        .alert-error {
+            background: #FFCDD2;
+            color: #C62828;
+            border: 1px solid #EF9A9A;
+        }
+
+        .alert-info {
+            background: #BBDEFB;
+            color: #1565C0;
+            border: 1px solid #90CAF9;
+        }
+
+        .validation-summary {
+            background: var(--gray-light);
+            border: 1px solid var(--gray-border);
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .validation-summary h3 {
+            margin-bottom: 8px;
+            color: var(--primary-dark);
+            font-size: 14px;
+        }
+
+        .validation-summary ul {
+            list-style: none;
+            font-size: 13px;
+            color: var(--gray-dark);
+        }
+
+        .validation-summary li {
+            padding: 4px 0;
+        }
+
+        .breadcrumb {
+            font-size: 13px;
+            color: var(--gray-dark);
+            margin-bottom: 16px;
+        }
+
+        .breadcrumb a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div class="sidebar-logo">
+                📊 SOJPE C2H
+            </div>
+            <ul class="sidebar-menu">
+                <li class="active" onclick="navigateTo('dashboard')">📈 Dashboard</li>
+                <li onclick="navigateTo('org-chart')">👥 Org Chart</li>
+                <li onclick="navigateTo('upload')">📤 Upload</li>
+                <li onclick="navigateTo('reports')">📋 Reports</li>
+            </ul>
+        </div>
+
+        <div class="main-content">
+            <div class="breadcrumb">
+                <a href="../dashboard.html">← Back to Dashboard</a>
+            </div>
+
+            <div class="header">
+                <h1>Organization Chart Manager</h1>
+                <p>Edit and manage the organizational hierarchy - Excel-style interface</p>
+            </div>
+
+            <div id="alert-container"></div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-total">0</div>
+                    <div class="stat-label">Total Members</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-directors">0</div>
+                    <div class="stat-label">Directors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-ams">0</div>
+                    <div class="stat-label">Account Managers</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-updated">—</div>
+                    <div class="stat-label">Last Updated</div>
+                </div>
+            </div>
+
+            <div class="toolbar">
+                <button class="btn btn-primary" onclick="openAddModal()">➕ Add Member</button>
+                <button class="btn btn-success" onclick="validateOrgChart()">✓ Validate</button>
+                <button class="btn btn-warning" onclick="exportData()">⬇️ Export</button>
+                <button class="btn btn-secondary" onclick="openImportModal()">⬆️ Import</button>
+            </div>
+
+            <div class="table-container">
+                <table id="org-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Title</th>
+                            <th>Level</th>
+                            <th>Portfolio</th>
+                            <th>Reports To</th>
+                            <th>Email</th>
+                            <th style="width: 100px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div class="modal" id="memberModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add New Member</h2>
+            </div>
+            <form id="memberForm">
+                <div class="form-group">
+                    <label>Member ID *</label>
+                    <input type="text" id="memberId" required readonly style="background: var(--gray-light);">
+                    <small style="color: var(--gray-dark);">Auto-generated</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Name *</label>
+                    <input type="text" id="memberName" required placeholder="Full name">
+                </div>
+
+                <div class="form-group">
+                    <label>Title *</label>
+                    <input type="text" id="memberTitle" required placeholder="e.g., Director, Account Manager">
+                </div>
+
+                <div class="form-group">
+                    <label>Level *</label>
+                    <select id="memberLevel" required>
+                        <option value="">— Select Level —</option>
+                        <option value="director">Director</option>
+                        <option value="associate_director">Associate Director</option>
+                        <option value="account_manager">Account Manager</option>
+                        <option value="sr_manager">Sr Manager</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Portfolio</label>
+                    <input type="text" id="memberPortfolio" placeholder="e.g., GCC, SI, P&C">
+                </div>
+
+                <div class="form-group">
+                    <label>Reports To</label>
+                    <select id="memberParent">
+                        <option value="">— No Report (Top Level) —</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="memberEmail" placeholder="name@trigent.com">
+                </div>
+
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="memberNotes" style="width: 100%; height: 80px; resize: none;" placeholder="Any additional notes"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="memberActive" checked> Active
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Member</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div class="modal" id="importModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Import Organization Data</h2>
+            </div>
+            <form id="importForm">
+                <div class="form-group">
+                    <label>JSON Data *</label>
+                    <textarea id="importData" style="width: 100%; height: 300px; font-family: monospace; font-size: 12px;" required placeholder="Paste JSON here"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeImportModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Import</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="../js/org-chart-manager.js"></script>
+    <script>
+        let isEditMode = false;
+        let editingMemberId = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initializeManager();
+            renderTable();
+            updateStats();
+        });
+
+        async function initializeManager() {
+            try {
+                await window.orgChartManager.load();
+                showAlert('✓ Organization chart loaded', 'success');
+            } catch (error) {
+                showAlert(`✗ Failed to load org chart: ${error.message}`, 'error');
+            }
+        }
+
+        function renderTable() {
+            const members = window.orgChartManager.getAll();
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            members.forEach(member => {
+                if (!member.active) return; // Skip inactive members
+
+                const parentMember = member.parent ? window.orgChartManager.getById(member.parent) : null;
+                const parentName = parentMember ? parentMember.name : '—';
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${member.name}</strong></td>
+                    <td>${member.title}</td>
+                    <td><span style="display: inline-block; padding: 4px 8px; background: var(--gray-light); border-radius: 4px; font-size: 11px;">${member.level}</span></td>
+                    <td>${member.portfolio}</td>
+                    <td>${parentName}</td>
+                    <td style="font-size: 12px; color: var(--gray-dark);">${member.email || '—'}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="action-btn edit-btn" onclick="openEditModal('${member.id}')">Edit</button>
+                            <button class="action-btn delete-btn" onclick="deleteMember('${member.id}')">Delete</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateStats() {
+            const summary = window.orgChartManager.getSummary();
+            document.getElementById('stat-total').textContent = summary.totalMembers;
+            document.getElementById('stat-directors').textContent = summary.directors;
+            document.getElementById('stat-ams').textContent = summary.accountManagers;
+            const lastUpdated = new Date(summary.lastUpdated).toLocaleDateString();
+            document.getElementById('stat-updated').textContent = lastUpdated;
+        }
+
+        function populateParentSelect() {
+            const directors = window.orgChartManager.getDirectors();
+            const select = document.getElementById('memberParent');
+            const currentValue = select.value;
+
+            select.innerHTML = '<option value="">— No Report (Top Level) —</option>';
+            directors.forEach(director => {
+                const option = document.createElement('option');
+                option.value = director.id;
+                option.textContent = `${director.name} (${director.title})`;
+                select.appendChild(option);
+            });
+
+            if (currentValue) {
+                select.value = currentValue;
+            }
+        }
+
+        function openAddModal() {
+            isEditMode = false;
+            editingMemberId = null;
+            document.getElementById('modalTitle').textContent = 'Add New Member';
+            document.getElementById('memberForm').reset();
+            document.getElementById('memberId').value = generateId();
+            document.getElementById('memberActive').checked = true;
+            populateParentSelect();
+            document.getElementById('memberModal').classList.add('active');
+        }
+
+        function openEditModal(memberId) {
+            isEditMode = true;
+            editingMemberId = memberId;
+            const member = window.orgChartManager.getById(memberId);
+
+            document.getElementById('modalTitle').textContent = 'Edit Member';
+            document.getElementById('memberId').value = member.id;
+            document.getElementById('memberName').value = member.name;
+            document.getElementById('memberTitle').value = member.title;
+            document.getElementById('memberLevel').value = member.level;
+            document.getElementById('memberPortfolio').value = member.portfolio;
+            document.getElementById('memberEmail').value = member.email || '';
+            document.getElementById('memberNotes').value = member.notes || '';
+            document.getElementById('memberActive').checked = member.active;
+
+            populateParentSelect();
+            document.getElementById('memberParent').value = member.parent || '';
+
+            document.getElementById('memberModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('memberModal').classList.remove('active');
+            document.getElementById('memberForm').reset();
+        }
+
+        function openImportModal() {
+            document.getElementById('importModal').classList.add('active');
+        }
+
+        function closeImportModal() {
+            document.getElementById('importModal').classList.remove('active');
+        }
+
+        function generateId() {
+            const timestamp = Date.now().toString(36);
+            const random = Math.random().toString(36).substr(2, 9);
+            return `ID_${timestamp}${random}`.toUpperCase().substr(0, 16);
+        }
+
+        document.getElementById('memberForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            try {
+                const memberData = {
+                    id: document.getElementById('memberId').value,
+                    name: document.getElementById('memberName').value,
+                    title: document.getElementById('memberTitle').value,
+                    level: document.getElementById('memberLevel').value,
+                    portfolio: document.getElementById('memberPortfolio').value,
+                    parent: document.getElementById('memberParent').value || null,
+                    email: document.getElementById('memberEmail').value,
+                    notes: document.getElementById('memberNotes').value,
+                    active: document.getElementById('memberActive').checked
+                };
+
+                if (isEditMode) {
+                    window.orgChartManager.updateMember(editingMemberId, memberData);
+                    showAlert('✓ Member updated successfully', 'success');
+                } else {
+                    window.orgChartManager.addMember(memberData);
+                    showAlert('✓ Member added successfully', 'success');
+                }
+
+                renderTable();
+                updateStats();
+                closeModal();
+            } catch (error) {
+                showAlert(`✗ Error: ${error.message}`, 'error');
+            }
+        });
+
+        function deleteMember(memberId) {
+            if (confirm('Are you sure? This will mark the member as inactive.')) {
+                try {
+                    window.orgChartManager.deleteMember(memberId);
+                    showAlert('✓ Member deleted successfully', 'success');
+                    renderTable();
+                    updateStats();
+                } catch (error) {
+                    showAlert(`✗ Error: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        function validateOrgChart() {
+            const result = window.orgChartManager.validate();
+
+            if (result.valid) {
+                showAlert(`✓ Org chart is valid - ${result.memberCount} active members`, 'success');
+            } else {
+                let message = `✗ Validation failed (${result.errors.length} errors):\n\n`;
+                message += result.errors.map((err, i) => `${i + 1}. ${err}`).join('\n');
+                showAlert(message, 'error');
+            }
+        }
+
+        function exportData() {
+            const json = window.orgChartManager.exportJSON();
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `org-chart-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            showAlert('✓ Organization chart exported as JSON', 'success');
+        }
+
+        document.getElementById('importForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            try {
+                const jsonData = document.getElementById('importData').value;
+                const result = window.orgChartManager.importJSON(jsonData);
+                if (result.valid) {
+                    showAlert(`✓ Import successful - ${result.memberCount} members loaded`, 'success');
+                    renderTable();
+                    updateStats();
+                    closeImportModal();
+                } else {
+                    showAlert(`✗ Import has errors: ${result.errors.join(', ')}`, 'error');
+                }
+            } catch (error) {
+                showAlert(`✗ Import failed: ${error.message}`, 'error');
+            }
+        });
+
+        function showAlert(message, type) {
+            const container = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            container.appendChild(alert);
+
+            setTimeout(() => {
+                alert.remove();
+            }, 4000);
+        }
+
+        function navigateTo(page) {
+            // For future navigation
+            console.log('Navigate to:', page);
+        }
+    </script>
+</body>
+</html>

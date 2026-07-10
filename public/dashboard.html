@@ -2008,6 +2008,29 @@
 
             console.log('Dashboard exported as:', filename);
         }
+
+        // Initialize org chart from config
+        async function loadOrgChartConfig() {
+            try {
+                await window.orgChartManager.load();
+                console.log('✓ Organization chart loaded from config');
+                return true;
+            } catch (error) {
+                console.warn('Failed to load org chart config, using defaults:', error);
+                return false;
+            }
+        }
+
+        // Hook org chart loading into page initialization
+        const originalDOMContentLoaded = document.addEventListener;
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Load org chart before showing dashboard
+            const loaded = await loadOrgChartConfig();
+            if (loaded) {
+                console.log('✓ Org chart initialized successfully');
+            }
+        }, { once: true });
     </script>
+    <script src="./js/org-chart-manager.js"></script>
 </body>
 </html>
