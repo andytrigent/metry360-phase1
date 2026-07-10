@@ -328,8 +328,8 @@
 
             <!-- Footer -->
             <div class="footer">
-                <p>SOJPE C2H Phase 1 - Complete & Production-Ready | June 22, 2026</p>
-                <p>Dashboard: http://localhost:8000/dashboard.html | API: http://localhost:5000</p>
+                <p>SOJPE C2H Phase 1 - Complete & Production-Ready</p>
+                <p>Backend: AWS Lambda (ap-south-1) | Frontend: Vercel</p>
             </div>
         </div>
     </div>
@@ -345,7 +345,7 @@
             const messageElement = document.getElementById('apiMessage');
 
             try {
-                const response = await fetch('http://localhost:5000/api/health', {
+                const response = await fetch('/api/health', {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json'
@@ -364,7 +364,7 @@
             } catch (error) {
                 statusElement.textContent = '⚠ OFFLINE';
                 statusElement.parentElement.classList.remove('ready');
-                messageElement.textContent = '⚠ API is not responding. Make sure Flask server is running (python app.py). Click "Check API" to retry.';
+                messageElement.textContent = '⚠ API is not responding. Click "Check API" to retry.';
                 messageElement.style.display = 'block';
                 messageElement.classList.add('error');
             }
