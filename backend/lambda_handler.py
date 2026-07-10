@@ -10,6 +10,7 @@ import uuid
 import boto3
 import io
 from datetime import datetime, timedelta
+from decimal import Decimal
 from urllib.parse import parse_qs
 
 # AWS Clients
@@ -65,12 +66,18 @@ def cors_headers():
         'Access-Control-Allow-Headers': 'Content-Type, X-API-Key'
     }
 
+def _json_default(o):
+    """Serialize DynamoDB Decimal values"""
+    if isinstance(o, Decimal):
+        return int(o) if o % 1 == 0 else float(o)
+    return str(o)
+
 def response(status_code, body):
     """Format Lambda response"""
     return {
         'statusCode': status_code,
         'headers': cors_headers(),
-        'body': json.dumps(body) if isinstance(body, dict) else body
+        'body': json.dumps(body, default=_json_default) if isinstance(body, dict) else body
     }
 
 def error_response(status_code, code, message):
@@ -373,48 +380,86 @@ def health_check(event, context):
         }
     })
 
+def match_file_type(name):
+    """Match an uploaded filename to one of the 7 expected report types"""
+    base = name.lower().replace('.xlsx', '').replace('.xls', '')
+    for ft in FILE_TYPES:
+        if ft.lower() in base or base in ft.lower():
+            return ft
+    return None
+
 def upload_files(event, context):
-    """POST /api/upload - Upload and process 7 Excel files"""
+    """POST /api/upload - Store the 7 Excel files (base64 JSON body) in S3 and run pipeline"""
     try:
-        # Parse multipart form data
-        content_type = event.get('headers', {}).get('content-type', '')
+        body = json.loads(event.get('body') or '{}')
 
-        # For now, create a mock response
-        # Real implementation would parse multipart data from event['body']
+        client_report_id = str(body.get('reportId', '')).strip()
+        report_id = client_report_id if client_report_id.startswith('REPORT-') and len(client_report_id) <= 40 else generate_report_id()
 
-        report_id = generate_report_id()
+        incoming = body.get('files', [])
+        if not isinstance(incoming, list) or not incoming or not any(isinstance(f, dict) and f.get('content') for f in incoming):
+            return error_response(400, 'NO_FILES', 'No file contents provided. Expected files: [{name, fileType, content(base64)}]')
 
-        # Create mock file structure
-        files = {file_type: b'mock_file_content' for file_type in FILE_TYPES}
+        stored_files = []
+        file_map = {}
+        for f in incoming:
+            if not isinstance(f, dict):
+                continue
+            name = str(f.get('name', '')).strip()
+            content_b64 = f.get('content', '')
+            if not name or not content_b64:
+                continue
+            try:
+                content = base64.b64decode(content_b64)
+            except Exception:
+                return error_response(400, 'BAD_FILE', f'File {name} is not valid base64')
 
-        # Store metadata
+            key = f"reports/{report_id}/{name}"
+            s3_client.put_object(
+                Bucket=S3_BUCKET,
+                Key=key,
+                Body=content,
+                ContentType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+
+            file_type = str(f.get('fileType', '')) or match_file_type(name)
+            stored_files.append({
+                'name': name,
+                'size': len(content),
+                'key': key,
+                'file_type': file_type or 'unknown'
+            })
+            if file_type:
+                file_map[file_type] = content
+
+        if not stored_files:
+            return error_response(400, 'NO_FILES', 'No valid files could be stored')
+
         report_data = {
             'report_id': report_id,
-            'week': 1,
             'month': datetime.utcnow().strftime('%B %Y'),
-            'file_count': len(files),
-            'files': []
+            'file_count': len(stored_files),
+            'files': stored_files
         }
+        store_report_metadata(report_data)
 
-        store_result = store_report_metadata(report_data)
-
-        # Execute pipeline
-        processor = DataPipelineProcessor(report_id, files)
+        # Execute pipeline against the real file contents
+        processor = DataPipelineProcessor(report_id, file_map)
         pipeline_result = processor.execute()
 
-        # Update status based on pipeline result
         status = 'IN_REVIEW' if pipeline_result['success'] else 'ERROR'
         update_report_status(report_id, status, pipeline_result.get('pipeline_status'))
 
-        log_event('FileUpload', {'report_id': report_id, 'file_count': len(files)})
+        log_event('FileUpload', {'report_id': report_id, 'file_count': len(stored_files)})
 
         return response(202, {
             'success': True,
             'report_id': report_id,
             'status': status,
-            'message': 'Files uploaded and pipeline processing started',
-            'file_count': len(files),
+            'message': f'{len(stored_files)} files uploaded to S3 and pipeline processing started',
+            'file_count': len(stored_files),
             'expected_files': EXPECTED_FILES,
+            'files': [{'name': sf['name'], 'size': sf['size']} for sf in stored_files],
             'pipeline_progress': {
                 'completed_steps': pipeline_result.get('completed_steps', 0),
                 'total_steps': pipeline_result.get('total_steps', 83)
@@ -433,6 +478,7 @@ def list_reports(event, context):
         response_data = table.scan(Limit=50)
 
         reports = response_data.get('Items', [])
+        reports.sort(key=lambda x: x.get('created_at', ''), reverse=True)
 
         log_event('ListReports', {'count': len(reports)})
 
