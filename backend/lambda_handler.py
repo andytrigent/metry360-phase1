@@ -514,6 +514,35 @@ def pipeline_status(event, context, execution_id):
     except Exception as e:
         return error_response(404, 'EXECUTION_NOT_FOUND', str(e))
 
+def reprocess_report(event, context, report_id):
+    """POST /api/reports/{reportId}/reprocess - Reprocess a specific report"""
+    try:
+        # Retrieve report metadata
+        metadata = get_report_metadata(report_id)
+
+        # Re-run pipeline
+        processor = DataPipelineProcessor(report_id, {})
+        pipeline_result = processor.execute()
+
+        # Update status
+        update_report_status(report_id, 'PROCESSING', pipeline_result.get('pipeline_status'))
+
+        log_event('ReportReprocessed', {'report_id': report_id})
+
+        return response(202, {
+            'success': True,
+            'report_id': report_id,
+            'status': 'PROCESSING',
+            'message': 'Report reprocessing started',
+            'pipeline_progress': {
+                'completed_steps': pipeline_result.get('completed_steps', 0),
+                'total_steps': pipeline_result.get('total_steps', 83)
+            }
+        })
+
+    except Exception as e:
+        return error_response(500, 'REPROCESS_FAILED', str(e))
+
 def get_reporting_period(event, context):
     """GET /api/reporting-period - Get the current reporting week/month from latest uploads"""
     try:
@@ -622,6 +651,10 @@ def lambda_handler(event, context):
         elif path.startswith('/api/reports/') and path.endswith('/approve') and method == 'POST':
             report_id = path.split('/')[3]
             return approve_report(event, context, report_id)
+
+        elif path.startswith('/api/reports/') and path.endswith('/reprocess') and method == 'POST':
+            report_id = path.split('/')[3]
+            return reprocess_report(event, context, report_id)
 
         elif path.startswith('/api/pipeline/') and path.endswith('/status') and method == 'GET':
             execution_id = path.split('/')[3]

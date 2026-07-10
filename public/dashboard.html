@@ -1427,6 +1427,7 @@
                                 </div>
 
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                    <button onclick="reprocessReport('SOJPE_20260622_080000')" style="padding: 8px 16px; font-size: 12px; background: #FF9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🔄 Reprocess Data</button>
                                     <button style="padding: 8px 16px; font-size: 12px; background: #1F4E78; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">✓ Mark for Review</button>
                                     <button style="padding: 8px 16px; font-size: 12px; background: #999; color: white; border: none; border-radius: 4px; cursor: not-allowed; font-weight: 600;" disabled>📥 Download Files (Locked until approved)</button>
                                 </div>
@@ -1457,6 +1458,7 @@
                                 </div>
 
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                    <button onclick="reprocessReport('SOJPE_20260621_080000')" style="padding: 8px 16px; font-size: 12px; background: #FF9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🔄 Reprocess Data</button>
                                     <button onclick="showView('review-details')" style="padding: 8px 16px; font-size: 12px; background: #1F4E78; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🔍 Review Details & Audit Trail</button>
                                     <button style="padding: 8px 16px; font-size: 12px; background: #999; color: white; border: none; border-radius: 4px; cursor: not-allowed; font-weight: 600;" disabled>📥 Download Files (Locked until approved)</button>
                                 </div>
@@ -1814,6 +1816,11 @@
                 section.classList.remove('active');
             });
 
+            // Load reports if showing history tab
+            if (view === 'history') {
+                loadReportHistory();
+            }
+
             // Show selected view
             const selectedView = document.getElementById(`view-${view}`);
             if (selectedView) {
@@ -2066,6 +2073,96 @@
             // Setup collapse/expand for directors
             setupDirectorToggle();
         });
+
+        // Load actual reports from API
+        async function loadReportHistory() {
+            try {
+                const response = await fetch('/api/reports');
+                if (!response.ok) throw new Error('Failed to fetch reports');
+                const data = await response.json();
+
+                const reportsList = data.reports || [];
+                const container = document.querySelector('#view-history [style*="display: grid"]');
+
+                if (container && reportsList.length > 0) {
+                    // Clear hardcoded reports and load actual ones
+                    container.innerHTML = reportsList.map(report => `
+                        <div style="border: 2px solid ${getStatusColor(report.status)}; border-radius: 8px; padding: 20px; background: ${getStatusBg(report.status)};">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                                <div>
+                                    <h3 style="font-size: 14px; font-weight: 600; color: #1F4E78; margin: 0;">${report.report_id}</h3>
+                                    <p style="font-size: 12px; color: #999; margin: 5px 0 0 0;">${new Date(report.created_at).toLocaleString()}</p>
+                                </div>
+                                <div style="background: ${getStatusColor(report.status)}; color: white; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: 600;">${report.status}</div>
+                            </div>
+                            <p style="font-size: 12px; color: #666; margin: 0 0 15px 0;">📊 ${report.file_count} files | ${report.row_count} records</p>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                ${report.status !== 'APPROVED' ? `<button onclick="reprocessReport('${report.report_id}')" style="padding: 8px 16px; font-size: 12px; background: #FF9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🔄 Reprocess</button>` : ''}
+                                ${report.status === 'APPROVED' ? `<button style="padding: 8px 16px; font-size: 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">📥 Download Files</button>` : ''}
+                                <button style="padding: 8px 16px; font-size: 12px; background: #1F4E78; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">👁️ View Details</button>
+                            </div>
+                        </div>
+                    `).join('');
+                    console.log(`Loaded ${reportsList.length} reports from API`);
+                }
+            } catch (error) {
+                console.log('Using hardcoded reports (API unavailable):', error);
+            }
+        }
+
+        function getStatusColor(status) {
+            const colors = {
+                'DRAFT': '#FFB74D',
+                'IN_REVIEW': '#42A5F5',
+                'PROCESSING': '#42A5F5',
+                'APPROVED': '#4CAF50'
+            };
+            return colors[status] || '#999';
+        }
+
+        function getStatusBg(status) {
+            const bgs = {
+                'DRAFT': '#fffbf0',
+                'IN_REVIEW': '#f0f7ff',
+                'PROCESSING': '#f0f7ff',
+                'APPROVED': '#f1f8f4'
+            };
+            return bgs[status] || '#f5f5f5';
+        }
+
+        // Reprocess report data from S3
+        async function reprocessReport(reportId) {
+            if (!confirm(`Reprocess report ${reportId}? This will re-run the data pipeline.`)) {
+                return;
+            }
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '⏳ Processing...';
+
+            try {
+                const response = await fetch(`/api/reports/${reportId}/reprocess`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'reprocess' })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert(`✓ Report reprocessed successfully!\nSteps completed: ${data.pipeline_progress.completed_steps}/${data.pipeline_progress.total_steps}`);
+                    // Reload to show updated status
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    alert(`⚠️ Reprocessing failed: ${data.error?.message || 'Unknown error'}`);
+                    btn.disabled = false;
+                    btn.textContent = '🔄 Reprocess Data';
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+                btn.disabled = false;
+                btn.textContent = '🔄 Reprocess Data';
+            }
+        }
 
         // Setup director collapse/expand functionality
         function setupDirectorToggle() {
