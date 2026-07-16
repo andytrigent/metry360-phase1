@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload Files - SOJPE C2H Dashboard</title>
+    <title>Upload Raw Files - SOJPE C2H Dashboard</title>
     <style>
         * {
             margin: 0;
@@ -43,6 +43,7 @@
             height: 100vh;
             left: 0;
             top: 0;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.15);
         }
 
         .sidebar-logo {
@@ -50,203 +51,107 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            font-size: 20px;
+            font-weight: bold;
+            font-size: 14px;
         }
 
-        .sidebar-logo-circle {
-            width: 24px;
-            height: 24px;
-            background: var(--accent);
-            border-radius: 50%;
+        .sidebar-menu {
+            list-style: none;
         }
 
-        .sidebar-section {
-            margin-bottom: 30px;
-        }
-
-        .sidebar-section-title {
-            padding: 0 20px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: rgba(255,255,255,0.5);
-            margin-bottom: 12px;
-        }
-
-        .sidebar-item {
+        .sidebar-menu li {
             padding: 12px 20px;
             cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 13px;
-            border-left: 3px solid transparent;
-            color: rgba(255,255,255,0.7);
+            transition: background 0.2s;
+            font-size: 14px;
         }
 
-        .sidebar-item:hover {
-            background: rgba(255,255,255,0.05);
-            color: white;
-        }
-
-        .sidebar-item.active {
+        .sidebar-menu li:hover {
             background: rgba(255,255,255,0.1);
-            color: white;
-            border-left-color: var(--accent);
         }
 
-        .main {
+        .sidebar-menu li.active {
+            background: var(--primary);
+            border-left: 4px solid var(--accent);
+            padding-left: 16px;
+        }
+
+        .main-content {
             margin-left: 220px;
             flex: 1;
-            display: flex;
-            flex-direction: column;
+            padding: 40px;
         }
 
         .header {
-            background: white;
-            padding: 20px 30px;
-            border-bottom: 1px solid var(--gray-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            margin-bottom: 40px;
         }
 
         .header h1 {
-            font-size: 24px;
-            color: var(--primary);
-            font-weight: 600;
+            font-size: 28px;
+            color: var(--primary-dark);
+            margin-bottom: 8px;
         }
 
-        .content {
-            flex: 1;
-            padding: 30px;
-            overflow-y: auto;
+        .header p {
+            color: #666;
+            font-size: 14px;
         }
 
-        .section {
+        .upload-container {
             background: white;
-            border-radius: 8px;
-            padding: 24px;
-            margin-bottom: 30px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        }
-
-        .section h2 {
-            font-size: 16px;
-            color: var(--primary);
-            margin-bottom: 20px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .file-upload-area {
-            border: 2px dashed var(--gray-border);
+            border: 2px dashed #4CAF50;
             border-radius: 8px;
             padding: 40px;
             text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s;
             cursor: pointer;
-            transition: all 0.3s ease;
-            background: var(--gray-light);
         }
 
-        .file-upload-area:hover {
+        .upload-container:hover {
             border-color: var(--primary);
-            background: rgba(31, 78, 120, 0.03);
+            background: #F0F8FF;
         }
 
-        .file-upload-area.dragover {
+        .upload-container.dragover {
+            background: #E8F5E9;
             border-color: var(--accent);
-            background: rgba(76, 175, 80, 0.05);
-        }
-
-        .file-upload-area input {
-            display: none;
         }
 
         .upload-icon {
             font-size: 48px;
-            margin-bottom: 15px;
+            margin-bottom: 16px;
         }
 
-        .upload-text {
-            font-size: 14px;
+        .upload-container h2 {
             color: var(--primary);
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-
-        .upload-hint {
-            font-size: 12px;
-            color: #999;
-            margin-bottom: 15px;
-        }
-
-        .required-files {
-            background: var(--gray-light);
-            padding: 12px;
-            border-radius: 6px;
-            margin-top: 15px;
-            font-size: 11px;
-            text-align: left;
-            color: #666;
-        }
-
-        .required-files div {
-            padding: 4px 0;
-        }
-
-        .file-list {
-            margin-top: 20px;
-        }
-
-        .file-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px;
-            background: var(--gray-light);
-            border-radius: 6px;
+            font-size: 20px;
             margin-bottom: 8px;
-            font-size: 12px;
         }
 
-        .file-item-name {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex: 1;
-        }
-
-        .file-item-size {
-            color: #999;
-            font-size: 11px;
-        }
-
-        .file-item-remove {
-            color: var(--red);
-            cursor: pointer;
-            font-weight: 600;
-            padding: 4px 8px;
+        .upload-container p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
         }
 
         .btn {
-            padding: 10px 20px;
+            padding: 10px 24px;
             border: none;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 600;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s;
         }
 
         .btn-primary {
-            background: var(--accent);
+            background: var(--primary);
             color: white;
         }
 
-        .btn-primary:hover:not(:disabled) {
-            background: #45a049;
+        .btn-primary:hover {
+            background: var(--secondary);
         }
 
         .btn-primary:disabled {
@@ -254,176 +159,215 @@
             cursor: not-allowed;
         }
 
-        .btn-secondary {
+        .file-list {
+            margin-top: 30px;
+        }
+
+        .file-list h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--primary-dark);
+        }
+
+        .file-item {
             background: white;
-            color: var(--primary);
             border: 1px solid var(--gray-border);
-        }
-
-        .btn-secondary:hover {
-            border-color: var(--primary);
-        }
-
-        .button-group {
+            border-radius: 4px;
+            padding: 16px;
+            margin-bottom: 12px;
             display: flex;
-            gap: 10px;
-            margin-top: 20px;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .button-group button {
+        .file-item.required {
+            border-left: 4px solid var(--red);
+        }
+
+        .file-item.uploaded {
+            border-left: 4px solid var(--accent);
+        }
+
+        .file-info {
             flex: 1;
         }
 
-        .progress-container {
-            margin-top: 20px;
-            display: none;
+        .file-name {
+            font-weight: 500;
+            color: var(--primary-dark);
+            margin-bottom: 4px;
+        }
+
+        .file-size {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .file-status {
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-required {
+            background: #FFEBEE;
+            color: var(--red);
+        }
+
+        .status-uploading {
+            background: #FFF3E0;
+            color: var(--amber);
+        }
+
+        .status-success {
+            background: #E8F5E9;
+            color: var(--accent);
         }
 
         .progress-bar {
-            width: 100%;
-            height: 6px;
-            background: var(--gray-light);
-            border-radius: 3px;
+            width: 100px;
+            height: 4px;
+            background: #ddd;
+            border-radius: 2px;
             overflow: hidden;
-            margin-bottom: 10px;
+            margin-left: 16px;
         }
 
         .progress-fill {
             height: 100%;
             background: var(--accent);
             width: 0%;
-            transition: width 0.3s ease;
+            transition: width 0.3s;
         }
 
-        .progress-text {
-            font-size: 12px;
+        .upload-summary {
+            background: white;
+            border: 1px solid var(--gray-border);
+            border-radius: 8px;
+            padding: 24px;
+            margin-top: 30px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--gray-border);
+        }
+
+        .summary-row:last-child {
+            border-bottom: none;
+        }
+
+        .summary-label {
+            font-weight: 500;
+            color: var(--primary-dark);
+        }
+
+        .summary-value {
             color: #666;
-            text-align: center;
         }
 
-        .status-message {
-            padding: 12px;
-            border-radius: 6px;
-            margin-top: 15px;
+        .btn-submit {
+            background: var(--accent);
+            color: white;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .btn-submit:hover {
+            background: #45a049;
+        }
+
+        .pipeline-status {
+            background: #E3F2FD;
+            border-left: 4px solid var(--primary);
+            border-radius: 4px;
+            padding: 16px;
+            margin-top: 30px;
+        }
+
+        .pipeline-status h4 {
+            color: var(--primary);
+            margin-bottom: 12px;
+        }
+
+        .pipeline-step {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            font-size: 14px;
+        }
+
+        .pipeline-step-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
             font-size: 12px;
+            color: white;
+        }
+
+        .pipeline-step-icon.complete {
+            background: var(--accent);
+        }
+
+        .pipeline-step-icon.active {
+            background: var(--primary);
+        }
+
+        .error-message {
+            background: #FFEBEE;
+            border-left: 4px solid var(--red);
+            border-radius: 4px;
+            padding: 16px;
+            margin-top: 20px;
+            color: var(--red);
+        }
+
+        .success-message {
+            background: #E8F5E9;
+            border-left: 4px solid var(--accent);
+            border-radius: 4px;
+            padding: 16px;
+            margin-top: 20px;
+            color: var(--accent);
+        }
+
+        input[type="file"] {
             display: none;
         }
 
-        .status-message.success {
-            background: #E8F5E9;
-            color: var(--accent);
-            border-left: 4px solid var(--accent);
-            display: block;
-        }
-
-        .status-message.error {
-            background: #FFEBEE;
-            color: var(--red);
-            border-left: 4px solid var(--red);
-            display: block;
-        }
-
-        .reports-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-            margin-top: 15px;
-        }
-
-        .reports-table th {
-            background: var(--gray-light);
-            padding: 12px;
-            text-align: left;
-            font-weight: 600;
-            color: #666;
-            text-transform: uppercase;
-            font-size: 10px;
-            border-bottom: 1px solid var(--gray-border);
-        }
-
-        .reports-table td {
-            padding: 12px;
-            border-bottom: 1px solid var(--gray-border);
-        }
-
-        .reports-table tr:hover {
-            background: var(--gray-light);
-        }
-
-        .report-id {
-            font-weight: 600;
-            color: var(--primary);
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 10px;
-            font-weight: 600;
-        }
-
-        .badge.draft {
-            background: #FFF3E0;
-            color: #F57F17;
-        }
-
-        .badge.approved {
-            background: #E8F5E9;
-            color: var(--accent);
-        }
-
-        .action-btn {
-            color: var(--accent);
-            cursor: pointer;
-            font-weight: 600;
-            margin-right: 15px;
-        }
-
-        .action-btn:hover {
-            text-decoration: underline;
-        }
-
-        .settings-grid {
+        .stats {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-top: 15px;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 30px;
         }
 
-        .setting-item {
-            padding: 12px;
-            background: var(--gray-light);
-            border-radius: 6px;
+        .stat-card {
+            background: white;
+            border: 1px solid var(--gray-border);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
         }
 
-        .setting-label {
-            font-size: 11px;
-            font-weight: 600;
-            color: #999;
-            text-transform: uppercase;
-            margin-bottom: 6px;
-        }
-
-        .setting-value {
-            font-size: 13px;
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
             color: var(--primary);
-            font-weight: 600;
         }
 
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 0;
-                display: none;
-            }
-
-            .main {
-                margin-left: 0;
-            }
-
-            .settings-grid {
-                grid-template-columns: 1fr;
-            }
+        .stat-label {
+            font-size: 12px;
+            color: #999;
+            margin-top: 8px;
         }
     </style>
 </head>
@@ -431,299 +375,374 @@
     <div class="layout">
         <!-- Sidebar -->
         <div class="sidebar">
-            <div class="sidebar-logo">
-                <div class="sidebar-logo-circle"></div>
-                <span>metry360</span>
-            </div>
-
-            <div class="sidebar-section">
-                <div class="sidebar-section-title">Dashboard Views</div>
-                <div class="sidebar-item" onclick="goToDashboard()">📊 Recruitment</div>
-                <div class="sidebar-item">👥 Management</div>
-                <div class="sidebar-item">💼 AM Productivity</div>
-                <div class="sidebar-item">🎯 Director Drilldown</div>
-            </div>
-
-            <div class="sidebar-section">
-                <div class="sidebar-section-title">Tools</div>
-                <div class="sidebar-item active">📁 Upload Files</div>
-                <div class="sidebar-item" onclick="showSection('history')">📋 Report History</div>
-                <div class="sidebar-item">⚙️ Settings</div>
-            </div>
+            <div class="sidebar-logo">📊 SOJPE C2H</div>
+            <ul class="sidebar-menu">
+                <li onclick="navigateTo('dashboard.html')">Dashboard</li>
+                <li class="active">Upload Files</li>
+                <li onclick="navigateTo('dashboard.html#history')">Report History</li>
+            </ul>
         </div>
 
         <!-- Main Content -->
-        <div class="main">
+        <div class="main-content">
             <div class="header">
-                <h1>📁 Upload & Process Files</h1>
+                <h1>📤 Upload Raw Data Files</h1>
+                <p>Upload 7 Excel files to initiate the 83-step data transformation pipeline</p>
             </div>
 
-            <div class="content">
-                <!-- Upload Section -->
-                <div class="section" id="uploadSection">
-                    <h2>🔄 Process Weekly Report</h2>
-
-                    <div class="file-upload-area" id="uploadArea">
-                        <div class="upload-icon">📤</div>
-                        <div class="upload-text">Click to upload or drag files here</div>
-                        <div class="upload-hint">All 7 required files (.xlsx)</div>
-                        <input type="file" id="fileInput" multiple accept=".xlsx">
-                        <div class="required-files">
-                            <div>✓ Coverage Raw Report.xlsx</div>
-                            <div>✓ Submissions (Avg Subs) Raw Report.xlsx</div>
-                            <div>✓ Weekly Selects Report.xlsx</div>
-                            <div>✓ Weekly Renege Report.xlsx</div>
-                            <div>✓ Weekly Joiners Report.xlsx</div>
-                            <div>✓ Weekly Exits Report.xlsx</div>
-                            <div>✓ Staffing Report for YTJ & YTE.xlsx</div>
-                        </div>
-                    </div>
-
-                    <div class="file-list" id="fileList"></div>
-
-                    <div class="progress-container" id="progressContainer">
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="progressFill"></div>
-                        </div>
-                        <div class="progress-text" id="progressText">Initializing...</div>
-                    </div>
-
-                    <div class="status-message" id="statusMessage"></div>
-
-                    <div class="button-group">
-                        <button class="btn btn-primary" id="processBtn" onclick="processFiles()" disabled>Process Files</button>
-                        <button class="btn btn-secondary" onclick="clearFiles()">Clear</button>
-                    </div>
+            <!-- Stats -->
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="filesUploaded">0</div>
+                    <div class="stat-label">Files Uploaded</div>
                 </div>
-
-                <!-- Report History Section -->
-                <div class="section" id="historySection" style="display: none;">
-                    <h2>📋 Report History</h2>
-                    <table class="reports-table">
-                        <thead>
-                            <tr>
-                                <th>Report ID</th>
-                                <th>Generated</th>
-                                <th>Status</th>
-                                <th>Files</th>
-                                <th>Rows</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="reportsList">
-                            <tr>
-                                <td class="report-id">SOJPE_20260621_080000</td>
-                                <td>June 21, 8:00 AM</td>
-                                <td><span class="badge approved">APPROVED</span></td>
-                                <td>7 files</td>
-                                <td>85K rows</td>
-                                <td>
-                                    <span class="action-btn" onclick="viewReport('20260621_080000')">View</span>
-                                    <span class="action-btn" onclick="downloadFiles('20260621_080000')">Download</span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="report-id">SOJPE_20260620_173000</td>
-                                <td>June 20, 5:30 PM</td>
-                                <td><span class="badge approved">APPROVED</span></td>
-                                <td>7 files</td>
-                                <td>82K rows</td>
-                                <td>
-                                    <span class="action-btn" onclick="viewReport('20260620_173000')">View</span>
-                                    <span class="action-btn" onclick="downloadFiles('20260620_173000')">Download</span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="report-id">SOJPE_20260620_080000</td>
-                                <td>June 20, 8:00 AM</td>
-                                <td><span class="badge draft">DRAFT</span></td>
-                                <td>7 files</td>
-                                <td>80K rows</td>
-                                <td>
-                                    <span class="action-btn" onclick="viewReport('20260620_080000')">View</span>
-                                    <span class="action-btn" onclick="downloadFiles('20260620_080000')">Download</span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="stat-card">
+                    <div class="stat-number" id="filesRequired">7</div>
+                    <div class="stat-label">Files Required</div>
                 </div>
-
-                <!-- Settings Section -->
-                <div class="section" id="settingsSection" style="display: none;">
-                    <h2>⚙️ Configuration</h2>
-                    <div class="settings-grid">
-                        <div class="setting-item">
-                            <div class="setting-label">Report Period</div>
-                            <div class="setting-value">June 17-21, 2026</div>
-                        </div>
-                        <div class="setting-item">
-                            <div class="setting-label">Working Days</div>
-                            <div class="setting-value">22 days</div>
-                        </div>
-                        <div class="setting-item">
-                            <div class="setting-label">Auto-Archive</div>
-                            <div class="setting-value">Last 5 runs</div>
-                        </div>
-                    </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="pipelineProgress">0</div>
+                    <div class="stat-label">Pipeline Progress %</div>
                 </div>
             </div>
+
+            <!-- Upload Area -->
+            <div class="upload-container" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <h2>Drag & Drop Your Files Here</h2>
+                <p>or click to select files</p>
+                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                    Select Files
+                </button>
+                <input type="file" id="fileInput" multiple accept=".xlsx,.xls">
+            </div>
+
+            <!-- File List -->
+            <div class="file-list">
+                <h3>Required Files (7 total)</h3>
+                <div id="fileListContainer"></div>
+            </div>
+
+            <!-- Upload Summary -->
+            <div class="upload-summary" id="uploadSummary" style="display:none;">
+                <h3>Upload Summary</h3>
+                <div class="summary-row">
+                    <span class="summary-label">Report ID:</span>
+                    <span class="summary-value" id="reportId">-</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Files:</span>
+                    <span class="summary-value" id="fileCount">0/7</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Status:</span>
+                    <span class="summary-value" id="uploadStatus">Ready</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Pipeline Status:</span>
+                    <span class="summary-value" id="pipelineStatus">Pending</span>
+                </div>
+                <button class="btn btn-submit" onclick="submitUpload()" id="submitBtn">
+                    Start Processing (83-Step Pipeline)
+                </button>
+            </div>
+
+            <!-- Pipeline Status -->
+            <div class="pipeline-status" id="pipelineStatusPanel" style="display:none;">
+                <h4>📊 Pipeline Execution Progress</h4>
+                <div id="pipelineStepsContainer"></div>
+            </div>
+
+            <!-- Messages -->
+            <div id="messageContainer"></div>
         </div>
     </div>
 
     <script>
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
-        const fileList = document.getElementById('fileList');
-        const processBtn = document.getElementById('processBtn');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressFill = document.getElementById('progressFill');
-        const progressText = document.getElementById('progressText');
-        const statusMessage = document.getElementById('statusMessage');
+        // Configuration
+        const API_BASE_URL = window.location.hostname === 'localhost'
+            ? 'http://localhost:5000'
+            : 'https://2g852sgu1i.execute-api.ap-south-1.amazonaws.com/prod';
 
-        let selectedFiles = [];
+        const REQUIRED_FILES = [
+            'Coverage Raw Report',
+            'Submissions (Avg Subs) Raw Report',
+            'Weekly Selects Report',
+            'Weekly Renege Report',
+            'Weekly Joiners Report',
+            'Weekly Exits Report',
+            'Staffing Report for YTJ & YTE'
+        ];
 
-        // File upload handlers
-        uploadArea.addEventListener('click', () => fileInput.click());
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            handleFiles(e.dataTransfer.files);
-        });
+        const PIPELINE_STEPS = [
+            { phase: 'PART_A', name: 'Ceipal Exports', steps: 29 },
+            { phase: 'PART_B', name: 'HRMS Exports', steps: 25 },
+            { phase: 'PART_C', name: 'VLOOKUP & Merge', steps: 15 },
+            { phase: 'PART_D', name: 'Dashboard Entry', steps: 10 },
+            { phase: 'PART_E', name: 'Publish', steps: 4 }
+        ];
 
-        fileInput.addEventListener('change', (e) => {
-            handleFiles(e.target.files);
-        });
+        let uploadedFiles = {};
+        let currentReportId = null;
 
-        function handleFiles(files) {
-            selectedFiles = Array.from(files);
-            displayFiles();
-            processBtn.disabled = selectedFiles.length === 0;
+        // Initialize
+        function init() {
+            renderFileList();
+            setupDragAndDrop();
+            setupFileInput();
         }
 
-        function displayFiles() {
-            fileList.innerHTML = '';
-            selectedFiles.forEach((file, index) => {
-                const item = document.createElement('div');
-                item.className = 'file-item';
-                item.innerHTML = `
-                    <div class="file-item-name">
-                        <span>✓</span>
-                        <span>${file.name}</span>
+        // Render required files list
+        function renderFileList() {
+            const container = document.getElementById('fileListContainer');
+            container.innerHTML = REQUIRED_FILES.map(file => `
+                <div class="file-item required" id="file-${file}">
+                    <div class="file-info">
+                        <div class="file-name">📄 ${file}.xlsx</div>
+                        <div class="file-size">Microsoft Excel File</div>
                     </div>
-                    <div class="file-item-size">${(file.size / 1024 / 1024).toFixed(2)} MB</div>
-                    <div class="file-item-remove" onclick="removeFile(${index})">Remove</div>
-                `;
-                fileList.appendChild(item);
+                    <div class="file-status status-required" id="status-${file}">⚠️ Not Uploaded</div>
+                </div>
+            `).join('');
+        }
+
+        // Setup drag and drop
+        function setupDragAndDrop() {
+            const area = document.getElementById('uploadArea');
+
+            area.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                area.classList.add('dragover');
+            });
+
+            area.addEventListener('dragleave', () => {
+                area.classList.remove('dragover');
+            });
+
+            area.addEventListener('drop', (e) => {
+                e.preventDefault();
+                area.classList.remove('dragover');
+                handleFiles(e.dataTransfer.files);
+            });
+
+            area.addEventListener('click', () => {
+                document.getElementById('fileInput').click();
             });
         }
 
-        function removeFile(index) {
-            selectedFiles.splice(index, 1);
-            displayFiles();
-            processBtn.disabled = selectedFiles.length === 0;
+        // Setup file input
+        function setupFileInput() {
+            const input = document.getElementById('fileInput');
+            input.addEventListener('change', (e) => {
+                handleFiles(e.target.files);
+            });
         }
 
-        function clearFiles() {
-            selectedFiles = [];
-            fileList.innerHTML = '';
-            fileInput.value = '';
-            processBtn.disabled = true;
-            statusMessage.innerHTML = '';
-            statusMessage.className = 'status-message';
+        // Handle file selection
+        function handleFiles(files) {
+            Array.from(files).forEach(file => {
+                const fileNameBase = file.name.replace('.xlsx', '').replace('.xls', '');
+
+                // Match to required file
+                const matchedFile = REQUIRED_FILES.find(f =>
+                    fileNameBase.toLowerCase().includes(f.toLowerCase()) ||
+                    f.toLowerCase().includes(fileNameBase.toLowerCase())
+                );
+
+                if (matchedFile) {
+                    uploadedFiles[matchedFile] = {
+                        file: file,
+                        size: file.size,
+                        name: file.name
+                    };
+
+                    updateFileStatus(matchedFile, 'success', `✓ ${file.name}`);
+                } else {
+                    showMessage(`Could not match file: ${file.name}. Expected one of: ${REQUIRED_FILES.join(', ')}`, 'error');
+                }
+            });
+
+            updateSummary();
         }
 
-        function processFiles() {
-            if (selectedFiles.length === 0) {
-                showStatus('No files selected', 'error');
+        // Update file status
+        function updateFileStatus(fileName, status, label) {
+            const statusEl = document.getElementById(`status-${fileName}`);
+            const itemEl = document.getElementById(`file-${fileName}`);
+
+            statusEl.className = `file-status status-${status}`;
+            statusEl.textContent = label;
+
+            if (status === 'success') {
+                itemEl.classList.remove('required');
+                itemEl.classList.add('uploaded');
+            }
+        }
+
+        // Update summary
+        function updateSummary() {
+            const uploadedCount = Object.keys(uploadedFiles).length;
+            document.getElementById('filesUploaded').textContent = uploadedCount;
+            document.getElementById('fileCount').textContent = `${uploadedCount}/7`;
+
+            if (uploadedCount > 0) {
+                document.getElementById('uploadSummary').style.display = 'block';
+                document.getElementById('submitBtn').disabled = uploadedCount < 7;
+            }
+        }
+
+        // Read a File object as base64 (without the data: URL prefix)
+        function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result).split(',')[1]);
+                reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Submit upload
+        async function submitUpload() {
+            if (Object.keys(uploadedFiles).length < 7) {
+                showMessage('Please upload all 7 files before submitting', 'error');
                 return;
             }
 
-            processBtn.disabled = true;
-            progressContainer.style.display = 'block';
-            statusMessage.innerHTML = '';
+            try {
+                document.getElementById('submitBtn').disabled = true;
+                showMessage('Reading files...', 'info');
 
-            // Simulate processing
-            simulateProcessing();
-        }
+                // Generate report ID
+                currentReportId = 'REPORT-' + Math.random().toString(36).substr(2, 12).toUpperCase();
+                document.getElementById('reportId').textContent = currentReportId;
 
-        function simulateProcessing() {
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += Math.random() * 30;
-                if (progress > 100) progress = 100;
+                // Read every selected file's contents as base64 so the backend can store them in S3
+                const filesPayload = await Promise.all(
+                    Object.entries(uploadedFiles).map(async ([fileType, info]) => ({
+                        fileType: fileType,
+                        name: info.name,
+                        size: info.size,
+                        content: await readFileAsBase64(info.file)
+                    }))
+                );
 
-                progressFill.style.width = progress + '%';
+                showMessage('Uploading files...', 'info');
 
-                const steps = [
-                    'Validating files...',
-                    'Reading coverage data...',
-                    'Processing submissions...',
-                    'Extracting joiners & exits...',
-                    'Normalizing names (TRIM)...',
-                    'Aggregating to AM level...',
-                    'Computing metrics...',
-                    'Creating report...',
-                    'Finalizing...'
-                ];
+                // Call upload API with actual file contents
+                const response = await fetch(`${API_BASE_URL}/api/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        reportId: currentReportId,
+                        files: filesPayload,
+                        fileCount: filesPayload.length
+                    })
+                });
 
-                const stepIndex = Math.floor((progress / 100) * (steps.length - 1));
-                progressText.textContent = steps[stepIndex];
+                const result = await response.json();
 
-                if (progress >= 100) {
-                    clearInterval(interval);
-                    completeProcessing();
+                if (result.success) {
+                    showMessage(`✓ Upload successful! Report ID: ${currentReportId}`, 'success');
+                    document.getElementById('uploadStatus').textContent = 'Processing';
+                    document.getElementById('pipelineStatus').textContent = 'In Progress';
+
+                    // Show pipeline status
+                    showPipelineStatus();
+
+                    // Start polling for pipeline status
+                    pollPipelineStatus();
+                } else {
+                    showMessage(`Upload failed: ${result.error?.message}`, 'error');
                 }
-            }, 500);
-        }
-
-        function completeProcessing() {
-            progressText.textContent = 'Complete! ✓';
-            showStatus('✓ Report generated successfully (ID: SOJPE_20260621_080001) - Ready for review', 'success');
-            processBtn.disabled = false;
-
-            // Auto-refresh report history
-            setTimeout(() => {
-                showSection('history');
-            }, 2000);
-        }
-
-        function showStatus(message, type) {
-            statusMessage.textContent = message;
-            statusMessage.className = 'status-message ' + type;
-        }
-
-        function showSection(section) {
-            document.getElementById('uploadSection').style.display = 'none';
-            document.getElementById('historySection').style.display = 'none';
-            document.getElementById('settingsSection').style.display = 'none';
-
-            if (section === 'history') {
-                document.getElementById('historySection').style.display = 'block';
-            } else if (section === 'settings') {
-                document.getElementById('settingsSection').style.display = 'block';
-            } else {
-                document.getElementById('uploadSection').style.display = 'block';
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, 'error');
+            } finally {
+                document.getElementById('submitBtn').disabled = false;
             }
         }
 
-        function viewReport(reportId) {
-            window.location.href = 'dashboard.html?report=' + reportId;
+        // Show pipeline status panel
+        function showPipelineStatus() {
+            const panel = document.getElementById('pipelineStatusPanel');
+            const container = document.getElementById('pipelineStepsContainer');
+
+            container.innerHTML = PIPELINE_STEPS.map((step, idx) => `
+                <div class="pipeline-step">
+                    <div class="pipeline-step-icon" id="step-${idx}">
+                        ${idx}
+                    </div>
+                    <div>
+                        <strong>${step.phase}:</strong> ${step.name} (${step.steps} steps)
+                    </div>
+                </div>
+            `).join('');
+
+            panel.style.display = 'block';
         }
 
-        function downloadFiles(reportId) {
-            alert('Downloading raw files for report: ' + reportId);
+        // Poll pipeline status
+        async function pollPipelineStatus() {
+            if (!currentReportId) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/pipeline/${currentReportId}/status`);
+                const result = await response.json();
+
+                if (result.success) {
+                    const progress = result.progress || {};
+                    const percent = progress.completed_steps
+                        ? Math.round((progress.completed_steps / progress.total_steps) * 100)
+                        : 0;
+
+                    document.getElementById('pipelineProgress').textContent = percent;
+
+                    // Update step indicators
+                    const completedSteps = Math.floor((progress.completed_steps || 0) / 17); // 83 / 5 phases
+                    Array.from({ length: 5 }).forEach((_, idx) => {
+                        const stepEl = document.getElementById(`step-${idx}`);
+                        if (idx < completedSteps) {
+                            stepEl.classList.add('complete');
+                            stepEl.textContent = '✓';
+                        } else if (idx === completedSteps) {
+                            stepEl.classList.add('active');
+                        }
+                    });
+
+                    if (result.success && percent < 100) {
+                        setTimeout(pollPipelineStatus, 2000);
+                    } else if (percent === 100) {
+                        document.getElementById('pipelineStatus').textContent = 'Completed';
+                        document.getElementById('uploadStatus').textContent = 'Ready for Review';
+                        showMessage('✓ Pipeline execution completed! Report is ready for review by Akash.', 'success');
+                    }
+                }
+            } catch (error) {
+                console.error('Polling error:', error);
+                setTimeout(pollPipelineStatus, 5000); // Retry after 5s
+            }
         }
 
-        function goToDashboard() {
-            window.location.href = 'dashboard.html';
+        // Show message
+        function showMessage(message, type) {
+            const container = document.getElementById('messageContainer');
+            const className = type === 'error' ? 'error-message' : type === 'success' ? 'success-message' : 'error-message';
+            const div = document.createElement('div');
+            div.className = className;
+            div.textContent = message;
+            container.innerHTML = '';
+            container.appendChild(div);
+            setTimeout(() => div.remove(), 5000);
         }
+
+        // Navigate
+        function navigateTo(page) {
+            window.location.href = page;
+        }
+
+        // Start
+        init();
     </script>
 </body>
 </html>

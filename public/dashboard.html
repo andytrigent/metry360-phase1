@@ -608,8 +608,6 @@
                     <h1>The Weekly Scorecard</h1>
                     <div class="header-controls">
                         <button class="control-btn" id="currentWeekBtn">Loading...</button>
-                        <button class="control-btn">View: Jyothsna</button>
-                        <button class="control-btn">All Roles</button>
                     </div>
                 </div>
                 <div class="header-right">
@@ -1390,7 +1388,7 @@
                         <h2 id="view-week1-title">Weekly Report</h2>
                         <p id="view-week1-date"></p>
                         <p style="color: #666; margin-top: 15px;">Showing recruitment data for this week. Performance metrics and team analytics.</p>
-                        <button class="btn-primary" onclick="showView('recruitment')">View Current Dashboard</button>
+                        <button class="btn-primary" onclick="showView('recruitment')">📊 View Dashboard for This Week</button>
                     </div>
                 </div>
 
@@ -1400,7 +1398,7 @@
                         <h2 id="view-week2-title">Weekly Report</h2>
                         <p id="view-week2-date"></p>
                         <p style="color: #666; margin-top: 15px;">Showing recruitment data for this week. Performance metrics and team analytics.</p>
-                        <button class="btn-primary" onclick="showView('recruitment')">View Current Dashboard</button>
+                        <button class="btn-primary" onclick="showView('recruitment')">📊 View Dashboard for This Week</button>
                     </div>
                 </div>
 
@@ -1410,7 +1408,7 @@
                         <h2 id="view-week3-title">Weekly Report</h2>
                         <p id="view-week3-date"></p>
                         <p style="color: #666; margin-top: 15px;">Showing recruitment data for this week. Performance metrics and team analytics.</p>
-                        <button class="btn-primary" onclick="showView('recruitment')">View Current Dashboard</button>
+                        <button class="btn-primary" onclick="showView('recruitment')">📊 View Dashboard for This Week</button>
                     </div>
                 </div>
 
@@ -1420,7 +1418,7 @@
                         <h2 id="view-week4-title">Weekly Report</h2>
                         <p id="view-week4-date"></p>
                         <p style="color: #666; margin-top: 15px;">Showing recruitment data for this week. Performance metrics and team analytics.</p>
-                        <button class="btn-primary" onclick="showView('recruitment')">View Current Dashboard</button>
+                        <button class="btn-primary" onclick="showView('recruitment')">📊 View Dashboard for This Week</button>
                     </div>
                 </div>
 
@@ -1430,7 +1428,7 @@
                         <h2 id="view-week5-title">Weekly Report</h2>
                         <p id="view-week5-date"></p>
                         <p style="color: #666; margin-top: 15px;">Showing recruitment data for this week. Performance metrics and team analytics.</p>
-                        <button class="btn-primary" onclick="showView('recruitment')">View Current Dashboard</button>
+                        <button class="btn-primary" onclick="showView('recruitment')">📊 View Dashboard for This Week</button>
                     </div>
                 </div>
 
@@ -1746,9 +1744,11 @@
         function showView(view) {
             console.log('Showing view:', view);
 
-            // Handle week clicks - header and view text follow the selected week's ending date
+            // Handle week clicks - the selected week becomes the dashboard's active week.
+            // All views (header, scorecard badges) render for this week until another is chosen.
             if (view.startsWith('week')) {
                 const weekNum = parseInt(view.replace('week', ''));
+                window.selectedWeek = weekNum;
                 updateWeekHeader(weekNum);
                 const dates = window.dynamicWeekEndingDates || [];
                 const dateEl = document.getElementById(`view-${view}-date`);
@@ -2027,7 +2027,8 @@
                 console.log('Using fallback - Week', currentWeekOfMonth);
             }
 
-            // Update the header to show the current week's ending date
+            // The data's current week is the default selected week
+            window.selectedWeek = currentWeekOfMonth;
             updateWeekHeader(currentWeekOfMonth);
 
             // Initialize charts
