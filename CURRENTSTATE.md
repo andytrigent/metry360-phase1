@@ -6,11 +6,11 @@ Handoff doc for a new session. Read alongside `../CLAUDE.md` (business rules, me
 
 The dashboard frontend was **fully rebuilt to the new Metry360 design brief** (`../tech/docs/design/*.png` — Recruitment.png is the 100% target) on top of a new plain-CSS design system. The backend Lambda was extended the same day: renege-count bug fixed, plus recruiters / director HC / MTD joiners / RPR / per-client aggregation / `/api/trends`. Everything renders from the live API; anything the data can't support shows an honest "—" or empty state. Verified end-to-end in Chrome against the design PNGs.
 
-## ⚠️ Deployment status
+## Deployment status — ALL LIVE as of 2026-07-16 ~17:15 IST
 
-- **Lambda backend: CURRENT in AWS** (deployed 2026-07-16, includes renege fix + new aggregations + /api/trends).
-- **Vercel frontend: STALE** — the rebuilt dashboard, design system, and real upload page are LOCAL/main only. Deploy = `vercel --prod --yes` from repo root, **only after the user gives the go**. Branch rule: everything merges to `main` only; GitHub pushes do NOT auto-deploy Vercel.
-- Until deployed, do not ask Akash to upload in prod — the prod upload page silently discards files.
+- **Lambda backend: CURRENT in AWS** (renege fix, aggregations, trends, configs, categories).
+- **Vercel frontend: DEPLOYED and verified** at https://metry360.arkos.studio (design rebuild, recruiter hierarchy, calendar weeks, June W4, Select Category, Master Tables). Prod upload page is now the real uploader — Akash can upload in prod.
+- ⚠️ Vercel BLOCKS deployments whose commit author email isn't linked to a GitHub account. Fixed via repo-local `git config user.email "103489765+andytrigent@users.noreply.github.com"` (andytrigent's noreply address). Do NOT commit in this repo with anand.padia@gmail.com — deployments will silently BLOCK again (state BLOCKED, no build logs).
 
 ## New frontend architecture (2026-07-16 rebuild)
 
