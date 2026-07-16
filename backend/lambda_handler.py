@@ -1418,6 +1418,17 @@ def compute_dashboard_data(report_id):
     for am, d in ams.items():
         directors.setdefault(am_dir.get(am, 'Unassigned'), {})[am] = d
 
+    # Org-chart managers who have recruiters but no Coverage-derived AM row (team
+    # leads with no open positions, e.g. added via the editable org master) still
+    # get an AM row under their org-chart director, so their recruiters roll up
+    # instead of landing in unattached_recruiters.
+    for mgr in details_by_am:
+        if mgr not in ams and mgr in CANONICAL_ORG:
+            top = resolve_top_director(CANONICAL_ORG[mgr]) or CANONICAL_ORG[mgr]
+            directors.setdefault(top, {})[mgr] = dict(
+                positions=0, submissions=0, jobs_with_subs=0,
+                selections=0, reneges=0, joiners=0, exits=0)
+
     dir_list = []
     grand = dict(positions=0, submissions=0, jobs_with_subs=0, selections=0, reneges=0, joiners=0, exits=0)
     for dname, dams in directors.items():
