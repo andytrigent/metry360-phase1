@@ -940,7 +940,29 @@ def canon_dir(name):
     return DIRECTOR_ALIASES.get(_norm(c), c)
 
 def am_home_director(am):
-    """Org chart is authoritative: canonical AM -> its home Director, else None."""
+    """Org chart is authoritative: canonical AM -> its TOP (terminal) Director,
+    resolved transitively so mid-level leaders fold into their top director.
+    Returns None if the org chart doesn't place this AM (not a key)."""
+    return resolve_top_director(am)
+
+def resolve_top_director(name, cap=10):
+    """Walk canonical_org from `name` up to the terminal top director. A name that is
+    itself a key is a mid-level leader; the terminal (a name that is not a key) is the
+    top director. Returns None if `name` isn't in the chart. Cycle-safe, depth-capped."""
+    if name not in CANONICAL_ORG:
+        return None
+    seen = set()
+    cur = name
+    for _ in range(cap):
+        nxt = CANONICAL_ORG.get(cur)
+        if not nxt or nxt == cur or nxt in seen:
+            break
+        seen.add(cur)
+        cur = nxt
+    return cur
+
+def direct_manager(am):
+    """The AM's immediate manager from the org chart (may be a mid-leader), or None."""
     return CANONICAL_ORG.get(am)
 
 # ============================================================================
@@ -951,11 +973,15 @@ def am_home_director(am):
 # ============================================================================
 CONFIG_PREFIX = 'config/'
 
+# Recruiter -> AM master mapping (editable; seeded from Avg Subs). Empty by default.
+RECRUITER_ORG = {}
+
 # Snapshot the embedded defaults so we can always fall back / seed them.
 DEFAULT_ORG_CHART = {
     'canonical_org': dict(CANONICAL_ORG),
     'am_aliases': dict(AM_ALIASES),
     'director_aliases': dict(DIRECTOR_ALIASES),
+    'recruiter_org': dict(RECRUITER_ORG),
 }
 
 def _config_get(name):
@@ -985,20 +1011,23 @@ def load_org_config():
     """Refresh the org-chart globals from S3 config (if present) else the embedded
     defaults, so canon_am / canon_dir / am_home_director reflect Rhoni's latest edit.
     Returns the effective config with a 'source' of 's3' or 'default'."""
-    global CANONICAL_ORG, AM_ALIASES, DIRECTOR_ALIASES
+    global CANONICAL_ORG, AM_ALIASES, DIRECTOR_ALIASES, RECRUITER_ORG
     cfg = _config_get('org_chart')
     if isinstance(cfg, dict) and cfg.get('canonical_org') is not None:
         CANONICAL_ORG = {clean(k): clean(v) for k, v in (cfg.get('canonical_org') or {}).items() if clean(k)}
         AM_ALIASES = {_norm(k): clean(v) for k, v in (cfg.get('am_aliases') or {}).items() if clean(k)}
         DIRECTOR_ALIASES = {_norm(k): clean(v) for k, v in (cfg.get('director_aliases') or {}).items() if clean(k)}
+        RECRUITER_ORG = {clean(k): clean(v) for k, v in (cfg.get('recruiter_org') or {}).items() if clean(k)}
         source = 's3'
     else:
         CANONICAL_ORG = dict(DEFAULT_ORG_CHART['canonical_org'])
         AM_ALIASES = dict(DEFAULT_ORG_CHART['am_aliases'])
         DIRECTOR_ALIASES = dict(DEFAULT_ORG_CHART['director_aliases'])
+        RECRUITER_ORG = dict(DEFAULT_ORG_CHART['recruiter_org'])
         source = 'default'
     return {'source': source, 'canonical_org': CANONICAL_ORG,
-            'am_aliases': AM_ALIASES, 'director_aliases': DIRECTOR_ALIASES}
+            'am_aliases': AM_ALIASES, 'director_aliases': DIRECTOR_ALIASES,
+            'recruiter_org': RECRUITER_ORG}
 
 def load_customer_master():
     """Customer master rows (list of 13-column dicts) from S3 config, or None if not
@@ -1079,7 +1108,11 @@ def parse_recruiters(sheets):
             if not name or name.lower().startswith('total'):
                 continue
             total += 1
-            am = canon_am(cg(r, cm, 'Reporting Manager'))
+            # Attachment order: (a) recruiter_org master mapping wins (canonicalized),
+            # (b) the file's Reporting Manager, (c) unattached. Editing the master
+            # (recruiter -> real AM) thus rescues recruiters the file can't place.
+            mapped = RECRUITER_ORG.get(name)
+            am = canon_am(mapped) if mapped else canon_am(cg(r, cm, 'Reporting Manager'))
             dirn = canon_dir(cg(r, cm, 'BU Head', 'DU Head'))
             detail = dict(
                 name=name,
@@ -1342,17 +1375,38 @@ def compute_dashboard_data(report_id):
     for am in ams:
         if am == 'Unassigned':
             continue
-        home = am_home_director(am)
+        home = resolve_top_director(am)
         if home:
             am_dir[am] = home
         elif dir_votes.get(am):
-            am_dir[am] = max(dir_votes[am].items(), key=lambda kv: kv[1])[0]
+            # The file's BU Head may itself be a mid-leader (e.g. Vivek Singh Sengar);
+            # resolve it to the top director so those AMs fold up too.
+            voted = max(dir_votes[am].items(), key=lambda kv: kv[1])[0]
+            am_dir[am] = resolve_top_director(voted) or voted
 
     # Director-level MTD follows the same canonical grouping (sum of its AMs' MTD),
     # so it can never disagree with the AM rows shown beneath it.
     for am, n in mtd_by_am.items():
         dname = am_dir.get(am, 'Unassigned')
         mtd_by_dir[dname] = mtd_by_dir.get(dname, 0) + n
+
+    # Roll Staffing HC and Avg-Subs recruiter counts up to the TOP director, so a
+    # mid-leader's own director-block (e.g. Vivek Singh Sengar HC 470) folds into
+    # their top director (Sanjib) instead of surfacing as a separate director row.
+    # A mid-leader (a name that is itself a key in the org chart) also keeps its own
+    # block in mid_leader_hc, to hang onto its AM row so the frontend can nest it.
+    hc_by_topdir, mid_leader_hc = {}, {}
+    for d, block in hc_by_dir.items():
+        top = resolve_top_director(d) or d
+        acc = hc_by_topdir.setdefault(top, dict(opening=0, closing=0, joiners_week=0, exits_week=0))
+        for k in acc:
+            acc[k] += block.get(k, 0)
+        if d in CANONICAL_ORG:
+            mid_leader_hc[d] = block
+    recruiters_by_topdir = {}
+    for d, n in recruiters_by_dir.items():
+        top = resolve_top_director(d) or d
+        recruiters_by_topdir[top] = recruiters_by_topdir.get(top, 0) + n
 
     def enrich(d):
         out = {k: round(v, 2) for k, v in d.items()}
@@ -1375,15 +1429,32 @@ def compute_dashboard_data(report_id):
                 grand[k] += d[k]
             am_obj = dict(name=am, **enrich(d))
             am_obj['recruiters'] = recruiters_by_am.get(am)   # None => AM not in Avg Subs (often a name-form mismatch)
-            am_obj['recruiter_details'] = details_by_am.get(am)  # list[{name,submissions,target,leave_count,comments}] or None
+            details = details_by_am.get(am)
+            am_obj['recruiter_details'] = details  # list[{name,submissions,target,leave_count,comments}] or None
             am_obj['mtd_joiners'] = mtd_by_am.get(am, 0)
+            am_obj['reports_to'] = direct_manager(am)  # immediate manager from the org chart, or None
+            am_obj['hc'] = mid_leader_hc.get(am)       # a mid-leader's own Staffing HC block (else None)
+            # Target rollup from the recruiter details (Avg Subs axis only, NOT Coverage subs)
+            if details:
+                tgt = sum(x['target'] for x in details if x.get('target') is not None)
+                sub = sum(x['submissions'] for x in details if x.get('submissions') is not None)
+                am_obj['target'] = tgt
+                am_obj['subs_actual'] = sub
+                am_obj['achieve_pct'] = round(sub / tgt * 100) if tgt > 0 else None
+            else:
+                am_obj['target'] = am_obj['subs_actual'] = am_obj['achieve_pct'] = None
             am_list.append(am_obj)
         dobj = dict(name=dname, totals=enrich(dtot), ams=am_list)
-        dobj['recruiters'] = recruiters_by_dir.get(dname)
-        dobj['hc'] = hc_by_dir.get(dname)
+        dobj['recruiters'] = recruiters_by_topdir.get(dname)
+        dobj['hc'] = hc_by_topdir.get(dname)
         dobj['mtd_joiners'] = mtd_by_dir.get(dname, 0)
         closing = (dobj['hc'] or {}).get('closing')
         dobj['rpr'] = round(dobj['mtd_joiners'] / closing, 2) if closing else None
+        _tgts = [a['target'] for a in am_list if a['target'] is not None]
+        _subs = [a['subs_actual'] for a in am_list if a['subs_actual'] is not None]
+        dobj['target'] = sum(_tgts) if _tgts else None
+        dobj['subs_actual'] = sum(_subs) if _subs else None
+        dobj['achieve_pct'] = round(dobj['subs_actual'] / dobj['target'] * 100) if dobj['target'] else None
         dir_list.append(dobj)
 
     # Surface directors that appear in Staffing/Joiners but have no Coverage AM rows
@@ -1391,14 +1462,15 @@ def compute_dashboard_data(report_id):
     # so their real head count / MTD / RPR aren't lost. Coverage metrics stay 0.
     seen = {d['name'] for d in dir_list}
     zeros = dict(positions=0, submissions=0, jobs_with_subs=0, selections=0, reneges=0, joiners=0, exits=0)
-    for dname in (set(hc_by_dir) | set(mtd_by_dir)) - seen:
-        hc = hc_by_dir.get(dname)
+    for dname in (set(hc_by_topdir) | set(mtd_by_dir)) - seen:
+        hc = hc_by_topdir.get(dname)
         mtd = mtd_by_dir.get(dname, 0)
         closing = (hc or {}).get('closing')
         dir_list.append(dict(name=dname, totals=enrich(dict(zeros)), ams=[],
-                             recruiters=recruiters_by_dir.get(dname), hc=hc,
+                             recruiters=recruiters_by_topdir.get(dname), hc=hc,
                              mtd_joiners=mtd,
-                             rpr=round(mtd / closing, 2) if closing else None))
+                             rpr=round(mtd / closing, 2) if closing else None,
+                             target=None, subs_actual=None, achieve_pct=None))
     dir_list.sort(key=lambda x: (x['name'] == 'Unassigned', -x['totals']['positions']))
 
     # Recruiters whose Reporting Manager didn't resolve to an AM shown in the tree are
@@ -1458,13 +1530,22 @@ def compute_dashboard_data(report_id):
             sub_units=e['sub_units']))
     category_list.sort(key=lambda x: (x['name'] == 'Uncategorized', -x['positions']))
 
+    # Grand-total target rollup = sum of the AM-level target axis (Avg Subs), nulls
+    # propagating honestly (all null when there's no Avg Subs file, e.g. June).
+    _all_tgt = [a['target'] for d in dir_list for a in d['ams'] if a['target'] is not None]
+    _all_sub = [a['subs_actual'] for d in dir_list for a in d['ams'] if a['subs_actual'] is not None]
+    grand_target = sum(_all_tgt) if _all_tgt else None
+    grand_subs = sum(_all_sub) if _all_sub else None
+    grand_achieve = round(grand_subs / grand_target * 100) if grand_target else None
+
     return {
         'report_id': report_id,
         'data_week_ending': metadata.get('data_week_ending'),
         'data_period': metadata.get('data_period'),
         'week': _corrected_week(metadata),
         'month': metadata.get('month'),
-        'totals': dict(enrich(grand), recruiters=total_recruiters),
+        'totals': dict(enrich(grand), recruiters=total_recruiters,
+                       target=grand_target, subs_actual=grand_subs, achieve_pct=grand_achieve),
         'directors': dir_list,
         'clients': client_list,
         'categories': category_list,
@@ -1649,29 +1730,43 @@ def config_customer_master(event, context):
         return error_response(400, 'CONFIG_PUT_FAILED', str(e))
 
 def config_org_chart(event, context):
-    """GET/PUT /api/config/org-chart. Body/return shape:
-    {canonical_org:{AM:Director}, am_aliases:{alias:AM}, director_aliases:{alias:Director}}.
-    PUT full-replaces; the previous version is archived under config/history/."""
+    """GET/PUT /api/config/org-chart. Shape:
+    {canonical_org:{AM:Director}, am_aliases:{alias:AM}, director_aliases:{alias:Director},
+     recruiter_org:{recruiter:AM}}.
+    PUT: any section OMITTED from the body is preserved byte-for-byte from the existing
+    S3 config (so editing only recruiter_org can never disturb canonical_org). Each
+    provided section must be a flat {string: string} map. Prior version archived."""
     method = event.get('httpMethod', 'GET')
     if method == 'GET':
         cfg = load_org_config()
         return response(200, {'success': True, 'config': 'org-chart', **cfg})
     try:
         body = json.loads(event.get('body') or '{}')
-        if not isinstance(body, dict) or not isinstance(body.get('canonical_org'), dict):
-            return error_response(400, 'BAD_CONFIG', 'Expected {canonical_org:{}, am_aliases:{}, director_aliases:{}}')
-        payload = {
-            'canonical_org': body.get('canonical_org') or {},
-            'am_aliases': body.get('am_aliases') or {},
-            'director_aliases': body.get('director_aliases') or {},
-        }
+        if not isinstance(body, dict):
+            return error_response(400, 'BAD_CONFIG', 'Expected a JSON object')
+
+        def valid_map(m):
+            return isinstance(m, dict) and all(isinstance(k, str) and isinstance(v, str) for k, v in m.items())
+
+        raw = _config_get('org_chart') or DEFAULT_ORG_CHART
+        payload = {}
+        for section in ('canonical_org', 'am_aliases', 'director_aliases', 'recruiter_org'):
+            if section in body:
+                if not valid_map(body[section]):
+                    return error_response(400, 'BAD_CONFIG', f'{section} must be a flat {{string: string}} map')
+                payload[section] = body[section]
+            else:
+                payload[section] = raw.get(section, {})
+
         _config_put('org_chart', payload)
         load_org_config()  # apply immediately for subsequent calls in this container
-        log_event('ConfigPutOrgChart', {'ams': len(payload['canonical_org'])})
+        log_event('ConfigPutOrgChart', {'ams': len(payload['canonical_org']),
+                                        'recruiters': len(payload['recruiter_org'])})
         return response(200, {'success': True, 'config': 'org-chart',
                               'canonical_org_count': len(payload['canonical_org']),
                               'am_aliases_count': len(payload['am_aliases']),
                               'director_aliases_count': len(payload['director_aliases']),
+                              'recruiter_org_count': len(payload['recruiter_org']),
                               'message': 'Org chart saved; previous version archived to config/history/'})
     except Exception as e:
         return error_response(400, 'CONFIG_PUT_FAILED', str(e))

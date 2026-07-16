@@ -3,104 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload Raw Files - SOJPE C2H Dashboard</title>
+    <title>Upload Raw Files - Metry360</title>
+    <link rel="stylesheet" href="./assets/metry-ds.css" />
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        /* Upload page: shell is the design system (.m-shell / .m-sidebar / .m-shell__content).
+           These rules restyle only the upload-specific widgets, mapped onto DS tokens so the
+           palette matches the dashboard. Functional class names the upload logic toggles
+           (file-item states, status pills, type-badge, warnings, buttons) are unchanged. */
 
+        /* Alias only the legacy var names the DS doesn't already define, so existing
+           upload rules render in DS colors. --primary / --amber / --red come from the DS. */
         :root {
-            --primary-dark: #1a2942;
-            --primary: #1F4E78;
-            --secondary: #2E5C8A;
-            --accent: #4CAF50;
-            --amber: #FFC107;
-            --red: #F44336;
-            --gray-light: #F5F5F5;
-            --gray-border: #EBEBEB;
+            --primary-dark: var(--sidebar-bg);
+            --secondary: var(--primary-hover);
+            --accent: var(--green);
+            --gray-light: var(--page-bg);
+            --gray-border: var(--card-border);
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-            background: #FAFBFC;
-            color: #333;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        .layout {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        .sidebar {
-            width: 220px;
-            background: var(--primary-dark);
-            color: white;
-            padding: 24px 0;
-            overflow-y: auto;
-            position: fixed;
-            height: 100vh;
-            left: 0;
-            top: 0;
-            box-shadow: 2px 0 8px rgba(0,0,0,0.15);
-        }
-
-        .sidebar-logo {
-            padding: 0 20px 30px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        .sidebar-menu {
-            list-style: none;
-        }
-
-        .sidebar-menu li {
-            padding: 12px 20px;
-            cursor: pointer;
-            transition: background 0.2s;
-            font-size: 14px;
-        }
-
-        .sidebar-menu li:hover {
-            background: rgba(255,255,255,0.1);
-        }
-
-        .sidebar-menu li.active {
-            background: var(--primary);
-            border-left: 4px solid var(--accent);
-            padding-left: 16px;
-        }
-
-        .main-content {
-            margin-left: 220px;
-            flex: 1;
-            padding: 40px;
-        }
-
-        .header {
-            margin-bottom: 40px;
-        }
-
-        .header h1 {
-            font-size: 28px;
-            color: var(--primary-dark);
-            margin-bottom: 8px;
-        }
-
-        .header p {
-            color: #666;
-            font-size: 14px;
-        }
+        /* Topbar heading spacing under the DS title/subtitle. */
+        .m-shell__content > .m-topbar__subtitle { margin-bottom: 32px; }
 
         .upload-container {
-            background: white;
-            border: 2px dashed #4CAF50;
-            border-radius: 8px;
+            background: var(--card-bg);
+            border: 2px dashed var(--accent);
+            border-radius: var(--radius-card);
             padding: 40px;
             text-align: center;
             margin-bottom: 30px;
@@ -110,11 +39,11 @@
 
         .upload-container:hover {
             border-color: var(--primary);
-            background: #F0F8FF;
+            background: var(--primary-soft);
         }
 
         .upload-container.dragover {
-            background: #E8F5E9;
+            background: var(--green-soft);
             border-color: var(--accent);
         }
 
@@ -136,13 +65,15 @@
         }
 
         .btn {
-            padding: 10px 24px;
-            border: none;
-            border-radius: 4px;
+            height: 36px;
+            padding: 0 16px;
+            border: 1px solid transparent;
+            border-radius: var(--radius-chip);
             font-size: 14px;
-            font-weight: 500;
+            font-weight: 600;
+            font-family: inherit;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s;
         }
 
         .btn-primary {
@@ -155,7 +86,7 @@
         }
 
         .btn-primary:disabled {
-            background: #ccc;
+            opacity: .5;
             cursor: not-allowed;
         }
 
@@ -164,15 +95,16 @@
         }
 
         .file-list h3 {
-            font-size: 16px;
+            font-size: var(--fs-card-title);
             margin-bottom: 16px;
-            color: var(--primary-dark);
+            color: var(--text-heading);
         }
 
         .file-item {
-            background: white;
-            border: 1px solid var(--gray-border);
-            border-radius: 4px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-card);
             padding: 16px;
             margin-bottom: 12px;
             display: flex;
@@ -193,35 +125,36 @@
         }
 
         .file-name {
-            font-weight: 500;
-            color: var(--primary-dark);
+            font-weight: 600;
+            color: var(--text-heading);
             margin-bottom: 4px;
         }
 
         .file-size {
             font-size: 12px;
-            color: #999;
+            color: var(--text-subtle);
         }
 
         .file-status {
             padding: 4px 12px;
-            border-radius: 4px;
+            border-radius: 6px;
             font-size: 12px;
-            font-weight: 500;
+            font-weight: 600;
+            white-space: nowrap;
         }
 
         .status-required {
-            background: #FFEBEE;
+            background: var(--red-soft);
             color: var(--red);
         }
 
         .status-uploading {
-            background: #FFF3E0;
+            background: var(--amber-soft);
             color: var(--amber);
         }
 
         .status-success {
-            background: #E8F5E9;
+            background: var(--green-soft);
             color: var(--accent);
         }
 
@@ -242,18 +175,25 @@
         }
 
         .upload-summary {
-            background: white;
-            border: 1px solid var(--gray-border);
-            border-radius: 8px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-card);
             padding: 24px;
             margin-top: 30px;
+        }
+
+        .upload-summary > h3 {
+            font-size: var(--fs-card-title);
+            color: var(--text-heading);
+            margin-bottom: 8px;
         }
 
         .summary-row {
             display: flex;
             justify-content: space-between;
             padding: 12px 0;
-            border-bottom: 1px solid var(--gray-border);
+            border-bottom: 1px solid var(--row-divider);
         }
 
         .summary-row:last-child {
@@ -261,12 +201,12 @@
         }
 
         .summary-label {
-            font-weight: 500;
-            color: var(--primary-dark);
+            font-weight: 600;
+            color: var(--text-heading);
         }
 
         .summary-value {
-            color: #666;
+            color: var(--text-body);
         }
 
         .btn-submit {
@@ -277,13 +217,13 @@
         }
 
         .btn-submit:hover {
-            background: #45a049;
+            filter: brightness(0.94);
         }
 
         .pipeline-status {
-            background: #E3F2FD;
+            background: var(--primary-soft);
             border-left: 4px solid var(--primary);
-            border-radius: 4px;
+            border-radius: 8px;
             padding: 16px;
             margin-top: 30px;
         }
@@ -322,18 +262,18 @@
         }
 
         .error-message {
-            background: #FFEBEE;
+            background: var(--red-soft);
             border-left: 4px solid var(--red);
-            border-radius: 4px;
+            border-radius: 8px;
             padding: 16px;
             margin-top: 20px;
             color: var(--red);
         }
 
         .success-message {
-            background: #E8F5E9;
+            background: var(--green-soft);
             border-left: 4px solid var(--accent);
-            border-radius: 4px;
+            border-radius: 8px;
             padding: 16px;
             margin-top: 20px;
             color: var(--accent);
@@ -351,22 +291,18 @@
         }
 
         .stat-card {
-            background: white;
-            border: 1px solid var(--gray-border);
-            border-radius: 8px;
-            padding: 16px;
             text-align: center;
         }
 
         .stat-number {
             font-size: 24px;
-            font-weight: bold;
+            font-weight: 800;
             color: var(--primary);
         }
 
         .stat-label {
             font-size: 12px;
-            color: #999;
+            color: var(--text-subtle);
             margin-top: 8px;
         }
 
@@ -384,17 +320,17 @@
             margin-left: 8px;
             vertical-align: middle;
         }
-        .type-badge.req { background: #FFEBEE; color: var(--red); }
-        .type-badge.opt { background: #FFF8E1; color: #8a6d00; }
+        .type-badge.req { background: var(--red-soft); color: var(--red); }
+        .type-badge.opt { background: var(--amber-soft); color: #8a6d00; }
 
         /* Muted status for an optional file that wasn't provided. */
-        .status-optional { background: #F0F0F0; color: #888; }
+        .status-optional { background: var(--table-head-bg); color: var(--text-muted); }
 
         /* Amber impact warning shown BEFORE submit when an optional file is missing. */
         .warning-message {
-            background: #FFF8E1;
+            background: var(--amber-soft);
             border-left: 4px solid var(--amber);
-            border-radius: 4px;
+            border-radius: 8px;
             padding: 12px 16px;
             margin-bottom: 12px;
             color: #8a6d00;
@@ -402,42 +338,43 @@
         }
         .submit-hint {
             font-size: 12px;
-            color: #999;
+            color: var(--text-subtle);
             margin-top: 10px;
             text-align: center;
         }
     </style>
 </head>
-<body>
-    <div class="layout">
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <div class="sidebar-logo">📊 SOJPE C2H</div>
-            <ul class="sidebar-menu">
-                <li onclick="navigateTo('dashboard.html')">Dashboard</li>
-                <li class="active">Upload Files</li>
-                <li onclick="navigateTo('dashboard.html#history')">Report History</li>
-            </ul>
-        </div>
+<body class="m-app">
+    <div class="m-shell">
+        <!-- Sidebar (design system) -->
+        <aside class="m-sidebar">
+            <div class="m-sidebar__logo">
+                <div class="m-logo-mark">Q</div>
+                <div class="m-logo-word">Metry360</div>
+            </div>
+            <nav class="m-nav">
+                <button class="m-nav__item" onclick="navigateTo('dashboard.html')">Dashboard</button>
+                <button class="m-nav__item is-active">Upload Files</button>
+                <button class="m-nav__item" onclick="navigateTo('dashboard.html#history')">Report History</button>
+            </nav>
+        </aside>
 
         <!-- Main Content -->
-        <div class="main-content">
-            <div class="header">
-                <h1>📤 Upload Raw Data Files</h1>
-                <p>Upload the weekly raw Excel files. Five core files are required; Submissions, Exits, YTE and YTJ are optional (with reduced metrics noted below).</p>
-            </div>
+        <main class="m-shell__content">
+            <h1 class="m-topbar__title">Upload Raw Data Files</h1>
+            <p class="m-topbar__subtitle">Upload the weekly raw Excel files. Five core files are required; Submissions, Exits, YTE and YTJ are optional (with reduced metrics noted below).</p>
 
             <!-- Stats -->
             <div class="stats">
-                <div class="stat-card">
+                <div class="m-card m-card--pad stat-card">
                     <div class="stat-number" id="filesUploaded">0</div>
                     <div class="stat-label">Files Uploaded</div>
                 </div>
-                <div class="stat-card">
+                <div class="m-card m-card--pad stat-card">
                     <div class="stat-number" id="filesRequired">0/5</div>
                     <div class="stat-label">Core Files (required)</div>
                 </div>
-                <div class="stat-card">
+                <div class="m-card m-card--pad stat-card">
                     <div class="stat-number" id="pipelineProgress">0</div>
                     <div class="stat-label">Pipeline Progress %</div>
                 </div>
@@ -446,9 +383,9 @@
             <!-- Upload Area -->
             <div class="upload-container" id="uploadArea">
                 <div class="upload-icon">📁</div>
-                <h2>Drag & Drop Your Files Here</h2>
+                <h2>Drag &amp; Drop Your Files Here</h2>
                 <p>or click to select files</p>
-                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                <button class="m-btn m-btn--primary" onclick="document.getElementById('fileInput').click()">
                     Select Files
                 </button>
                 <input type="file" id="fileInput" multiple accept=".xlsx,.xls">
@@ -495,7 +432,7 @@
 
             <!-- Messages -->
             <div id="messageContainer"></div>
-        </div>
+        </main>
     </div>
 
     <script>

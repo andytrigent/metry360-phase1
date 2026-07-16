@@ -88,7 +88,29 @@
     .m-master-del { cursor: pointer; color: var(--red); border: none; background: none; font-size: 15px; line-height: 1; padding: 0 4px; }
     .m-master-status { margin-top: 16px; }
 
+    /* ---- "i" info icons + click popover (metric definitions) ---- */
+    .m-info {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 15px; height: 15px; margin-left: 5px; padding: 0;
+      border-radius: 50%; border: 1px solid var(--chip-border); background: transparent;
+      color: var(--text-subtle); font-size: 10px; font-weight: 700; font-style: italic;
+      line-height: 1; cursor: pointer; vertical-align: middle;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+    .m-info:hover { color: var(--primary); border-color: var(--primary); }
+    .m-infopop {
+      position: absolute; z-index: 60; width: 288px; max-width: 86vw;
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: 10px; box-shadow: var(--shadow-popover); padding: 12px 14px;
+    }
+    .m-infopop__title { font-size: 12px; font-weight: 700; color: var(--text-heading); margin: 0 0 6px; }
+    .m-infopop__body { font-size: 12px; line-height: 1.5; color: var(--text-body); margin: 0; }
+    .m-infopop__body strong { color: var(--text-heading); font-weight: 700; }
+    /* Header ⓘ sits inline with the uppercase column label. */
+    .m-table thead th .m-info { text-transform: none; }
+
     @media print {
+      .m-infopop, .m-info { display: none !important; }
       .m-sidebar, .m-toolbar, .m-rail__pop { display: none !important; }
       .m-shell__content { padding: 0; }
       .m-band { grid-template-columns: 230px 1fr; }
@@ -117,6 +139,7 @@
       activeMonthKey: null,      // "2026-7" month currently selected in toolbar
       tab: "health",             // active table filter tab
       ragOpen: false,            // RAG popover expanded?
+      infoKey: null,             // open metric-info popover key (one at a time)
       scope: "",                 // selected category (or client fallback) for the scoped view
       loadError: false,
       // Master Tables (editable config grids). data/dirty/loaded keyed by config name.
@@ -127,6 +150,7 @@
         dirty: { "org-chart": false, "customer-master": false },
         loading: false,
         filter: "",
+        section: "",           // Org Chart section filter (map name) or "" for all
         status: null
       }
     };
@@ -597,7 +621,7 @@
 
       // Org health
       html += '<div class="m-card m-card--pad m-orghealth">';
-      html += '<div class="m-eyebrow">Organization Health</div>';
+      html += '<div class="m-eyebrow">Organization Health' + infoIcon("orghealth", "Organization Health") + "</div>";
       html += '<div class="m-donut m-orghealth__donut" data-donut="' + health + '" data-donut-color="var(--donut-health)"></div>';
       html += '<div class="m-orghealth__caption">Partial composite: Coverage &amp; Avg Sub only — Selection / Renege / Achievement need target config.</div>';
       html += "</div>";
@@ -610,28 +634,28 @@
       // KPI 1: Monthly Target — no target config available
       html += '<div class="m-card m-card--pad m-kpi">' +
         '<div class="m-kpi__icon m-kpi__icon--blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg></div>' +
-        '<div class="m-kpi__label">Monthly Target</div>' +
+        '<div class="m-kpi__label">Monthly Target' + infoIcon("kpi-target", "Monthly Target") + '</div>' +
         '<div class="m-kpi__value">—<span class="m-kpi__suffix">/ —</span></div>' +
         '<div class="m-kpi__status m-kpi__status--amber">Needs monthly target config</div></div>';
 
       // KPI 2: Coverage
       html += '<div class="m-card m-card--pad m-kpi">' +
         '<div class="m-kpi__icon m-kpi__icon--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15 20c0-2.5 1.4-4.2 3.6-4.2"/></svg></div>' +
-        '<div class="m-kpi__label">Coverage</div>' +
+        '<div class="m-kpi__label">Coverage' + infoIcon("kpi-coverage", "Coverage") + '</div>' +
         '<div class="m-kpi__value">' + num(t.coverage_pct) + '%</div>' +
         '<div class="m-kpi__status m-kpi__status--' + covBand + '">' + coverageStatus(t.coverage_pct) + '</div></div>';
 
       // KPI 3: Average Submission
       html += '<div class="m-card m-card--pad m-kpi">' +
         '<div class="m-kpi__icon m-kpi__icon--amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M10 12h5M10 16h5"/></svg></div>' +
-        '<div class="m-kpi__label">Average Submission</div>' +
+        '<div class="m-kpi__label">Average Submission' + infoIcon("kpi-avgsub", "Average Submission") + '</div>' +
         '<div class="m-kpi__value">' + num(t.avg_sub) + '</div>' +
         '<div class="m-kpi__status m-kpi__status--' + subBand + '">' + avgSubStatus(t.avg_sub) + '</div></div>';
 
       // KPI 4: Renege — show COUNT; % needs Offers
       html += '<div class="m-card m-card--pad m-kpi">' +
         '<div class="m-kpi__icon m-kpi__icon--red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8l6 6 3-3 7 7"/><path d="M15 18h5v-5"/></svg></div>' +
-        '<div class="m-kpi__label">Reneges</div>' +
+        '<div class="m-kpi__label">Reneges' + infoIcon("kpi-renege", "Reneges") + '</div>' +
         '<div class="m-kpi__value">' + fmtInt(t.reneges) + '</div>' +
         '<div class="m-kpi__status m-kpi__status--amber">Renege % needs Offers data</div></div>';
 
@@ -678,13 +702,61 @@
     /* =====================================================================
        TABLE — shared metric cells + tabs
        ===================================================================== */
+    /* =====================================================================
+       METRIC INFO ("i") POPOVERS — click-only, one open at a time.
+       Text is accurate to the real implementation (formulas in this file +
+       CLAUDE.md), naming the source file and any availability caveat.
+       ===================================================================== */
+    var INFO = {
+      "col-Team": { t: "Team", b: "The org unit for the row — director, Account Manager, or recruiter. Grouping and rollups follow the org chart (Hirearchy Tracker): director → AM(s) → recruiters." },
+      "col-Health": { t: "Health", b: "AM/director level: a partial composite of Coverage vs the 80% target and Avg Sub vs the 4.0 goal (the only inputs computable today), scored 0–100 and tagged H/W/C. Recruiter level: based on Achievement only — min(100, achieve%)." },
+      "col-Coverage": { t: "Coverage %", b: "Positions with at least one submission ÷ open positions, from the Ceipal Coverage report. Green ≥80, amber 70–80, red <70. Not available per recruiter — the Coverage report has no recruiter column." },
+      "col-Submission": { t: "Average Submission", b: "Total submissions ÷ open positions for the unit (Ceipal Coverage + Submissions reports). Green ≥4, amber 3–4, red <3. At recruiter level this column instead shows that recruiter's raw submission count." },
+      "col-Selection": { t: "Selections", b: "Count of weekly client selections (confirmations) from the Ceipal Weekly Selects report. Shown as a count — Select % needs a weekly target, not yet configured. Not tracked per recruiter." },
+      "col-Renege": { t: "Reneges", b: "Count of candidates who accepted an offer then dropped, from the Weekly Renege report. Shown as a count — Renege % needs Offers data, which isn't available yet. Not tracked per recruiter." },
+      "col-MTD": { t: "Submissions vs Target", b: "Weekly submissions actual vs target (subs_actual / target). Target = sum of recruiter weekly targets from the Avg Subs file, rolled up recruiter → AM → director. Shows “—” when no Avg Subs file was uploaded (e.g. June)." },
+      "col-Achieve": { t: "Achievement %", b: "subs_actual ÷ target × 100. Green ≥100, amber 75–99, red <75. Same source and rollup as the Submissions-vs-Target column. Shows “—” with no Avg Subs file." },
+      "col-Trend": { t: "Trend", b: "Sparkline of the unit's Average Submission across uploaded weeks. Green if the latest week is at or above the first, red if it declined. Needs ≥2 weeks of data to render." },
+      "kpi-target": { t: "Monthly Target", b: "MTD joiners vs the monthly joiner target. Not yet available — the monthly target per AM isn't configured in Phase 1." },
+      "kpi-coverage": { t: "Coverage", b: "Portfolio coverage: positions with ≥1 submission ÷ open positions (Ceipal Coverage report). Green ≥80%, amber 70–80%, red <70%." },
+      "kpi-avgsub": { t: "Average Submission", b: "Total submissions ÷ open positions across the portfolio (Ceipal Coverage + Submissions reports). Green ≥4, amber 3–4, red <3." },
+      "kpi-renege": { t: "Reneges", b: "Total reneges this week (Weekly Renege report). Shown as a count — Renege % needs Offers data, which isn't available yet." },
+      "orghealth": { t: "Organization Health", b: "Partial composite of Coverage vs 80% and Avg Sub vs 4.0 — the only metric inputs computable today. Selection / Renege / Achievement are excluded until target and offers config land." }
+    };
+    function infoIcon(key, label) {
+      return '<button type="button" class="m-info" data-info="' + key + '" aria-label="About ' + esc(label) + '">i</button>';
+    }
+    function closeInfo() {
+      var p = document.getElementById("m-infopop");
+      if (p) p.remove();
+      state.infoKey = null;
+    }
+    function openInfo(key, anchor) {
+      closeInfo();
+      var meta = INFO[key];
+      if (!meta) return;
+      var pop = document.createElement("div");
+      pop.className = "m-infopop";
+      pop.id = "m-infopop";
+      pop.innerHTML = '<p class="m-infopop__title">' + esc(meta.t) + '</p><p class="m-infopop__body">' + meta.b + "</p>";
+      document.body.appendChild(pop);
+      var r = anchor.getBoundingClientRect();
+      var top = r.bottom + window.scrollY + 6;
+      var left = r.left + window.scrollX;
+      var maxLeft = window.scrollX + document.documentElement.clientWidth - pop.offsetWidth - 12;
+      if (left > maxLeft) left = maxLeft;
+      if (left < window.scrollX + 8) left = window.scrollX + 8;
+      pop.style.top = top + "px";
+      pop.style.left = left + "px";
+      state.infoKey = key;
+    }
+
     var TABLE_HEADERS = ["Team","Health","Coverage","Submission","Selection","Renege","MTD","Achieve","Trend"];
 
     // Returns the 8 metric <td>s (everything after the TEAM cell).
     // trend: {kind, name} to build the sparkline, or null.
     function metricCells(e, trend) {
       var cover = hasCoverage(e);
-      var mtdN = (e.mtd_joiners != null) ? e.mtd_joiners : e.joiners;
       var dash = '<td class="m-val--muted">—</td>';
       var html = "";
       if (cover) {
@@ -700,11 +772,23 @@
       } else {
         // Staffing/Joiners-only entity: no Coverage/funnel presence. Show "—" for the
         // metrics it genuinely lacks (health, coverage, submission, selection, renege) —
-        // never zeros that read as terrible performance. MTD (and HC/RPR elsewhere) stay real.
+        // never zeros that read as terrible performance.
         html += dash + dash + dash + dash + dash;
       }
-      html += (mtdN == null) ? dash : '<td class="m-val--muted">' + fmtInt(mtdN) + "/—</td>"; // MTD stays real when present
-      html += dash; // achieve — needs monthly target
+      // MTD column = weekly submissions vs target (subs_actual/target), from the Avg Subs
+      // rollup. "—" when there's no Avg Subs file for the week (e.g. June).
+      if (e.subs_actual != null && e.target != null) {
+        html += '<td class="m-val--muted">' + fmtInt(e.subs_actual) + "/" + fmtInt(e.target) + "</td>";
+      } else {
+        html += dash;
+      }
+      // Achieve = achieve_pct, RAG-colored (≥100 green, 75–99 amber, <75 red).
+      if (e.achieve_pct != null) {
+        var ap = num(e.achieve_pct);
+        html += '<td class="m-val--' + ragAchievement(ap) + '">' + Math.round(ap) + "%</td>";
+      } else {
+        html += dash;
+      }
       if (trend && cover) {
         var ts = trendSeries(trend.kind, trend.name);
         html += '<td><span data-spark="' + ts.values.join(",") + '" data-spark-color="' + ts.color + '"></span></td>';
@@ -732,14 +816,22 @@
 
     function recruiterCells(rec) {
       var dash = '<td class="m-val--muted">—</td>';
-      var html = "";
-      html += dash;   // Health
-      html += dash;   // Coverage
-      html += (rec.submissions == null) ? dash : '<td class="m-val--muted">' + fmtInt(rec.submissions) + "</td>"; // Submission (real)
-      html += dash;   // Selection
-      html += dash;   // Renege
-      html += dash;   // MTD
       var ach = recruiterAchievement(rec);
+      var html = "";
+      // Health at recruiter level = Achievement only (min(100, achieve%)), H/W/C tagged.
+      // The other health inputs (Coverage/Avg Sub) don't exist per recruiter.
+      if (ach == null) {
+        html += dash;
+      } else {
+        var rh = Math.round(Math.min(100, ach));
+        var rb = healthBand(rh);
+        html += '<td class="m-val--' + rb + '">' + rh + '<span class="m-val__tag">' + healthTag(rb) + "</span></td>";
+      }
+      html += dash;   // Coverage — no recruiter column in the Coverage report
+      html += (rec.submissions == null) ? dash : '<td class="m-val--muted">' + fmtInt(rec.submissions) + "</td>"; // Submission (real)
+      html += dash;   // Selection — not per recruiter
+      html += dash;   // Renege — not per recruiter
+      html += dash;   // MTD — submissions-vs-target rolls up; per-recruiter shown in Submission/Achieve
       html += (ach == null) ? dash : '<td class="m-val--' + ragAchievement(ach) + '">' + Math.round(ach) + "%</td>"; // Achieve (real)
       html += dash;   // Trend
       return html;
@@ -753,8 +845,9 @@
       return s !== "" && s !== "na" && s !== "n/a" && s !== "-" && s !== "none";
     }
     // Recruiter name + muted comment tag; leave/target (and mgr for unattached) on the sub-line.
-    function recruiterTeamCell(rec, showMgr) {
-      var h = '<div class="m-team"><div class="m-team__names"><span class="m-team__name">' + esc(rec.name);
+    function recruiterTeamCell(rec, showMgr, indentPx) {
+      var pad = indentPx ? ' style="padding-left:' + indentPx + 'px"' : "";
+      var h = '<div class="m-team"' + pad + '><div class="m-team__names"><span class="m-team__name">' + esc(rec.name);
       if (meaningfulComment(rec.comments)) h += '<span class="m-tag">' + esc(String(rec.comments).trim()) + "</span>";
       h += "</span>";
       var meta = [];
@@ -777,6 +870,55 @@
       });
     }
 
+    /* =====================================================================
+       ORG TREE (director → mid-leader AM → AM → recruiter)
+       ===================================================================== */
+    // Flatten a director's totals + director-level extras into one metric entity,
+    // pulling target/subs_actual/achieve_pct from either totals or the director.
+    function flattenDir(dir) {
+      var flat = Object.assign({ _dir: dir }, dir.totals, { name: dir.name, mtd_joiners: dir.mtd_joiners });
+      ["target", "subs_actual", "achieve_pct"].forEach(function (k) { if (flat[k] == null && dir[k] != null) flat[k] = dir[k]; });
+      return flat;
+    }
+
+    // Build the reports_to forest under a director. An AM whose reports_to is another
+    // AM in the same director becomes that AM's child (transitive rollup); everyone
+    // else is a root directly under the director. No reports_to (old payload) → all roots (flat).
+    function amForest(dir) {
+      var ams = (dir.ams || []).slice();
+      var names = {}; ams.forEach(function (a) { names[a.name] = true; });
+      var children = {}, roots = [];
+      ams.forEach(function (a) {
+        var mgr = a.reports_to;
+        if (mgr && mgr !== a.name && names[mgr]) (children[mgr] = children[mgr] || []).push(a);
+        else roots.push(a);
+      });
+      return { roots: roots, children: children };
+    }
+
+    // Render an AM node and its subtree. depth 1 = AM directly under the director.
+    // A mid-leader keeps its own metric row and expands to its report AMs and its
+    // own recruiters. includeRecruiters is off for Management/Director views.
+    function amRows(am, forest, parentKey, depth, includeRecruiters) {
+      var kids = sortByTab((forest.children[am.name] || []).slice());
+      var recs = (includeRecruiters && Array.isArray(am.recruiter_details)) ? am.recruiter_details : [];
+      var expandable = kids.length > 0 || recs.length > 0;
+      var akey = parentKey + "-am-" + String(am.name).replace(/\W+/g, "");
+      var bits = [];
+      if (kids.length) bits.push(kids.length + " report" + (kids.length === 1 ? "" : "s"));
+      if (recs.length) bits.push(recs.length + " recruiter" + (recs.length === 1 ? "" : "s"));
+      var indent = depth * 20;
+      var html = '<tr class="m-subrow is-hidden" data-child="' + parentKey + '"' + (expandable ? ' data-expand="' + akey + '"' : "") + '><td>' +
+        teamCell(am.name, bits.join(" · "), expandable, false, indent) + "</td>" +
+        metricCells(am, { kind: "am", name: am.name }) + "</tr>";
+      kids.forEach(function (child) { html += amRows(child, forest, akey, depth + 1, includeRecruiters); });
+      recs.forEach(function (rec) {
+        html += '<tr class="m-subrow m-subrow--deep is-hidden" data-child="' + akey + '"><td>' +
+          recruiterTeamCell(rec, false, (depth + 1) * 20) + "</td>" + recruiterCells(rec) + "</tr>";
+      });
+      return html;
+    }
+
     function tableHead(title) {
       var tabs = ["health","coverage","renege","achievement"];
       var labels = { health: "Health", coverage: "Coverage", renege: "Renege", achievement: "Achievement" };
@@ -790,7 +932,7 @@
 
     function tableColHead() {
       var h = "<thead><tr>";
-      TABLE_HEADERS.forEach(function (c) { h += "<th>" + esc(c) + "</th>"; });
+      TABLE_HEADERS.forEach(function (c) { h += "<th>" + esc(c) + infoIcon("col-" + c, c) + "</th>"; });
       h += "</tr></thead>";
       return h;
     }
@@ -844,32 +986,20 @@
     // sub-rows. Tab sorting applies at both the director and the AM level.
     function viewRecruitmentDeep(d) {
       var dash8 = '<td class="m-val--muted">—</td>';
-      var dirs = sortByTab((d.directors || []).map(function (dir) {
-        return Object.assign({ _dir: dir }, dir.totals, { name: dir.name, mtd_joiners: dir.mtd_joiners });
-      }));
+      var dirs = sortByTab((d.directors || []).map(flattenDir));
       var body = "";
       dirs.forEach(function (row) {
         var dir = row._dir;
         var dkey = "d-" + dir.name.replace(/\W+/g, "");
-        var ams = sortByTab((dir.ams || []).slice());
+        var forest = amForest(dir);
         var coverLess = !hasCoverage(dir.totals);
+        // Group row shows just the leader's name (no "Team" prefix); HC-only note kept.
         var sub = coverLess
-          ? dir.name + (dir.hc && dir.hc.closing != null ? " · HC only (" + fmtInt(dir.hc.closing) + " deployed)" : " · Staffing only")
-          : dir.name;
-        body += '<tr data-expand="' + dkey + '"><td>' + teamCell("Team " + firstWord(dir.name), sub, ams.length > 0, false) + "</td>" +
+          ? (dir.hc && dir.hc.closing != null ? "HC only (" + fmtInt(dir.hc.closing) + " deployed)" : "Staffing only")
+          : "";
+        body += '<tr data-expand="' + dkey + '"><td>' + teamCell(dir.name, sub, forest.roots.length > 0, false) + "</td>" +
           metricCells(row, { kind: "director", name: dir.name }) + "</tr>";
-        ams.forEach(function (am) {
-          var recs = Array.isArray(am.recruiter_details) ? am.recruiter_details : [];
-          var akey = dkey + "-am-" + String(am.name).replace(/\W+/g, "");
-          var amSub = recs.length ? recs.length + " recruiter" + (recs.length === 1 ? "" : "s") : "";
-          body += '<tr class="m-subrow is-hidden" data-child="' + dkey + '"' + (recs.length ? ' data-expand="' + akey + '"' : "") + '><td>' +
-            teamCell(am.name, amSub, recs.length > 0, false) + "</td>" +
-            metricCells(am, { kind: "am", name: am.name }) + "</tr>";
-          recs.forEach(function (rec) {
-            body += '<tr class="m-subrow m-subrow--deep is-hidden" data-child="' + akey + '"><td>' +
-              recruiterTeamCell(rec) + "</td>" + recruiterCells(rec) + "</tr>";
-          });
-        });
+        forest.roots.forEach(function (am) { body += amRows(am, forest, dkey, 1, true); });
       });
 
       // Recruiters whose AM didn't resolve — grouped at the bottom, honest label.
@@ -881,7 +1011,7 @@
           dash8 + dash8 + dash8 + dash8 + dash8 + dash8 + dash8 + dash8 + "</tr>";
         un.forEach(function (rec) {
           body += '<tr class="m-subrow m-subrow--deep is-hidden" data-child="' + ukey + '"><td>' +
-            recruiterTeamCell(rec, true) + "</td>" + recruiterCells(rec) + "</tr>";
+            recruiterTeamCell(rec, true, 20) + "</td>" + recruiterCells(rec) + "</tr>";
         });
       }
 
@@ -898,26 +1028,21 @@
        VIEW: MANAGEMENT / DIRECTOR (expandable director rows)
        ===================================================================== */
     function viewExpandableDirectors(d, title) {
-      var dirs = sortByTab((d.directors || []).map(function (dir) {
-        // Flatten director totals + director-level extras (mtd_joiners/hc/rpr live outside .totals).
-        return Object.assign({ _dir: dir }, dir.totals, { name: dir.name, mtd_joiners: dir.mtd_joiners });
-      }));
+      var dirs = sortByTab((d.directors || []).map(flattenDir));
       var body = "";
       dirs.forEach(function (row) {
         var dir = row._dir;
         var key = "d-" + dir.name.replace(/\W+/g, "");
-        var ams = dir.ams || [];
+        var forest = amForest(dir);
         var coverLess = !hasCoverage(dir.totals);
-        // HC-only directors (no Coverage rows) get a note and no chevron (nothing to expand).
+        // Group row shows just the leader's name (no "Team" prefix); HC-only note kept.
         var sub = coverLess
-          ? dir.name + (dir.hc && dir.hc.closing != null ? " · HC only (" + fmtInt(dir.hc.closing) + " deployed)" : " · Staffing only")
-          : dir.name;
-        body += '<tr data-expand="' + key + '"><td>' + teamCell("Team " + firstWord(dir.name), sub, ams.length > 0, false) + "</td>" +
+          ? (dir.hc && dir.hc.closing != null ? "HC only (" + fmtInt(dir.hc.closing) + " deployed)" : "Staffing only")
+          : "";
+        body += '<tr data-expand="' + key + '"><td>' + teamCell(dir.name, sub, forest.roots.length > 0, false) + "</td>" +
           metricCells(row, { kind: "director", name: dir.name }) + "</tr>";
-        ams.forEach(function (am) {
-          body += '<tr class="m-subrow is-hidden" data-child="' + key + '"><td>' + teamCell(am.name, "", false, false) + "</td>" +
-            metricCells(am, { kind: "am", name: am.name }) + "</tr>";
-        });
+        // director → mid-leader → AM nesting (2 levels collapse to flat when no reports_to).
+        forest.roots.forEach(function (am) { body += amRows(am, forest, key, 1, false); });
       });
       if (!dirs.length) body = emptyRow();
 
@@ -1101,7 +1226,7 @@
       var mtdCell = (dir.mtd_joiners == null) ? '<span class="m-minikpi__value m-minikpi__value--muted">—</span>'
         : '<span class="m-minikpi__value m-minikpi__value--green">' + fmtInt(dir.mtd_joiners) + '<span class="m-minikpi__suffix">/—</span></span>';
       var html = '<div class="m-card m-card--pad m-focus">';
-      html += '<h3 class="m-focus__title">Focus · Team ' + esc(firstWord(dir.name)) + "</h3>";
+      html += '<h3 class="m-focus__title">Focus · ' + esc(dir.name) + "</h3>";
       html += '<div class="m-donut m-focus__donut" data-donut="' + health + '" data-donut-color="var(--donut-focus)"></div>';
       html += '<div class="m-focus__grid">';
       html += '<div class="m-minikpi"><span class="m-minikpi__label">MTD Joiners</span>' + mtdCell + "</div>";
@@ -1130,8 +1255,9 @@
     /* =====================================================================
        TEAM CELL + EMPTY HELPERS
        ===================================================================== */
-    function teamCell(name, sub, expandable, open) {
-      var h = '<div class="m-team">';
+    function teamCell(name, sub, expandable, open, indentPx) {
+      var pad = indentPx ? ' style="padding-left:' + indentPx + 'px"' : "";
+      var h = '<div class="m-team"' + pad + ">";
       if (expandable) h += '<span class="m-team__chevron' + (open ? "" : "") + '" role="button" aria-label="Expand">›</span>';
       h += '<div class="m-team__names"><span class="m-team__name">' + esc(name) + "</span>";
       if (sub) h += '<span class="m-team__sub">' + esc(sub) + "</span>";
@@ -1221,7 +1347,7 @@
     // is three name→canonical maps ("maps"), which we flatten to Map/Key/Value rows for
     // editing and rebuild into the 3-dict object on save.
     var MASTER_CONFIGS = [
-      { key: "org-chart",       endpoint: "/api/config/org-chart",       label: "Org Chart",       kind: "maps", maps: ["canonical_org", "am_aliases", "director_aliases"] },
+      { key: "org-chart",       endpoint: "/api/config/org-chart",       label: "Org Chart",       kind: "maps", maps: ["canonical_org", "am_aliases", "director_aliases", "recruiter_org"] },
       { key: "customer-master", endpoint: "/api/config/customer-master", label: "Project Mapping", kind: "rows" }
     ];
     // Fallback columns for the customer master when the array is empty, so Add Row
@@ -1280,10 +1406,17 @@
       return cols;
     }
 
+    // Friendly labels for the org-chart map sections.
+    var SECTION_LABELS = { canonical_org: "Canonical org", am_aliases: "AM aliases", director_aliases: "Director aliases", recruiter_org: "Recruiter → AM" };
+    var MASTER_SUBTITLES = {
+      "org-chart": "Org chart & mappings — canonical names, AM/director aliases, and recruiter → AM. Fix a mapping (e.g. an unattached recruiter) here directly; changes take effect on the next data load.",
+      "customer-master": "Project (customer) mapping — Sub Unit → Unit → Category and the manager chain. Edits take effect on the next data load."
+    };
+
     function renderMaster() {
-      var m = state.master;
+      var m = state.master, cfg = masterCfg(m.tab);
       var html = '<h1 class="m-topbar__title">Master Tables</h1>';
-      html += '<p class="m-topbar__subtitle">Editable configuration — the org chart and the project (customer) mapping that drive name canonicalization and category scoping.</p>';
+      html += '<p class="m-topbar__subtitle">' + esc(MASTER_SUBTITLES[m.tab] || "") + "</p>";
       html += '<div class="m-master-caution">Edits take effect on next data load. No sign-in protection yet (Phase 1).</div>';
 
       html += '<div class="m-tabs" style="margin-bottom:16px;">';
@@ -1295,6 +1428,15 @@
 
       html += '<div class="m-master-toolbar">';
       html += '<input class="m-master-search" data-master-search placeholder="Filter rows…" value="' + esc(m.filter) + '" />';
+      // Org Chart section filter (maps config only) — lets ops jump to a mapping group.
+      if (cfg && cfg.kind === "maps") {
+        html += '<select class="m-master-search" data-master-section style="min-width:170px;">';
+        html += '<option value="">All sections</option>';
+        (cfg.maps || []).forEach(function (mp) {
+          html += '<option value="' + mp + '"' + (m.section === mp ? " selected" : "") + ">" + esc(SECTION_LABELS[mp] || mp) + "</option>";
+        });
+        html += "</select>";
+      }
       html += '<button class="m-btn m-btn--ghost" data-master-add>+ Add Row</button>';
       html += '<span class="m-master-count" id="masterCount"></span>';
       html += '<span class="m-master-dirty" id="masterDirty"></span>';
@@ -1330,15 +1472,17 @@
 
     // Rewrites ONLY the grid body (+ counts/dirty) so the search box keeps focus.
     function renderMasterBody() {
-      var m = state.master, tab = m.tab;
+      var m = state.master, tab = m.tab, cfg = masterCfg(tab);
       var cols = masterColumns(tab);
       var rows = m.data[tab] || [];
       var body = document.getElementById("masterBody");
       if (!body) return;
 
       var f = (m.filter || "").trim().toLowerCase();
+      var sec = (cfg && cfg.kind === "maps") ? m.section : "";
       var idxs = [];
       rows.forEach(function (r, i) {
+        if (sec && r.Map !== sec) return;           // section filter (Org Chart)
         if (!f) { idxs.push(i); return; }
         var hay = cols.map(function (c) { return String(r[c] == null ? "" : r[c]); }).join(" ").toLowerCase();
         if (hay.indexOf(f) >= 0) idxs.push(i);
@@ -1364,7 +1508,7 @@
       }
 
       var countEl = document.getElementById("masterCount");
-      if (countEl) countEl.textContent = idxs.length + " of " + rows.length + " row" + (rows.length === 1 ? "" : "s") + (f ? " (filtered)" : "");
+      if (countEl) countEl.textContent = idxs.length + " of " + rows.length + " row" + (rows.length === 1 ? "" : "s") + ((f || sec) ? " (filtered)" : "");
       updateMasterDirtyUI();
     }
 
@@ -1381,6 +1525,7 @@
     function masterSetTab(tab) {
       state.master.tab = tab;
       state.master.filter = "";
+      state.master.section = "";
       state.master.status = null;
       renderMaster();
     }
@@ -1388,12 +1533,14 @@
     function masterAddRow() {
       var m = state.master, tab = m.tab, cfg = masterCfg(tab), cols = masterColumns(tab);
       var row = {}; cols.forEach(function (c) { row[c] = ""; });
-      // For the org-chart maps, default the Map column to the first map so a new row saves.
-      if (cfg && cfg.kind === "maps" && cfg.maps && cfg.maps.length) row.Map = cfg.maps[0];
+      // For the org-chart maps, default the Map column so the new row saves into a real
+      // section — the active section filter if set, otherwise the first map.
+      if (cfg && cfg.kind === "maps" && cfg.maps && cfg.maps.length) row.Map = m.section || cfg.maps[0];
       if (!m.data[tab]) m.data[tab] = [];
       m.data[tab].push(row);
       m.dirty[tab] = true;
-      // Clear any filter so the new (empty) row is visible, then scroll to it.
+      // Clear the text filter so the new row is visible (keep the section filter, which
+      // the new row matches). Then scroll to it.
       m.filter = "";
       var s = document.querySelector("[data-master-search]"); if (s) s.value = "";
       renderMasterBody();
@@ -1458,6 +1605,7 @@
        MAIN RENDER
        ===================================================================== */
     function render() {
+      closeInfo();   // drop any open metric-info popover before the DOM is rebuilt
       renderSidebar();
 
       // Operational view: report history (no toolbar/band)
@@ -1668,6 +1816,19 @@
       if (ev.key === "Enter" && el && el.hasAttribute && el.hasAttribute("data-c") && el.getAttribute("contenteditable") === "true") {
         ev.preventDefault(); el.blur();
       }
+      if (ev.key === "Escape") closeInfo();
+    });
+
+    // Metric-info "i" popovers: click toggles (one open at a time); outside click closes.
+    document.addEventListener("click", function (ev) {
+      var btn = ev.target.closest ? ev.target.closest("[data-info]") : null;
+      if (btn) {
+        if (state.infoKey === btn.getAttribute("data-info")) closeInfo();
+        else openInfo(btn.getAttribute("data-info"), btn);
+        return;
+      }
+      if (ev.target.closest && ev.target.closest(".m-infopop")) return;
+      closeInfo();
     });
 
     document.addEventListener("change", function (ev) {
@@ -1684,6 +1845,12 @@
         }
         state.ragOpen = false;
         render();
+        return;
+      }
+      // Org Chart section filter (only re-renders the grid body, keeps the toolbar).
+      if (ev.target && ev.target.hasAttribute && ev.target.hasAttribute("data-master-section")) {
+        state.master.section = ev.target.value;
+        renderMasterBody();
       }
     });
 
