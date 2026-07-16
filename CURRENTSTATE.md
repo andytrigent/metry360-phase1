@@ -6,9 +6,14 @@ Handoff doc for a new session. Read alongside `../CLAUDE.md` (business rules, me
 
 The app is **fully data-driven end-to-end**: upload 7 raw Excel files in the browser → stored in S3 + DynamoDB → data period auto-detected from file contents → `/api/dashboard-data` parses the files (pure-stdlib xlsx parser in Lambda) and aggregates AM-level metrics → all 5 dashboard views, alerts, KPI cards, donut chart, and CSV export render from that API. Week sidebar items are the Fridays of the data month; clicking one loads that week's report or an honest empty state. **Nothing user-visible is static anymore.**
 
-## ⚠️ FIRST THING: production is stale
+## ⚠️ FIRST THING: NOT deployed to Vercel — everything recent is LOCAL only
 
-All recent work is committed on `main` but **NOT deployed to Vercel** (user held deploys to evaluate locally). Production still has: the "ScorecCard" typo, the FAKE simulation upload page, and static sample views. Deploy = `vercel --prod --yes` from repo root (backend Lambda IS current). Until then, do not ask Akash to upload in prod.
+- All recent work (data-driven views, real upload page, typo fix, static-content removal) is **NOT deployed to Vercel production**. It exists only in the local working copy / local commits. Production still serves: the "ScorecCard" typo, the FAKE simulation upload page, and static sample views.
+- **Branch rule: everything must be merged and pushed to `main` ONLY** — no long-lived side branches. If work was done in a worktree or any other branch, merge it into `main` first, push `main` to GitHub (`git push origin main`), and deploy from there.
+- Before deploying, check for unpushed/unmerged work: `git status`, `git log origin/main..HEAD`, and `git worktree list`. (As of 2026-07-16 there is a single worktree and only the `main` branch; all local commits have been pushed to `origin/main`. GitHub pushes do NOT auto-deploy Vercel.)
+- Deploy = `vercel --prod --yes` from repo root, **only after the user gives the go** (they have been explicitly holding deploys to evaluate locally first).
+- The backend Lambda IS current in AWS (deployed separately). Only the Vercel frontend is stale.
+- Until deployed, do not ask Akash to upload in prod — the prod upload page silently discards files.
 
 ## Infrastructure (all live, region ap-south-1, account 302954730716)
 
