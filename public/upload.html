@@ -538,16 +538,25 @@
             });
         }
 
+        // Keyword-based matching so real-world file names work (e.g. "Coveragejuly.xlsx", "Exit.xlsx")
+        const FILE_KEYWORDS = [
+            { type: 'Submissions (Avg Subs) Raw Report', keywords: ['submission', 'avg sub', 'avgsub'] },
+            { type: 'Coverage Raw Report', keywords: ['coverage'] },
+            { type: 'Weekly Selects Report', keywords: ['select'] },
+            { type: 'Weekly Renege Report', keywords: ['renege'] },
+            { type: 'Weekly Joiners Report', keywords: ['joiner'] },
+            { type: 'Weekly Exits Report', keywords: ['exit'] },
+            { type: 'Staffing Report for YTJ & YTE', keywords: ['staffing', 'ytj', 'yte'] }
+        ];
+
         // Handle file selection
         function handleFiles(files) {
             Array.from(files).forEach(file => {
-                const fileNameBase = file.name.replace('.xlsx', '').replace('.xls', '');
+                const fileNameBase = file.name.toLowerCase().replace('.xlsx', '').replace('.xls', '');
 
-                // Match to required file
-                const matchedFile = REQUIRED_FILES.find(f =>
-                    fileNameBase.toLowerCase().includes(f.toLowerCase()) ||
-                    f.toLowerCase().includes(fileNameBase.toLowerCase())
-                );
+                // Match by distinctive keywords in the file name
+                const hit = FILE_KEYWORDS.find(p => p.keywords.some(k => fileNameBase.includes(k)));
+                const matchedFile = hit ? hit.type : null;
 
                 if (matchedFile) {
                     uploadedFiles[matchedFile] = {

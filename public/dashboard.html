@@ -863,521 +863,32 @@
                     </table>
                 </div>
 
-                <!-- Alerts Section -->
-                <div class="alerts-section">
-                    <div class="alert-box success">
-                        <div class="alert-title">✓ On Track: Coverage Strong</div>
-                        <div class="alert-message">Coverage at 91.4% — well above 80% target. Maintain job postings momentum across all positions.</div>
-                    </div>
-                    <div class="alert-box warning">
-                        <div class="alert-title">⚠ Watch: Selection Rate Down</div>
-                        <div class="alert-message">Weekly Select % at 24.8%, below 75% target. Review interview pipeline and conversion rates.</div>
-                    </div>
-                    <div class="alert-box error">
-                        <div class="alert-title">🔴 Action: Renege Rate Up</div>
-                        <div class="alert-message">Reneges at 32% — above 30% threshold. Investigate drop-off reasons and improve offer management.</div>
-                    </div>
-                    <div class="alert-box warning">
-                        <div class="alert-title">⚠ Review: Staffing Health</div>
-                        <div class="alert-message">MTD Target Achievement at 68%. Acceleration needed in final week to meet monthly goal.</div>
-                    </div>
-                </div>
-
-                <!-- Charts -->
-                <div class="charts-row">
-                    <div class="chart-box">
-                        <div class="chart-title">📈 Weekly Submissions Trend</div>
-                        <div class="chart-placeholder">Submission volume trend over past 4 weeks</div>
-                    </div>
-                    <div class="chart-box">
-                        <div class="chart-title">📉 Recruitment Pipeline Trend</div>
-                        <div class="chart-placeholder">Selections → Offers → Joiners conversion</div>
-                    </div>
-                </div>
+                <!-- Alerts Section (generated from data) -->
+                <div class="alerts-section" id="alerts-root"></div>
                 </div>
                 <!-- END VIEW 1 -->
 
                 <!-- VIEW 2: MANAGEMENT COLLAPSED (SUMMARY) -->
                 <div id="view-management-collapsed" class="view-section">
-                <div class="main-grid">
-                    <div class="chart-panel">
-                        <div class="chart-container">
-                            <canvas id="managementChart"></canvas>
-                        </div>
-                        <div class="chart-description">
-                            <h3>👥 Team Health Status</h3>
-                            <p><strong>80%</strong> of teams on track. <strong>13 account managers</strong> across <strong>3 directors</strong> performing well. Focus on improving selection conversion rates across portfolios.</p>
-                        </div>
-                    </div>
-                    <div class="kpi-grid">
-                        <div class="kpi-card">
-                            <div class="kpi-label"><span class="rag-indicator"></span>Teams On Track</div>
-                            <div class="kpi-value">7/9</div>
-                            <div class="kpi-note positive">78.5%</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label"><span class="rag-indicator"></span>Avg Coverage</div>
-                            <div class="kpi-value">89.7%</div>
-                            <div class="kpi-note">Target: ≥80%</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label"><span class="rag-indicator amber"></span>Avg Select %</div>
-                            <div class="kpi-value">29.3%</div>
-                            <div class="kpi-note negative">Target: ≥75%</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label"><span class="rag-indicator"></span>Portfolio RPR</div>
-                            <div class="kpi-value">0.93</div>
-                            <div class="kpi-note">Target: ≥1.0</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="table-section">
-                    <div class="table-header">
-                        <span>Team Performance Summary</span>
-                        <span style="font-size: 11px; font-weight: normal; color: #999;" class="week-display">Loading...</span>
-                    </div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Director / Team</th>
-                                <th style="text-align: right;">Team Size</th>
-                                <th style="text-align: right;">Avg Coverage</th>
-                                <th style="text-align: right;">Avg Select %</th>
-                                <th style="text-align: right;">MTD Joiners</th>
-                                <th style="text-align: right;">Health Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="director-row">
-                                <td class="name-cell total">Jyothsna (Director)</td>
-                                <td class="metric-value">4</td>
-                                <td class="metric-percentage good">92%</td>
-                                <td class="metric-percentage good">80%</td>
-                                <td class="metric-value">8</td>
-                                <td>✓ On Track</td>
-                            </tr>
-                            <tr class="director-row">
-                                <td class="name-cell total">Sanjib (Director)</td>
-                                <td class="metric-value">5</td>
-                                <td class="metric-percentage">87%</td>
-                                <td class="metric-percentage warning">72%</td>
-                                <td class="metric-value">12</td>
-                                <td>⚠ Review</td>
-                            </tr>
-                            <tr class="director-row">
-                                <td class="name-cell total">Manisha (Director)</td>
-                                <td class="metric-value">3</td>
-                                <td class="metric-percentage good">91%</td>
-                                <td class="metric-percentage good">75%</td>
-                                <td class="metric-value">6</td>
-                                <td>✓ On Track</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="alerts-section">
-                    <div class="alert-box success">
-                        <div class="alert-title">✓ Jyothsna Team Strong</div>
-                        <div class="alert-message">All 4 AMs above targets. Maintain momentum and share best practices.</div>
-                    </div>
-                    <div class="alert-box warning">
-                        <div class="alert-title">⚠ Sanjib Team Needs Support</div>
-                        <div class="alert-message">2 AMs below select targets. Escalate coaching on interview pipeline.</div>
-                    </div>
-                </div>
+                    <div id="mgmt-summary-root"></div>
                 </div>
                 <!-- END VIEW 2 -->
 
                 <!-- VIEW 2B: MANAGEMENT EXPANDED (DETAILED) -->
                 <div id="view-management-expanded" class="view-section">
-                <div class="main-grid">
-                    <div class="chart-panel">
-                        <div class="chart-container">
-                            <canvas id="managementExpandedChart"></canvas>
-                        </div>
-                        <div class="chart-description">
-                            <h3>👥 Team Health Status (Detailed)</h3>
-                            <p><strong>78.5%</strong> of teams on track. <strong>13 individual AMs</strong> tracked across 3 directors. Drill down to AM level for personalized coaching priorities.</p>
-                        </div>
-                    </div>
-                    <div class="kpi-grid">
-                        <div class="kpi-card">
-                            <div class="kpi-label"><span class="rag-indicator"></span>Total AMs</div>
-                            <div class="kpi-value">13</div>
-                            <div class="kpi-note positive">Across 3 Directors</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label"><span class="rag-indicator"></span>Avg Coverage</div>
-                            <div class="kpi-value">89.7%</div>
-                            <div class="kpi-note">Target: ≥80%</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label"><span class="rag-indicator amber"></span>Avg Select %</div>
-                            <div class="kpi-value">29.3%</div>
-                            <div class="kpi-note negative">Target: ≥75%</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label"><span class="rag-indicator"></span>Portfolio RPR</div>
-                            <div class="kpi-value">0.93</div>
-                            <div class="kpi-note">Target: ≥1.0</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="table-section">
-                    <div class="table-header">
-                        <span>Individual AM Performance (Expanded)</span>
-                        <span style="font-size: 11px; font-weight: normal; color: #999;" class="week-display">Loading...</span>
-                    </div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Director / Account Manager</th>
-                                <th style="text-align: right;">Positions</th>
-                                <th style="text-align: right;">Coverage %</th>
-                                <th style="text-align: right;">Selections</th>
-                                <th style="text-align: right;">Select %</th>
-                                <th style="text-align: right;">MTD Joiners</th>
-                                <th style="text-align: right;">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="director-row">
-                                <td class="name-cell total">Jyothsna (Director)</td>
-                                <td class="metric-value">45</td>
-                                <td class="metric-percentage good">92%</td>
-                                <td class="metric-value">12</td>
-                                <td class="metric-percentage good">80%</td>
-                                <td class="metric-value">8</td>
-                                <td>✓ On Track</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Priyanka Gadadmathad</td>
-                                <td class="metric-value">15</td>
-                                <td class="metric-percentage">93%</td>
-                                <td class="metric-value">5</td>
-                                <td class="metric-percentage">83%</td>
-                                <td class="metric-value">3</td>
-                                <td>✓ On Track</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Tanu Gupta</td>
-                                <td class="metric-value">20</td>
-                                <td class="metric-percentage">90%</td>
-                                <td class="metric-value">5</td>
-                                <td class="metric-percentage">75%</td>
-                                <td class="metric-value">4</td>
-                                <td>✓ On Track</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Bharath C N</td>
-                                <td class="metric-value">10</td>
-                                <td class="metric-percentage">95%</td>
-                                <td class="metric-value">2</td>
-                                <td class="metric-percentage">70%</td>
-                                <td class="metric-value">1</td>
-                                <td>⚠ Watch</td>
-                            </tr>
-                            <tr class="director-row">
-                                <td class="name-cell total">Sanjib (Director)</td>
-                                <td class="metric-value">76</td>
-                                <td class="metric-percentage warning">88%</td>
-                                <td class="metric-value">18</td>
-                                <td class="metric-percentage warning">72%</td>
-                                <td class="metric-value">12</td>
-                                <td>⚠ Review</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Bindu T S</td>
-                                <td class="metric-value">25</td>
-                                <td class="metric-percentage">91%</td>
-                                <td class="metric-value">7</td>
-                                <td class="metric-percentage">78%</td>
-                                <td class="metric-value">5</td>
-                                <td>✓ On Track</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Abhilash S</td>
-                                <td class="metric-value">28</td>
-                                <td class="metric-percentage">85%</td>
-                                <td class="metric-value">8</td>
-                                <td class="metric-percentage">69%</td>
-                                <td class="metric-value">5</td>
-                                <td>⚠ Watch</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Kavita Nyamagoud</td>
-                                <td class="metric-value">23</td>
-                                <td class="metric-percentage">89%</td>
-                                <td class="metric-value">3</td>
-                                <td class="metric-percentage">63%</td>
-                                <td class="metric-value">2</td>
-                                <td>⚠ Watch</td>
-                            </tr>
-                            <tr class="director-row">
-                                <td class="name-cell total">Manisha (Director)</td>
-                                <td class="metric-value">45</td>
-                                <td class="metric-percentage good">91%</td>
-                                <td class="metric-value">9</td>
-                                <td class="metric-percentage good">75%</td>
-                                <td class="metric-value">6</td>
-                                <td>✓ On Track</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Sathish Kumar B</td>
-                                <td class="metric-value">15</td>
-                                <td class="metric-percentage good">92%</td>
-                                <td class="metric-value">3</td>
-                                <td class="metric-percentage">77%</td>
-                                <td class="metric-value">2</td>
-                                <td>✓ On Track</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Nishant Tyagi</td>
-                                <td class="metric-value">12</td>
-                                <td class="metric-percentage good">91%</td>
-                                <td class="metric-value">3</td>
-                                <td class="metric-percentage good">77%</td>
-                                <td class="metric-value">2</td>
-                                <td>✓ On Track</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Divya Lakshmi</td>
-                                <td class="metric-value">11</td>
-                                <td class="metric-percentage good">92%</td>
-                                <td class="metric-value">2</td>
-                                <td class="metric-percentage good">73%</td>
-                                <td class="metric-value">0</td>
-                                <td>✓ On Track</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="alerts-section">
-                    <div class="alert-box success">
-                        <div class="alert-title">✓ Jyothsna Team Strong</div>
-                        <div class="alert-message">All 4 AMs on track. Consistent execution. Priyanka & Tanu leading conversion.</div>
-                    </div>
-                    <div class="alert-box error">
-                        <div class="alert-title">🔴 Sanjib Team Needs Attention</div>
-                        <div class="alert-message">3 AMs below targets (Abhilash, Kavita, Bharath). Escalate coaching on interview pipeline.</div>
-                    </div>
-                </div>
-
-                <div class="charts-row">
-                    <div class="chart-box">
-                        <div class="chart-title">📈 Weekly Submissions Trend</div>
-                        <div class="chart-placeholder">Submission volume trend over past 4 weeks</div>
-                    </div>
-                    <div class="chart-box">
-                        <div class="chart-title">📉 Recruitment Pipeline Trend</div>
-                        <div class="chart-placeholder">Selections → Offers → Joiners conversion</div>
-                    </div>
-                </div>
+                    <div id="mgmt-details-root"></div>
                 </div>
                 <!-- END VIEW 2B -->
 
                 <!-- VIEW 3: AM PRODUCTIVITY -->
                 <div id="view-productivity" class="view-section">
-                <div class="main-grid">
-                    <div class="chart-panel">
-                        <div class="chart-container">
-                            <canvas id="productivityChart"></canvas>
-                        </div>
-                        <div class="chart-description">
-                            <h3>💼 Productivity Metrics</h3>
-                            <p>MTD Achievement at <strong>68%</strong>. 9 AMs on track. Acceleration needed in final week to achieve <strong>100+ joiners</strong> monthly target.</p>
-                        </div>
-                    </div>
-                    <div class="kpi-grid">
-                        <div class="kpi-card">
-                            <div class="kpi-label"><span class="rag-indicator"></span>MTD Joiners</div>
-                            <div class="kpi-value">68</div>
-                            <div class="kpi-note">Target: 100</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label"><span class="rag-indicator"></span>Avg Joiner/AM</div>
-                            <div class="kpi-value">7.5</div>
-                            <div class="kpi-note positive">↑ On pace</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label"><span class="rag-indicator"></span>Top Performer</div>
-                            <div class="kpi-value">Bindu T S</div>
-                            <div class="kpi-note positive">12 joiners</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label"><span class="rag-indicator amber"></span>Needs Support</div>
-                            <div class="kpi-value">2 AMs</div>
-                            <div class="kpi-note negative">Below 5 joiners</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="table-section">
-                    <div class="table-header">
-                        <span>AM-Level Productivity</span>
-                        <span style="font-size: 11px; font-weight: normal; color: #999;" class="week-display">Loading...</span>
-                    </div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Account Manager</th>
-                                <th style="text-align: right;">Recruiters</th>
-                                <th style="text-align: right;">Avg Sub/Pos</th>
-                                <th style="text-align: right;">MTD Joiners</th>
-                                <th style="text-align: right;">MTD Target</th>
-                                <th style="text-align: right;">Achievement %</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td class="name-cell">Priyanka Gadadmathad</td>
-                                <td class="metric-value">3</td>
-                                <td class="metric-value">3.87</td>
-                                <td class="metric-value">3</td>
-                                <td class="metric-value">8</td>
-                                <td class="metric-percentage warning">37.5%</td>
-                            </tr>
-                            <tr>
-                                <td class="name-cell">Tanu Gupta</td>
-                                <td class="metric-value">4</td>
-                                <td class="metric-value">3.60</td>
-                                <td class="metric-value">4</td>
-                                <td class="metric-value">12</td>
-                                <td class="metric-percentage warning">33%</td>
-                            </tr>
-                            <tr>
-                                <td class="name-cell">Bindu T S</td>
-                                <td class="metric-value">5</td>
-                                <td class="metric-value">3.68</td>
-                                <td class="metric-value">12</td>
-                                <td class="metric-value">15</td>
-                                <td class="metric-percentage good">80%</td>
-                            </tr>
-                            <tr>
-                                <td class="name-cell">Abhilash S</td>
-                                <td class="metric-value">4</td>
-                                <td class="metric-value">3.71</td>
-                                <td class="metric-value">5</td>
-                                <td class="metric-value">12</td>
-                                <td class="metric-percentage warning">42%</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="alerts-section">
-                    <div class="alert-box success">
-                        <div class="alert-title">✓ Bindu T S Exceeding</div>
-                        <div class="alert-message">12 MTD joiners vs 15 target. Top performer maintaining high conversion rates.</div>
-                    </div>
-                    <div class="alert-box warning">
-                        <div class="alert-title">⚠ Acceleration Needed</div>
-                        <div class="alert-message">9 AMs require final-week push to meet monthly targets. Focus on offer closure.</div>
-                    </div>
-                </div>
+                    <div id="productivity-root"></div>
                 </div>
                 <!-- END VIEW 3 -->
 
                 <!-- VIEW 4: DIRECTOR DRILLDOWN -->
                 <div id="view-director" class="view-section">
-                <div class="main-grid">
-                    <div class="chart-panel">
-                        <div class="chart-container">
-                            <canvas id="directorChart"></canvas>
-                        </div>
-                        <div class="chart-description">
-                            <h3>🎯 Director Portfolio Analysis</h3>
-                            <p><strong>Jyothsna</strong> performing above targets across all metrics. <strong>Sanjib</strong> needs support on selection conversion to hit monthly goal.</p>
-                        </div>
-                    </div>
-                    <div class="kpi-grid">
-                        <div class="kpi-card">
-                            <div class="kpi-label"><span class="rag-indicator"></span>Jyothsna</div>
-                            <div class="kpi-value">92%</div>
-                            <div class="kpi-note positive">Coverage On Track</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label"><span class="rag-indicator amber"></span>Sanjib</div>
-                            <div class="kpi-value">88%</div>
-                            <div class="kpi-note negative">Coverage Needs Attention</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label"><span class="rag-indicator"></span>Joint Portfolio</div>
-                            <div class="kpi-value">89.7%</div>
-                            <div class="kpi-note">Avg Coverage</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label"><span class="rag-indicator"></span>MTD Performance</div>
-                            <div class="kpi-value">20/30</div>
-                            <div class="kpi-note">Joiners Target</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="table-section">
-                    <div class="table-header">
-                        <span>Director Comparative Analysis</span>
-                        <span style="font-size: 11px; font-weight: normal; color: #999;" class="week-display">Loading...</span>
-                    </div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Director / SPAN</th>
-                                <th style="text-align: right;">Coverage %</th>
-                                <th style="text-align: right;">Avg Select %</th>
-                                <th style="text-align: right;">RPR</th>
-                                <th style="text-align: right;">MTD Joiners</th>
-                                <th style="text-align: right;">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td class="name-cell">Jyothsna</td>
-                                <td class="metric-percentage good">92%</td>
-                                <td class="metric-percentage good">80%</td>
-                                <td class="metric-value">1.14</td>
-                                <td class="metric-value">8</td>
-                                <td>✓ Performing</td>
-                            </tr>
-                            <tr>
-                                <td class="name-cell">Sanjib</td>
-                                <td class="metric-percentage warning">88%</td>
-                                <td class="metric-percentage warning">72%</td>
-                                <td class="metric-value">0.85</td>
-                                <td class="metric-value">12</td>
-                                <td>⚠ Monitor</td>
-                            </tr>
-                            <tr>
-                                <td class="name-cell">Manisha</td>
-                                <td class="metric-percentage good">91%</td>
-                                <td class="metric-percentage good">75%</td>
-                                <td class="metric-value">1.06</td>
-                                <td class="metric-value">6</td>
-                                <td>✓ On Track</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="alerts-section">
-                    <div class="alert-box success">
-                        <div class="alert-title">✓ Jyothsna Leading</div>
-                        <div class="alert-message">All KPIs above targets. Consistent execution across 4 AMs. Strong portfolio health.</div>
-                    </div>
-                    <div class="alert-box error">
-                        <div class="alert-title">🔴 Sanjib Portfolio at Risk</div>
-                        <div class="alert-message">RPR 0.85 (below 1.0 target). Selection % at 72%. Escalate AMs to improve conversion.</div>
-                    </div>
-                    <div class="alert-box success">
-                        <div class="alert-title">✓ Manisha Performing Well</div>
-                        <div class="alert-message">Coverage at 91%, RPR 1.06, solid selection rate. Consistent performance across team.</div>
-                    </div>
-                </div>
+                    <div id="director-root"></div>
                 </div>
                 <!-- END VIEW 4 -->
 
@@ -1751,9 +1262,19 @@
                 window.selectedWeek = weekNum;
                 updateWeekHeader(weekNum);
                 const dates = window.dynamicWeekEndingDates || [];
+                const weekShort = dates[weekNum - 1];
                 const dateEl = document.getElementById(`view-${view}-date`);
                 if (dateEl) {
-                    dateEl.textContent = dates[weekNum - 1] ? `Week Ending ${dates[weekNum - 1]}` : '';
+                    dateEl.textContent = weekShort ? `Week Ending ${weekShort}` : '';
+                }
+                // Load THIS week's report data into the dashboard (honest empty state if none)
+                if (weekShort) {
+                    const reportId = window.reportsByWeek[weekShort];
+                    if (reportId) {
+                        loadDashboardData(reportId);
+                    } else {
+                        renderNoDataWeek(weekShort);
+                    }
                 }
             }
 
@@ -2008,6 +1529,227 @@
             return null;
         }
 
+        // ============ REAL DATA RENDERING (computed server-side from uploaded files) ============
+        window.reportsByWeek = {};  // 'DD-Mon' -> report_id
+
+        async function loadReportsIndex() {
+            try {
+                const r = await fetch('/api/reports');
+                const d = await r.json();
+                (d.reports || []).forEach(rep => {
+                    if (rep.data_week_ending) {
+                        const short = shortenWeekEnding(rep.data_week_ending);
+                        if (!window.reportsByWeek[short]) window.reportsByWeek[short] = rep.report_id;
+                    }
+                });
+            } catch (e) { console.warn('reports index unavailable:', e); }
+        }
+
+        async function loadDashboardData(reportId) {
+            try {
+                const url = '/api/dashboard-data' + (reportId ? '?report_id=' + encodeURIComponent(reportId) : '');
+                const r = await fetch(url);
+                const d = await r.json();
+                if (d.success) {
+                    window.lastDashboardData = d;
+                    renderRecruitment(d);
+                    renderAlerts(d);
+                    renderMgmtSummary(d);
+                    renderMgmtDetails(d);
+                    renderProductivity(d);
+                    renderDirectorDrilldown(d);
+                    return d;
+                }
+            } catch (e) { console.warn('dashboard data unavailable:', e); }
+            return null;
+        }
+
+        function tableShell(title, headers, bodyHtml, dwe) {
+            const ths = headers.map((h, i) => `<th${i ? ' style="text-align: right;"' : ''}>${h}</th>`).join('');
+            return `<div class="table-section">
+                <div class="table-header"><span>${title}</span>
+                <span style="font-size: 11px; font-weight: normal; color: #999;">Data week ending ${dwe || '—'}</span></div>
+                <table><thead><tr>${ths}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`;
+        }
+
+        function renderAlerts(d) {
+            const root = document.getElementById('alerts-root');
+            if (!root) return;
+            const t = d.totals, alerts = [];
+            alerts.push(t.coverage_pct >= 80
+                ? { c: 'success', title: '✓ On Track: Coverage Strong', msg: `Coverage at ${t.coverage_pct}% — above the 80% target.` }
+                : { c: t.coverage_pct >= 70 ? 'warning' : 'error', title: t.coverage_pct >= 70 ? '⚠ Watch: Coverage Below Target' : '🔴 Action: Coverage Low', msg: `Coverage at ${t.coverage_pct}% against the 80% target. Focus submissions on uncovered positions.` });
+            alerts.push(t.avg_sub >= 4
+                ? { c: 'success', title: '✓ On Track: Submission Velocity', msg: `Avg Sub at ${t.avg_sub} — meeting the ≥4 target.` }
+                : { c: t.avg_sub >= 3 ? 'warning' : 'error', title: '⚠ Watch: Submission Velocity', msg: `Avg Sub at ${t.avg_sub}, below the ≥4 target.` });
+            if (t.reneges > 0) alerts.push({ c: 'warning', title: '⚠ Reneges This Week', msg: `${fmtInt(t.reneges)} renege(s) recorded — review offer management.` });
+            alerts.push({ c: 'success', title: `📊 Week Ending ${d.data_week_ending || '—'}`, msg: `${fmtInt(t.selections)} selections, ${fmtInt(t.joiners)} joiners, ${fmtInt(t.exits)} exits across ${d.directors.length} directors.` });
+            root.innerHTML = alerts.map(a => `<div class="alert-box ${a.c}"><div class="alert-title">${a.title}</div><div class="alert-message">${a.msg}</div></div>`).join('');
+        }
+
+        function renderMgmtSummary(d) {
+            const root = document.getElementById('mgmt-summary-root');
+            if (!root) return;
+            const t = d.totals;
+            let body = d.directors.map(dir => {
+                const dt = dir.totals;
+                return `<tr class="director-row"><td class="name-cell total">${dir.name}</td>
+                    <td class="metric-value">${dir.ams.length}</td>
+                    <td class="metric-value">${fmtInt(dt.positions)}</td>
+                    <td class="metric-value">${fmtInt(dt.submissions)}</td>
+                    <td class="metric-percentage ${ragCoverage(dt.coverage_pct)}">${dt.coverage_pct}%</td>
+                    <td class="metric-percentage ${ragAvgSub(dt.avg_sub)}">${dt.avg_sub}</td>
+                    <td class="metric-value">${fmtInt(dt.selections)}</td>
+                    <td class="metric-value">${fmtInt(dt.joiners)}</td>
+                    <td class="metric-value">${fmtInt(dt.exits)}</td></tr>`;
+            }).join('');
+            body += `<tr class="director-row"><td class="name-cell total">Grand Total</td>
+                <td class="metric-value">${d.directors.reduce((n, x) => n + x.ams.length, 0)}</td>
+                <td class="metric-value">${fmtInt(t.positions)}</td>
+                <td class="metric-value">${fmtInt(t.submissions)}</td>
+                <td class="metric-percentage ${ragCoverage(t.coverage_pct)}">${t.coverage_pct}%</td>
+                <td class="metric-percentage ${ragAvgSub(t.avg_sub)}">${t.avg_sub}</td>
+                <td class="metric-value">${fmtInt(t.selections)}</td>
+                <td class="metric-value">${fmtInt(t.joiners)}</td>
+                <td class="metric-value">${fmtInt(t.exits)}</td></tr>`;
+            root.innerHTML = tableShell('Team Performance Summary — Director Level',
+                ['Director', 'AMs', 'Positions', 'Submissions', 'Coverage %', 'Avg Sub', 'Selections', 'Joiners', 'Exits'], body, d.data_week_ending);
+        }
+
+        function renderMgmtDetails(d) {
+            const root = document.getElementById('mgmt-details-root');
+            if (!root) return;
+            let body = '';
+            d.directors.forEach(dir => {
+                const dt = dir.totals;
+                body += `<tr class="director-row"><td class="name-cell total">${dir.name} (Director)</td>
+                    <td class="metric-value">${fmtInt(dt.positions)}</td><td class="metric-value">${fmtInt(dt.submissions)}</td>
+                    <td class="metric-percentage ${ragCoverage(dt.coverage_pct)}">${dt.coverage_pct}%</td>
+                    <td class="metric-percentage ${ragAvgSub(dt.avg_sub)}">${dt.avg_sub}</td>
+                    <td class="metric-value">${fmtInt(dt.selections)}</td><td class="metric-value">${fmtInt(dt.reneges)}</td>
+                    <td class="metric-value">${fmtInt(dt.joiners)}</td><td class="metric-value">${fmtInt(dt.exits)}</td></tr>`;
+                dir.ams.forEach(am => {
+                    body += `<tr class="child-row"><td class="name-cell child">${am.name}</td>
+                        <td class="metric-value">${fmtInt(am.positions)}</td><td class="metric-value">${fmtInt(am.submissions)}</td>
+                        <td class="metric-percentage ${ragCoverage(am.coverage_pct)}">${am.coverage_pct}%</td>
+                        <td class="metric-percentage ${ragAvgSub(am.avg_sub)}">${am.avg_sub}</td>
+                        <td class="metric-value">${fmtInt(am.selections)}</td><td class="metric-value">${fmtInt(am.reneges)}</td>
+                        <td class="metric-value">${fmtInt(am.joiners)}</td><td class="metric-value">${fmtInt(am.exits)}</td></tr>`;
+                });
+            });
+            root.innerHTML = tableShell('Individual AM Performance — Full Detail',
+                ['Team / Account Manager', 'Positions', 'Submissions', 'Coverage %', 'Avg Sub', 'Selections', 'Reneges', 'Joiners', 'Exits'], body, d.data_week_ending);
+            setupDirectorToggle();
+        }
+
+        function renderProductivity(d) {
+            const root = document.getElementById('productivity-root');
+            if (!root) return;
+            const ams = d.directors.flatMap(dir => dir.ams.map(am => ({ ...am, director: dir.name })))
+                .sort((a, b) => b.submissions - a.submissions);
+            const body = ams.map(am => `<tr class="child-row"><td class="name-cell">${am.name}</td>
+                <td class="metric-value" style="text-align:right;">${am.director}</td>
+                <td class="metric-value">${fmtInt(am.positions)}</td><td class="metric-value">${fmtInt(am.submissions)}</td>
+                <td class="metric-percentage ${ragAvgSub(am.avg_sub)}">${am.avg_sub}</td>
+                <td class="metric-percentage ${ragCoverage(am.coverage_pct)}">${am.coverage_pct}%</td>
+                <td class="metric-value">${fmtInt(am.selections)}</td><td class="metric-value">${fmtInt(am.joiners)}</td></tr>`).join('');
+            root.innerHTML = tableShell('AM Productivity — Ranked by Submissions',
+                ['Account Manager', 'Director', 'Positions', 'Submissions', 'Avg Sub', 'Coverage %', 'Selections', 'Joiners'], body, d.data_week_ending);
+        }
+
+        function renderDirectorDrilldown(d) {
+            const root = document.getElementById('director-root');
+            if (!root) return;
+            const body = d.directors.map(dir => {
+                const dt = dir.totals;
+                const status = dt.coverage_pct >= 80 ? '<span class="metric-percentage good">Performing</span>'
+                    : dt.coverage_pct >= 70 ? '<span class="metric-percentage warning">Monitor</span>'
+                    : '<span class="metric-percentage bad">At Risk</span>';
+                return `<tr class="director-row"><td class="name-cell total">${dir.name}</td>
+                    <td class="metric-value">${dir.ams.length}</td>
+                    <td class="metric-value">${fmtInt(dt.positions)}</td>
+                    <td class="metric-percentage ${ragCoverage(dt.coverage_pct)}">${dt.coverage_pct}%</td>
+                    <td class="metric-percentage ${ragAvgSub(dt.avg_sub)}">${dt.avg_sub}</td>
+                    <td class="metric-value">${fmtInt(dt.selections)}</td>
+                    <td class="metric-value">${fmtInt(dt.joiners)}</td>
+                    <td class="metric-value">${fmtInt(dt.exits)}</td>
+                    <td style="text-align:right;">${status}</td></tr>`;
+            }).join('');
+            root.innerHTML = tableShell('Director Comparative Analysis',
+                ['Director', 'AMs', 'Positions', 'Coverage %', 'Avg Sub', 'Selections', 'Joiners', 'Exits', 'Status'], body, d.data_week_ending);
+        }
+
+        function ragCoverage(p) { return p >= 80 ? 'good' : (p >= 70 ? 'warning' : 'bad'); }
+        function ragAvgSub(v) { return v >= 4 ? 'good' : (v >= 3 ? 'warning' : 'bad'); }
+        function fmtInt(v) { return Math.round(Number(v) || 0).toLocaleString(); }
+
+        function renderRecruitment(d) {
+            const t = d.totals || {};
+
+            // KPI cards (order: Positions, Coverage, Avg Sub, Select %)
+            const kpis = document.querySelectorAll('#view-recruitment .kpi-card');
+            if (kpis.length >= 4) {
+                kpis[0].querySelector('.kpi-value').textContent = fmtInt(t.positions);
+                kpis[0].querySelector('.kpi-note').textContent = `${d.directors.length} directors`;
+                kpis[1].querySelector('.kpi-value').textContent = (t.coverage_pct || 0) + '%';
+                kpis[2].querySelector('.kpi-value').textContent = t.avg_sub || 0;
+                kpis[3].querySelector('.kpi-value').textContent = fmtInt(t.selections);
+                kpis[3].querySelector('.kpi-label').innerHTML = '<span class="rag-indicator"></span>Selections';
+                kpis[3].querySelector('.kpi-note').textContent = 'Select % needs monthly target config';
+            }
+
+            // Performance overview text
+            const amCount = d.directors.reduce((n, dir) => n + dir.ams.length, 0);
+            const p = document.querySelector('#view-recruitment .chart-description p');
+            if (p) {
+                const rel = t.coverage_pct >= 80 ? 'above' : 'below';
+                p.innerHTML = `Team Coverage at ${t.coverage_pct}% — ${rel} the 80% target. <strong>${fmtInt(t.positions)} positions</strong> across <strong>${d.directors.length} directors</strong> and <strong>${amCount} account managers</strong>. Data week ending ${d.data_week_ending || '—'}.`;
+            }
+
+            // Scorecard table
+            const tbody = document.querySelector('#view-recruitment .table-section tbody');
+            if (!tbody) return;
+            const cell = (v, cls) => `<td class="${cls || 'metric-value'}">${v}</td>`;
+            let html = '';
+            d.directors.forEach(dir => {
+                const dt = dir.totals;
+                html += `<tr class="director-row">
+                    <td class="name-cell total">${dir.name} (Director)</td>
+                    ${cell(fmtInt(dt.positions))}${cell(fmtInt(dt.submissions))}
+                    ${cell(dt.coverage_pct + '%', 'metric-percentage ' + ragCoverage(dt.coverage_pct))}
+                    ${cell(fmtInt(dt.selections))}${cell('—')}${cell(fmtInt(dt.joiners))}${cell(fmtInt(dt.reneges))}${cell('—')}
+                </tr>`;
+                dir.ams.forEach(am => {
+                    html += `<tr class="child-row">
+                        <td class="name-cell child">${am.name}</td>
+                        ${cell(fmtInt(am.positions))}${cell(fmtInt(am.submissions))}
+                        ${cell(am.coverage_pct + '%', 'metric-percentage ' + ragCoverage(am.coverage_pct))}
+                        ${cell(fmtInt(am.selections))}${cell('—')}${cell(fmtInt(am.joiners))}${cell(fmtInt(am.reneges))}${cell('—')}
+                    </tr>`;
+                });
+            });
+            tbody.innerHTML = html;
+            setupDirectorToggle();
+        }
+
+        function renderNoDataWeek(weekShort) {
+            window.lastDashboardData = null;
+            const emptyMsg = `<div style="text-align:center; padding: 60px 40px; color:#999; background:white; border:2px dashed #ddd; border-radius:8px;">
+                📭 No data uploaded for week ending ${weekShort}. Upload that week's 7 raw files to see its metrics.</div>`;
+            const tbody = document.querySelector('#view-recruitment .table-section tbody');
+            if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 40px; color:#999;">
+                    📭 No data uploaded for week ending ${weekShort}. Upload that week's 7 raw files to see its metrics.</td></tr>`;
+            }
+            document.querySelectorAll('#view-recruitment .kpi-card .kpi-value').forEach(k => k.textContent = '—');
+            const p = document.querySelector('#view-recruitment .chart-description p');
+            if (p) p.textContent = `No report uploaded for the week ending ${weekShort}.`;
+            ['alerts-root', 'mgmt-summary-root', 'mgmt-details-root', 'productivity-root', 'director-root'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = id === 'alerts-root' ? '' : emptyMsg;
+            });
+        }
+
         // Initialize on page load - set active week based on latest uploads
         document.addEventListener('DOMContentLoaded', async function() {
             // Try to get reporting period from API first
@@ -2030,6 +1772,10 @@
             // The data's current week is the default selected week
             window.selectedWeek = currentWeekOfMonth;
             updateWeekHeader(currentWeekOfMonth);
+
+            // Load real computed metrics for the latest report
+            await loadReportsIndex();
+            loadDashboardData();
 
             // Initialize charts
             initRecruitmentChart();
@@ -2214,17 +1960,23 @@
 
         // Export dashboard data
         function exportDashboard() {
-            const filename = `SOJPE_C2H_Dashboard_${new Date().toISOString().slice(0,10)}.csv`;
-            const headers = ['Team/AM', 'Positions', 'Submissions', 'Coverage %', 'Selections', 'Offers', 'Joiners', 'Reneges', 'Select %'];
-            const rows = [
-                ['Jyothsna', '45', '165', '92%', '12', '10', '8', '1', '80%'],
-                ['Priyanka Gadadmathad', '15', '58', '93%', '5', '4', '3', '0', '83%'],
-                ['Tanu Gupta', '20', '72', '90%', '4', '3', '2', '0', '75%'],
-                ['Sanjib', '76', '248', '88%', '15', '12', '9', '2', '72%'],
-                ['Bindu T S', '25', '85', '92%', '6', '5', '4', '1', '80%'],
-                ['Abhilash S', '30', '110', '85%', '7', '6', '5', '1', '71%'],
-                ['Roshan Dominic', '21', '53', '81%', '2', '2', '1', '0', '50%']
-            ];
+            const d = window.lastDashboardData;
+            if (!d) {
+                alert('No data loaded for the selected week — nothing to export.');
+                return;
+            }
+            const filename = `SOJPE_C2H_WeekEnding_${(d.data_week_ending || 'unknown').replace(/\s+/g, '')}.csv`;
+            const headers = ['Director', 'Account Manager', 'Positions', 'Submissions', 'Coverage %', 'Avg Sub', 'Selections', 'Reneges', 'Joiners', 'Exits'];
+            const rows = [];
+            d.directors.forEach(dir => {
+                const dt = dir.totals;
+                rows.push([dir.name, '(Director Total)', dt.positions, dt.submissions, dt.coverage_pct + '%', dt.avg_sub, dt.selections, dt.reneges, dt.joiners, dt.exits]);
+                dir.ams.forEach(am => {
+                    rows.push([dir.name, am.name, am.positions, am.submissions, am.coverage_pct + '%', am.avg_sub, am.selections, am.reneges, am.joiners, am.exits]);
+                });
+            });
+            const t = d.totals;
+            rows.push(['Grand Total', '', t.positions, t.submissions, t.coverage_pct + '%', t.avg_sub, t.selections, t.reneges, t.joiners, t.exits]);
 
             let csv = headers.join(',') + '\n';
             rows.forEach(row => {

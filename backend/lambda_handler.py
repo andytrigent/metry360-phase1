@@ -11,6 +11,7 @@ import boto3
 import io
 import re
 import zipfile
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from decimal import Decimal
 from urllib.parse import parse_qs
@@ -643,6 +644,208 @@ def reprocess_report(event, context, report_id):
     except Exception as e:
         return error_response(500, 'REPROCESS_FAILED', str(e))
 
+# ============================================================================
+# XLSX PARSING & METRIC AGGREGATION (pure stdlib - no external deps in Lambda)
+# ============================================================================
+
+XLSX_NS = '{http://schemas.openxmlformats.org/spreadsheetml/2006/main}'
+
+def parse_xlsx(content):
+    """Parse an xlsx into a list of sheets; each sheet is a list of row lists."""
+    z = zipfile.ZipFile(io.BytesIO(content))
+    shared = []
+    if 'xl/sharedStrings.xml' in z.namelist():
+        root = ET.fromstring(z.read('xl/sharedStrings.xml'))
+        for si in root.findall(f'{XLSX_NS}si'):
+            shared.append(''.join(t.text or '' for t in si.iter(f'{XLSX_NS}t')))
+    names = sorted((n for n in z.namelist() if re.match(r'xl/worksheets/sheet\d+\.xml$', n)),
+                   key=lambda s: int(re.search(r'(\d+)', s).group(1)))
+    sheets = []
+    for sn in names:
+        root = ET.fromstring(z.read(sn))
+        rows = []
+        for row in root.iter(f'{XLSX_NS}row'):
+            cells = {}
+            for c in row.iter(f'{XLSX_NS}c'):
+                m = re.match(r'([A-Z]+)', c.get('r') or '')
+                if not m:
+                    continue
+                ci = 0
+                for ch in m.group(1):
+                    ci = ci * 26 + ord(ch) - 64
+                t = c.get('t')
+                v = c.find(f'{XLSX_NS}v')
+                val = v.text if v is not None else None
+                if t == 's' and val is not None:
+                    val = shared[int(val)]
+                elif t == 'inlineStr':
+                    ie = c.find(f'{XLSX_NS}is')
+                    val = ''.join(tt.text or '' for tt in ie.iter(f'{XLSX_NS}t')) if ie is not None else None
+                cells[ci - 1] = val
+            if cells:
+                rows.append([cells.get(i) for i in range(max(cells) + 1)])
+        sheets.append(rows)
+    return sheets
+
+def clean(s):
+    """TRIM + collapse whitespace (name standardization is the #1 join failure point)"""
+    return re.sub(r'\s+', ' ', str(s or '').strip())
+
+def num(v):
+    try:
+        return float(str(v).strip() or 0)
+    except (ValueError, TypeError):
+        return 0.0
+
+def find_header(rows, *must_have):
+    for i, r in enumerate(rows[:15]):
+        vals = [clean(c) for c in r]
+        if all(any(m.lower() in v.lower() for v in vals if v) for m in must_have):
+            return i, {clean(c): j for j, c in enumerate(r) if clean(c)}
+    return None, {}
+
+def sheet_with_header(sheets, *must):
+    """Find the sheet containing the given header columns (skips pivot/summary sheets)."""
+    for sh in sheets:
+        hi, cm = find_header(sh, *must)
+        if hi is not None:
+            return sh, hi, cm
+    return None, None, {}
+
+def cg(row, cm, *names):
+    for want in names:
+        for h, j in cm.items():
+            if want.lower() in h.lower():
+                return row[j] if j < len(row) else None
+    return None
+
+def compute_dashboard_data(report_id):
+    """Aggregate the report's raw files to AM level (Coverage/Selects/Renege/Joiners/Exits)."""
+    metadata = get_report_metadata(report_id)
+    type_to_key = {f.get('file_type'): f.get('key') for f in metadata.get('files', [])}
+
+    def load(file_type):
+        key = type_to_key.get(file_type)
+        if not key:
+            return None
+        obj = s3_client.get_object(Bucket=S3_BUCKET, Key=key)
+        return parse_xlsx(obj['Body'].read())
+
+    ams = {}
+    am_dir = {}
+
+    def rec(am):
+        return ams.setdefault(am, dict(positions=0, submissions=0, jobs_with_subs=0,
+                                       selections=0, reneges=0, joiners=0, exits=0))
+
+    # Coverage: demand + coverage inputs (Active jobs only)
+    sheets = load('Coverage Raw Report')
+    if sheets:
+        sh, hi, cm = sheet_with_header(sheets, 'Job Code', 'Account Manager')
+        if sh:
+            for r in sh[hi + 1:]:
+                if clean(cg(r, cm, 'Job Status')) != 'Active':
+                    continue
+                am = clean(cg(r, cm, 'Account Manager')) or 'Unassigned'
+                d = rec(am)
+                d['positions'] += num(cg(r, cm, '# Open Positions'))
+                d['submissions'] += num(cg(r, cm, '#Of Submissions'))
+                d['jobs_with_subs'] += num(cg(r, cm, '#Of Jobs With Submissions'))
+                bu = clean(cg(r, cm, 'BU Head', 'Director'))
+                if bu and am != 'Unassigned':
+                    am_dir[am] = bu
+
+    # Selects: weekly client approvals
+    sheets = load('Weekly Selects Report')
+    if sheets:
+        sh, hi, cm = sheet_with_header(sheets, 'Account Manager')
+        if sh:
+            for r in sh[hi + 1:]:
+                am = clean(cg(r, cm, 'Account Manager'))
+                if not am or am.lower().startswith('total'):
+                    continue
+                rec(am)['selections'] += num(cg(r, cm, 'Confirmation', 'Selection'))
+
+    # Reneges
+    sheets = load('Weekly Renege Report')
+    if sheets:
+        sh, hi, cm = sheet_with_header(sheets, 'Account Manager')
+        if sh:
+            for r in sh[hi + 1:]:
+                am = clean(cg(r, cm, 'Account Manager'))
+                if not am or am.lower().startswith('total'):
+                    continue
+                rec(am)['reneges'] += num(cg(r, cm, 'Count'))
+
+    # Joiners: one row per new hire
+    sheets = load('Weekly Joiners Report')
+    if sheets:
+        sh, hi, cm = sheet_with_header(sheets, 'Employee Id', 'Account Manager')
+        if sh:
+            for r in sh[hi + 1:]:
+                am = clean(cg(r, cm, 'Account Manager'))
+                if am and clean(cg(r, cm, 'Employee Name')):
+                    rec(am)['joiners'] += 1
+
+    # Exits: EXITED + APPROVED only (exclude pending SUBMITTED)
+    sheets = load('Weekly Exits Report')
+    if sheets:
+        sh, hi, cm = sheet_with_header(sheets, 'Employee Id', 'Account Manager')
+        if sh:
+            for r in sh[hi + 1:]:
+                am = clean(cg(r, cm, 'Account Manager'))
+                if am and clean(cg(r, cm, 'HRMS Status')).upper() in ('EXITED', 'APPROVED'):
+                    rec(am)['exits'] += 1
+
+    def enrich(d):
+        out = {k: round(v, 2) for k, v in d.items()}
+        out['coverage_pct'] = round(100.0 * d['jobs_with_subs'] / d['positions'], 1) if d['positions'] else 0
+        out['avg_sub'] = round(d['submissions'] / d['positions'], 2) if d['positions'] else 0
+        return out
+
+    directors = {}
+    for am, d in ams.items():
+        directors.setdefault(am_dir.get(am, 'Unassigned'), {})[am] = d
+
+    dir_list = []
+    grand = dict(positions=0, submissions=0, jobs_with_subs=0, selections=0, reneges=0, joiners=0, exits=0)
+    for dname, dams in directors.items():
+        dtot = dict(positions=0, submissions=0, jobs_with_subs=0, selections=0, reneges=0, joiners=0, exits=0)
+        am_list = []
+        for am, d in sorted(dams.items(), key=lambda kv: -kv[1]['positions']):
+            for k in dtot:
+                dtot[k] += d[k]
+                grand[k] += d[k]
+            am_list.append(dict(name=am, **enrich(d)))
+        dir_list.append(dict(name=dname, totals=enrich(dtot), ams=am_list))
+    dir_list.sort(key=lambda x: (x['name'] == 'Unassigned', -x['totals']['positions']))
+
+    return {
+        'report_id': report_id,
+        'data_week_ending': metadata.get('data_week_ending'),
+        'data_period': metadata.get('data_period'),
+        'totals': enrich(grand),
+        'directors': dir_list
+    }
+
+def get_dashboard_data(event, context):
+    """GET /api/dashboard-data - real AM-level metrics computed from the latest uploaded files"""
+    try:
+        params = event.get('queryStringParameters') or {}
+        report_id = params.get('report_id')
+        if not report_id:
+            table = dynamodb.Table(DYNAMODB_TABLE)
+            reports = table.scan(Limit=50).get('Items', [])
+            if not reports:
+                return error_response(404, 'NO_REPORTS', 'No reports uploaded yet')
+            report_id = max(reports, key=lambda x: x.get('created_at', '')).get('report_id')
+
+        data = compute_dashboard_data(report_id)
+        log_event('GetDashboardData', {'report_id': report_id})
+        return response(200, dict(success=True, **data, timestamp=datetime.utcnow().isoformat()))
+    except Exception as e:
+        return error_response(500, 'DASHBOARD_DATA_FAILED', str(e))
+
 def get_reporting_period(event, context):
     """GET /api/reporting-period - Week-ending (Friday) dates derived from latest uploaded data"""
     try:
@@ -743,6 +946,9 @@ def lambda_handler(event, context):
 
         elif path == '/api/reporting-period' and method == 'GET':
             return get_reporting_period(event, context)
+
+        elif path == '/api/dashboard-data' and method == 'GET':
+            return get_dashboard_data(event, context)
 
         elif path.startswith('/api/reports/') and method == 'GET':
             report_id = path.split('/')[-1]
