@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Metry360 — Design System Reference</title>
+  <link rel="stylesheet" href="./assets/metry-ds.css" />
+  <style>
+    /* Reference-page-only scaffolding (NOT part of the design system) */
+    body { margin: 0; }
+    .ref { padding: 40px 48px 120px; max-width: 1240px; margin: 0 auto; }
+    .ref__h1 { font-size: 28px; font-weight: 800; color: var(--text-heading); margin: 0 0 4px; }
+    .ref__lede { font-size: 14px; color: var(--text-muted); margin: 0 0 8px; }
+    .ref__section { margin-top: 48px; }
+    .ref__section > h2 {
+      font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+      color: var(--text-muted); border-bottom: 1px solid var(--card-border);
+      padding-bottom: 8px; margin: 0 0 20px;
+    }
+    .ref__row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+    .ref__stage {
+      background: var(--page-bg); border: 1px dashed var(--card-border);
+      border-radius: 12px; padding: 24px;
+    }
+    .ref__note { font-size: 12px; color: var(--text-subtle); margin: 8px 0 0; }
+    .ref__swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .swatch { border: 1px solid var(--card-border); border-radius: 10px; overflow: hidden; background: #fff; }
+    .swatch__chip { height: 54px; }
+    .swatch__meta { padding: 8px 10px; }
+    .swatch__name { font-size: 12px; font-weight: 600; color: var(--text-body); }
+    .swatch__hex { font-size: 11px; color: var(--text-subtle); font-family: ui-monospace, monospace; }
+    .ref__caption { font-size: 12px; font-weight: 600; color: var(--text-muted); margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.6px; }
+    /* Simulated sidebar preview at a fixed height for the gallery */
+    .ref__sidebar-preview { height: 640px; overflow: hidden; border-radius: 12px; }
+    .ref__sidebar-preview .m-sidebar { position: static; height: 100%; }
+  </style>
+</head>
+<body class="m-app">
+<div class="ref">
+  <h1 class="ref__h1">Metry360 Design System</h1>
+  <p class="ref__lede">Living reference for <code>metry-ds.css</code> + <code>metry-charts.js</code>. Every component, every variant, the full token board. Plain HTML/CSS/vanilla JS — no build, no CDN.</p>
+  <p class="ref__note">Class prefix: <code>m-</code>. View-implementation agents: compose views from these classes; do not re-style. Chart helpers: <code>MetryCharts.donut / sparkline / lineChart</code>.</p>
+
+  <!-- ================= FULL SHELL PREVIEW ================= -->
+  <section class="ref__section">
+    <h2>1 · Full app shell (Recruitment view)</h2>
+    <div style="border:1px solid var(--card-border); border-radius:12px; overflow:hidden;">
+      <div class="m-shell">
+        <!-- SIDEBAR -->
+        <aside class="m-sidebar">
+          <div class="m-sidebar__logo">
+            <div class="m-logo-mark">Q</div>
+            <div class="m-logo-word">Metry360</div>
+          </div>
+          <nav class="m-nav">
+            <button class="m-nav__item">Management View</button>
+            <button class="m-nav__item">Director Drilldown</button>
+            <button class="m-nav__item">AM Productivity</button>
+            <button class="m-nav__item is-active">Recruitment</button>
+          </nav>
+          <div class="m-sidebar__divider"></div>
+          <div class="m-sidebar__label">Select Cycle 26-27</div>
+          <div class="m-cycle">
+            <button class="m-cycle__item is-active">Q1 (Apr - Jun)</button>
+            <button class="m-cycle__item">Q2 (Jul - Sep)</button>
+            <button class="m-cycle__item">Q3 (Oct - Dec)</button>
+            <button class="m-cycle__item">Q4 (Jan - Mar)</button>
+          </div>
+          <div class="m-sidebar__divider"></div>
+          <div class="m-sidebar__label">Views</div>
+          <div class="m-views">
+            <button class="m-views__item">Renege Watch</button>
+            <button class="m-views__item">Coverage Gap</button>
+            <button class="m-views__item">Amazon Ops</button>
+            <button class="m-views__item">ITS</button>
+          </div>
+        </aside>
+
+        <!-- CONTENT -->
+        <main class="m-shell__content">
+          <!-- top bar -->
+          <h1 class="m-topbar__title">The Weekly ScoreCard</h1>
+          <p class="m-topbar__subtitle">A director's digest for 02–06 April 2026</p>
+
+          <!-- toolbar -->
+          <div class="m-toolbar">
+            <div class="m-dropdown">
+              <select class="m-dropdown__select" aria-label="Select client">
+                <option>Select Client</option>
+                <option>Amazon</option>
+                <option>Infosys</option>
+              </select>
+            </div>
+            <div class="m-toolbar__group">
+              <button class="m-chip is-active">April 2026</button>
+              <button class="m-chip">May</button>
+              <button class="m-chip">June</button>
+            </div>
+            <div class="m-toolbar__group">
+              <button class="m-chip m-chip--week is-active">W1</button>
+              <button class="m-chip m-chip--week">W2</button>
+              <button class="m-chip m-chip--week">W3</button>
+              <button class="m-chip m-chip--week">W4</button>
+            </div>
+            <div class="m-toolbar__spacer"></div>
+            <button class="m-btn m-btn--primary">Export PDF</button>
+          </div>
+
+          <!-- KPI band -->
+          <div class="m-band">
+            <!-- org health -->
+            <div class="m-card m-card--pad m-orghealth">
+              <div class="m-eyebrow">Organization Health</div>
+              <div class="m-donut m-orghealth__donut" data-donut="75" data-donut-color="var(--donut-health)">
+                <div class="m-donut__center">75%</div>
+              </div>
+              <div class="m-orghealth__caption">Weighted composite of Coverage, Submission, Selection, Renege, and Achievement.</div>
+            </div>
+
+            <!-- center block: brief + kpis -->
+            <div class="m-band__center">
+              <div class="m-card m-card--pad">
+                <div class="m-eyebrow">Effort's Brief</div>
+                <p class="m-brief__body">Coverage holds above threshold at 91.4%, but renege at 24.8% has breached the 20% ceiling - concentrated in Sanjib and Jyothsna. Amazon Ops carries the month at 109% of target.</p>
+              </div>
+              <div class="m-kpis">
+                <!-- KPI 1: blue -->
+                <div class="m-card m-card--pad m-kpi">
+                  <div class="m-kpi__icon m-kpi__icon--blue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>
+                  </div>
+                  <div class="m-kpi__label">Monthly Target</div>
+                  <div class="m-kpi__value">121<span class="m-kpi__suffix">/ 146</span></div>
+                  <div class="m-kpi__status m-kpi__status--blue">82.8% of Monthly Goal</div>
+                </div>
+                <!-- KPI 2: green -->
+                <div class="m-card m-card--pad m-kpi">
+                  <div class="m-kpi__icon m-kpi__icon--green">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15 20c0-2.5 1.4-4.2 3.6-4.2"/></svg>
+                  </div>
+                  <div class="m-kpi__label">Coverage</div>
+                  <div class="m-kpi__value">91.4%</div>
+                  <div class="m-kpi__status m-kpi__status--green">Above 80% Threshold</div>
+                </div>
+                <!-- KPI 3: amber -->
+                <div class="m-card m-card--pad m-kpi">
+                  <div class="m-kpi__icon m-kpi__icon--amber">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M10 12h5M10 16h5"/></svg>
+                  </div>
+                  <div class="m-kpi__label">Average Submission</div>
+                  <div class="m-kpi__value">3.62</div>
+                  <div class="m-kpi__status m-kpi__status--amber">Warning: Below 4.0 Goal</div>
+                </div>
+                <!-- KPI 4: red -->
+                <div class="m-card m-card--pad m-kpi">
+                  <div class="m-kpi__icon m-kpi__icon--red">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8l6 6 3-3 7 7"/><path d="M15 18h5v-5"/></svg>
+                  </div>
+                  <div class="m-kpi__label">Renege %</div>
+                  <div class="m-kpi__value m-kpi__value--red">24.8%</div>
+                  <div class="m-kpi__status m-kpi__status--red">Critical: Limit is 20%</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- RAG rail -->
+            <div class="m-card m-rail">
+              <button class="m-rail__header">&larr; RAG</button>
+              <div class="m-rail__legend">
+                <div class="m-rail__entry">
+                  <div class="m-ragchip m-ragchip--green">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>
+                  </div>
+                  <span class="m-rail__entry-label">Healthy</span>
+                </div>
+                <div class="m-rail__entry">
+                  <div class="m-ragchip m-ragchip--amber">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
+                  </div>
+                  <span class="m-rail__entry-label">Warning</span>
+                </div>
+                <div class="m-rail__entry">
+                  <div class="m-ragchip m-ragchip--red">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16v.5"/></svg>
+                  </div>
+                  <span class="m-rail__entry-label">Critical</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MAIN TABLE -->
+          <div class="m-card m-tablecard m-section">
+            <div class="m-tablecard__head">
+              <h2 class="m-card__title">Recruitment</h2>
+              <div class="m-tabs">
+                <button class="m-tab is-active">Health</button>
+                <button class="m-tab">Coverage</button>
+                <button class="m-tab">Renege</button>
+                <button class="m-tab">Achievement</button>
+              </div>
+            </div>
+            <div class="m-table-scroll">
+              <table class="m-table">
+                <thead>
+                  <tr>
+                    <th>Team</th><th>Health</th><th>Coverage</th><th>Submission</th>
+                    <th>Selection</th><th>Renge</th><th>MTD</th><th>Achieve</th><th>Trend</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><div class="m-team"><div class="m-team__names"><span class="m-team__name">Madumitha</span><span class="m-team__sub">Madhumitha</span></div></div></td>
+                    <td class="m-val--amber">57<span class="m-val__tag">C</span></td>
+                    <td class="m-val--muted">44.8</td>
+                    <td class="m-val--red">4.12</td>
+                    <td class="m-val--amber">61</td>
+                    <td class="m-val--green">25.8</td>
+                    <td class="m-val--green">37/61</td>
+                    <td class="m-val--muted">61%</td>
+                    <td><span data-spark="4,5,4,6,7,6,8" data-spark-color="var(--green)"></span></td>
+                  </tr>
+                  <tr>
+                    <td><div class="m-team"><div class="m-team__names"><span class="m-team__name">Ashok K</span><span class="m-team__sub">Ashok Keni</span></div></div></td>
+                    <td class="m-val--amber">57<span class="m-val__tag">C</span></td>
+                    <td class="m-val--muted">44.8</td>
+                    <td class="m-val--red">4.12</td>
+                    <td class="m-val--muted">61</td>
+                    <td class="m-val--muted">25.8</td>
+                    <td class="m-val--green">37/61</td>
+                    <td class="m-val--muted">61%</td>
+                    <td><span data-spark="4,4,5,5,6,7,7" data-spark-color="var(--green)"></span></td>
+                  </tr>
+                  <tr>
+                    <td><div class="m-team"><div class="m-team__names"><span class="m-team__name">Karthik</span><span class="m-team__sub">Karthik Rahul</span></div></div></td>
+                    <td class="m-val--amber">57<span class="m-val__tag">C</span></td>
+                    <td class="m-val--muted">44.8</td>
+                    <td class="m-val--red">4.12</td>
+                    <td class="m-val--muted">61</td>
+                    <td class="m-val--muted">25.8</td>
+                    <td class="m-val--green">37/61</td>
+                    <td class="m-val--muted">61%</td>
+                    <td><span data-spark="8,6,7,5,6,4,5" data-spark-color="var(--red)"></span></td>
+                  </tr>
+                  <tr>
+                    <td><div class="m-team"><div class="m-team__names"><span class="m-team__name">Naveen</span><span class="m-team__sub">Naveen Konda</span></div></div></td>
+                    <td class="m-val--amber">57<span class="m-val__tag">C</span></td>
+                    <td class="m-val--muted">44.8</td>
+                    <td class="m-val--red">4.12</td>
+                    <td class="m-val--muted">61</td>
+                    <td class="m-val--muted">25.8</td>
+                    <td class="m-val--green">37/61</td>
+                    <td class="m-val--muted">61%</td>
+                    <td><span data-spark="4,5,5,6,6,7,8" data-spark-color="var(--green)"></span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- BOTTOM PANELS (Recruitment = 2 cards) -->
+          <div class="m-panels m-panels--2">
+            <!-- Intelligence Report -->
+            <div class="m-card m-card--pad">
+              <h2 class="m-card__title">Intelligence Report</h2>
+              <div class="m-alerts">
+                <div class="m-alert m-alert--win">
+                  <div class="m-alert__kicker">Strategic Win</div>
+                  <p class="m-alert__body"><strong>Amazon Backlog:</strong> Target exceeded (109.6%) due to clearance of March offers.</p>
+                </div>
+                <div class="m-alert m-alert--risk">
+                  <div class="m-alert__kicker">Operational Risk</div>
+                  <p class="m-alert__body"><strong>Pipeline Health:</strong> Avg Sub (3.62) is below threshold; Select dip expected in W3.</p>
+                </div>
+                <div class="m-alert m-alert--blocker">
+                  <div class="m-alert__kicker">Critical Blocker</div>
+                  <p class="m-alert__body"><strong>Efficiency Crisis:</strong> Global RPR is 0.28 (72% below the 1.0 threshold).</p>
+                </div>
+                <div class="m-alert m-alert--blocker">
+                  <div class="m-alert__kicker">Critical Blocker</div>
+                  <p class="m-alert__body"><strong>Pre-Boarding:</strong> 24.8% Renege rate is impacting revenue realization.</p>
+                </div>
+              </div>
+            </div>
+            <!-- Velocity & Health -->
+            <div class="m-card m-card--pad">
+              <h2 class="m-card__title">Velocity &amp; Health</h2>
+              <div class="m-charts">
+                <div class="m-chart">
+                  <h3 class="m-chart__title">Joiner Velocity Trend</h3>
+                  <div class="m-chart__canvas" data-line="joiner"></div>
+                </div>
+                <div class="m-chart">
+                  <h3 class="m-chart__title">Selection Velocity Trend</h3>
+                  <div class="m-chart__canvas" data-line="selection"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <p class="ref__note">Above is the exact primary reference composition. Below: each component isolated with all variants.</p>
+  </section>
+
+  <!-- ================= TOKENS ================= -->
+  <section class="ref__section">
+    <h2>2 · Color tokens</h2>
+    <p class="ref__caption">Brand / sidebar</p>
+    <div class="ref__swatches" id="swatch-brand"></div>
+    <p class="ref__caption" style="margin-top:20px;">Surfaces &amp; text</p>
+    <div class="ref__swatches" id="swatch-surface"></div>
+    <p class="ref__caption" style="margin-top:20px;">Primary &amp; RAG semantic</p>
+    <div class="ref__swatches" id="swatch-semantic"></div>
+    <p class="ref__caption" style="margin-top:20px;">Chart</p>
+    <div class="ref__swatches" id="swatch-chart"></div>
+  </section>
+
+  <!-- ================= BUTTONS / CHIPS ================= -->
+  <section class="ref__section">
+    <h2>3 · Buttons, chips, tabs</h2>
+    <div class="ref__stage">
+      <div class="ref__row" style="align-items:center;">
+        <button class="m-btn m-btn--primary">Export PDF</button>
+        <button class="m-btn m-btn--ghost">Ghost</button>
+        <div class="m-dropdown"><select class="m-dropdown__select"><option>Select Client</option></select></div>
+        <button class="m-chip is-active">April 2026</button>
+        <button class="m-chip">May</button>
+        <button class="m-chip m-chip--week is-active">W1</button>
+        <button class="m-chip m-chip--week">W2</button>
+      </div>
+      <div class="ref__row" style="margin-top:16px;">
+        <div class="m-tabs">
+          <button class="m-tab is-active">Health</button>
+          <button class="m-tab">Coverage</button>
+          <button class="m-tab">Renege</button>
+          <button class="m-tab">Achievement</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= KPI CARDS ================= -->
+  <section class="ref__section">
+    <h2>4 · KPI cards (all icon-chip + status variants)</h2>
+    <div class="ref__stage">
+      <div class="m-kpis" style="max-width:840px;">
+        <div class="m-card m-card--pad m-kpi">
+          <div class="m-kpi__icon m-kpi__icon--blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg></div>
+          <div class="m-kpi__label">Monthly Target</div>
+          <div class="m-kpi__value">121<span class="m-kpi__suffix">/ 146</span></div>
+          <div class="m-kpi__status m-kpi__status--blue">82.8% of Monthly Goal</div>
+        </div>
+        <div class="m-card m-card--pad m-kpi">
+          <div class="m-kpi__icon m-kpi__icon--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15 20c0-2.5 1.4-4.2 3.6-4.2"/></svg></div>
+          <div class="m-kpi__label">Coverage</div>
+          <div class="m-kpi__value">91.4%</div>
+          <div class="m-kpi__status m-kpi__status--green">Above 80% Threshold</div>
+        </div>
+        <div class="m-card m-card--pad m-kpi">
+          <div class="m-kpi__icon m-kpi__icon--amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M10 12h5M10 16h5"/></svg></div>
+          <div class="m-kpi__label">Average Submission</div>
+          <div class="m-kpi__value">3.62</div>
+          <div class="m-kpi__status m-kpi__status--amber">Warning: Below 4.0 Goal</div>
+        </div>
+        <div class="m-card m-card--pad m-kpi">
+          <div class="m-kpi__icon m-kpi__icon--red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8l6 6 3-3 7 7"/><path d="M15 18h5v-5"/></svg></div>
+          <div class="m-kpi__label">Renege %</div>
+          <div class="m-kpi__value m-kpi__value--red">24.8%</div>
+          <div class="m-kpi__status m-kpi__status--red">Critical: Limit is 20%</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= DONUTS + FOCUS ================= -->
+  <section class="ref__section">
+    <h2>5 · Donuts &amp; focus card</h2>
+    <div class="ref__stage">
+      <div class="ref__row">
+        <div class="m-card m-card--pad m-orghealth" style="width:230px;">
+          <div class="m-eyebrow">Organization Health</div>
+          <div class="m-donut m-orghealth__donut" data-donut="75" data-donut-color="var(--donut-health)"><div class="m-donut__center">75%</div></div>
+          <div class="m-orghealth__caption">Weighted composite of Coverage, Submission, Selection, Renege, and Achievement.</div>
+        </div>
+        <div class="m-card m-card--pad m-focus" style="width:300px;">
+          <h3 class="m-focus__title">Focus · Team Sanjib</h3>
+          <div class="m-donut m-focus__donut" data-donut="75" data-donut-color="var(--donut-focus)"><div class="m-donut__center">75%</div></div>
+          <div class="m-focus__grid">
+            <div class="m-minikpi"><span class="m-minikpi__label">MTD Joiners</span><span class="m-minikpi__value m-minikpi__value--green">37<span class="m-minikpi__suffix">/67</span></span></div>
+            <div class="m-minikpi"><span class="m-minikpi__label">Achievement</span><span class="m-minikpi__value m-minikpi__value--red">61%</span></div>
+            <div class="m-minikpi"><span class="m-minikpi__label">Coverage</span><span class="m-minikpi__value m-minikpi__value--red">44%</span></div>
+            <div class="m-minikpi"><span class="m-minikpi__label">Renege</span><span class="m-minikpi__value m-minikpi__value--red">25%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= RAG RAIL + POPOVER ================= -->
+  <section class="ref__section">
+    <h2>6 · RAG rail (collapsed) &amp; threshold popover (expanded)</h2>
+    <div class="ref__stage">
+      <div class="ref__row">
+        <div class="m-card m-rail" style="width:120px;">
+          <button class="m-rail__header">&larr; RAG</button>
+          <div class="m-rail__legend">
+            <div class="m-rail__entry"><div class="m-ragchip m-ragchip--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg></div><span class="m-rail__entry-label">Healthy</span></div>
+            <div class="m-rail__entry"><div class="m-ragchip m-ragchip--amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></div><span class="m-rail__entry-label">Warning</span></div>
+            <div class="m-rail__entry"><div class="m-ragchip m-ragchip--red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16v.5"/></svg></div><span class="m-rail__entry-label">Critical</span></div>
+          </div>
+        </div>
+
+        <div class="m-ragpop">
+          <div class="m-ragpop__header">&rarr; RAG</div>
+          <div class="m-ragpop__row">
+            <div class="m-ragpop__rowhead"><div class="m-ragchip m-ragchip--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg></div><span class="m-ragpop__rowtitle m-ragpop__rowtitle--green">Healthy</span></div>
+            <div class="m-ragpop__grid">
+              <div><div class="m-ragpop__metric-label">Coverage</div><div class="m-ragpop__metric-value">&ge; 80%</div></div>
+              <div><div class="m-ragpop__metric-label">Avg Sub</div><div class="m-ragpop__metric-value">&ge; 4</div></div>
+              <div><div class="m-ragpop__metric-label">Selection</div><div class="m-ragpop__metric-value">&ge;75%</div></div>
+              <div><div class="m-ragpop__metric-label">Renege</div><div class="m-ragpop__metric-value">&lt;20% &#9432;</div></div>
+            </div>
+          </div>
+          <div class="m-ragpop__row">
+            <div class="m-ragpop__rowhead"><div class="m-ragchip m-ragchip--amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></div><span class="m-ragpop__rowtitle m-ragpop__rowtitle--amber">Warning</span></div>
+            <div class="m-ragpop__grid">
+              <div><div class="m-ragpop__metric-label">Coverage</div><div class="m-ragpop__metric-value">&ge;70% &amp; &lt;80%</div></div>
+              <div><div class="m-ragpop__metric-label">Avg Sub</div><div class="m-ragpop__metric-value">&ge;3 &amp; &lt;4</div></div>
+              <div><div class="m-ragpop__metric-label">Selection</div><div class="m-ragpop__metric-value">&ge;60% &amp; 75%</div></div>
+              <div><div class="m-ragpop__metric-label">Renege</div><div class="m-ragpop__metric-value">&ge;20% &amp; &lt;30%</div></div>
+            </div>
+          </div>
+          <div class="m-ragpop__row">
+            <div class="m-ragpop__rowhead"><div class="m-ragchip m-ragchip--red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16v.5"/></svg></div><span class="m-ragpop__rowtitle m-ragpop__rowtitle--red">Critical</span></div>
+            <div class="m-ragpop__grid">
+              <div><div class="m-ragpop__metric-label">Coverage</div><div class="m-ragpop__metric-value">&lt; 70%</div></div>
+              <div><div class="m-ragpop__metric-label">Avg Sub</div><div class="m-ragpop__metric-value">&lt; 3</div></div>
+              <div><div class="m-ragpop__metric-label">Selection</div><div class="m-ragpop__metric-value">&lt; 60%</div></div>
+              <div><div class="m-ragpop__metric-label">Renege</div><div class="m-ragpop__metric-value">&gt; 30%</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TABLE WITH EXPANDABLE ROWS ================= -->
+  <section class="ref__section">
+    <h2>7 · Data table — expandable director rows (management views)</h2>
+    <div class="m-card m-tablecard">
+      <div class="m-tablecard__head">
+        <h2 class="m-card__title">Management Scorecard</h2>
+        <div class="m-tabs"><button class="m-tab is-active">Health</button><button class="m-tab">Coverage</button><button class="m-tab">Renege</button><button class="m-tab">Achievement</button></div>
+      </div>
+      <div class="m-table-scroll">
+        <table class="m-table">
+          <thead><tr><th>Team</th><th>Health</th><th>Coverage</th><th>Submission</th><th>Selection</th><th>Renge</th><th>MTD</th><th>Achieve</th><th>Trend</th></tr></thead>
+          <tbody>
+            <tr data-expand="sanjib">
+              <td><div class="m-team"><span class="m-team__chevron is-open" role="button" aria-label="Collapse">&rsaquo;</span><div class="m-team__names"><span class="m-team__name">Team Sanjib</span><span class="m-team__sub">Sanjib K</span></div></div></td>
+              <td class="m-val--amber">57<span class="m-val__tag">C</span></td><td class="m-val--muted">44.8</td><td class="m-val--red">4.12</td><td class="m-val--amber">61</td><td class="m-val--green">25.8</td><td class="m-val--green">37/61</td><td class="m-val--muted">61%</td><td><span data-spark="4,5,4,6,7,6,8" data-spark-color="var(--green)"></span></td>
+            </tr>
+            <tr class="m-subrow" data-child="sanjib">
+              <td><div class="m-team"><div class="m-team__names"><span class="m-team__name">Praveen</span></div></div></td>
+              <td class="m-val--amber">57<span class="m-val__tag">C</span></td><td class="m-val--muted">42</td><td class="m-val--red">4.20</td><td class="m-val--amber">58%</td><td class="m-val--muted">28%</td><td class="m-val--green">9/16</td><td class="m-val--amber">56%</td><td><span data-spark="7,5,6,4,5,4,4" data-spark-color="var(--red)"></span></td>
+            </tr>
+            <tr class="m-subrow" data-child="sanjib">
+              <td><div class="m-team"><div class="m-team__names"><span class="m-team__name">Vivek Singh Sengar</span></div></div></td>
+              <td class="m-val--amber">57<span class="m-val__tag">C</span></td><td class="m-val--red">42</td><td class="m-val--muted">4.20</td><td class="m-val--muted">58%</td><td class="m-val--red">28%</td><td class="m-val--green">9/16</td><td class="m-val--muted">56%</td><td><span data-spark="4,5,5,6,6,7,7" data-spark-color="var(--green)"></span></td>
+            </tr>
+            <tr class="m-subrow" data-child="sanjib">
+              <td><div class="m-team"><div class="m-team__names"><span class="m-team__name">Akash</span></div></div></td>
+              <td class="m-val--muted">57<span class="m-val__tag">C</span></td><td class="m-val--muted">42</td><td class="m-val--red">4.20</td><td class="m-val--muted">58%</td><td class="m-val--muted">28%</td><td class="m-val--green">9/16</td><td class="m-val--amber">56%</td><td><span data-spark="6,5,6,4,5,4,4" data-spark-color="var(--red)"></span></td>
+            </tr>
+            <tr class="m-subrow" data-child="sanjib">
+              <td><div class="m-team"><div class="m-team__names"><span class="m-team__name">Jyothsna</span></div></div></td>
+              <td class="m-val--amber">57<span class="m-val__tag">C</span></td><td class="m-val--muted">42</td><td class="m-val--red">4.20</td><td class="m-val--muted">58%</td><td class="m-val--muted">28%</td><td class="m-val--green">9/16</td><td class="m-val--muted">56%</td><td><span data-spark="4,5,5,6,6,7,8" data-spark-color="var(--green)"></span></td>
+            </tr>
+            <tr data-expand="praveen">
+              <td><div class="m-team"><span class="m-team__chevron" role="button" aria-label="Expand">&rsaquo;</span><div class="m-team__names"><span class="m-team__name">Team Praveen</span><span class="m-team__sub">Praveen</span></div></div></td>
+              <td class="m-val--amber">57<span class="m-val__tag">C</span></td><td class="m-val--muted">44.8</td><td class="m-val--red">4.12</td><td class="m-val--muted">61</td><td class="m-val--muted">25.8</td><td class="m-val--green">37/61</td><td class="m-val--muted">61%</td><td><span data-spark="4,4,5,5,6,7,7" data-spark-color="var(--green)"></span></td>
+            </tr>
+            <tr data-expand="manisha">
+              <td><div class="m-team"><span class="m-team__chevron" role="button" aria-label="Expand">&rsaquo;</span><div class="m-team__names"><span class="m-team__name">Team Manisha</span><span class="m-team__sub">Manisha</span></div></div></td>
+              <td class="m-val--amber">57<span class="m-val__tag">C</span></td><td class="m-val--muted">44.8</td><td class="m-val--red">4.12</td><td class="m-val--muted">61</td><td class="m-val--muted">25.8</td><td class="m-val--green">37/61</td><td class="m-val--muted">61%</td><td><span data-spark="8,6,7,5,6,4,5" data-spark-color="var(--red)"></span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="ref__note">Chevron toggles <code>.is-open</code> and sub-rows' <code>.is-hidden</code>. Wired by the demo script at the bottom; view code can reuse the same pattern.</p>
+  </section>
+
+  <!-- ================= ALERTS ================= -->
+  <section class="ref__section">
+    <h2>8 · Alert cards (Intelligence Report)</h2>
+    <div class="ref__stage">
+      <div class="m-alerts" style="max-width:520px;">
+        <div class="m-alert m-alert--win"><div class="m-alert__kicker">Strategic Win</div><p class="m-alert__body"><strong>Amazon Backlog:</strong> Target exceeded (109.6%) due to clearance of March offers.</p></div>
+        <div class="m-alert m-alert--risk"><div class="m-alert__kicker">Operational Risk</div><p class="m-alert__body"><strong>Pipeline Health:</strong> Avg Sub (3.62) is below threshold; Select dip expected in W3.</p></div>
+        <div class="m-alert m-alert--blocker"><div class="m-alert__kicker">Critical Blocker</div><p class="m-alert__body"><strong>Efficiency Crisis:</strong> Global RPR is 0.28 (72% below the 1.0 threshold).</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CHARTS ================= -->
+  <section class="ref__section">
+    <h2>9 · Charts (line + sparkline degradation)</h2>
+    <div class="ref__stage">
+      <div class="ref__row">
+        <div class="m-card m-card--pad" style="width:340px;">
+          <div class="m-chart"><h3 class="m-chart__title">Joiner Velocity Trend</h3><div class="m-chart__canvas" data-line="joiner"></div></div>
+        </div>
+        <div class="m-card m-card--pad" style="width:340px;">
+          <div class="m-chart"><h3 class="m-chart__title">Selection Velocity Trend</h3><div class="m-chart__canvas" data-line="selection"></div></div>
+        </div>
+      </div>
+      <p class="ref__caption" style="margin-top:20px;">Sparkline history degradation (0 / 1 / 2 / n points)</p>
+      <div class="ref__row" style="align-items:center;">
+        <span>0:</span><span data-spark="" data-spark-color="var(--green)" style="width:90px;display:inline-block;"></span>
+        <span>1:</span><span data-spark="5" data-spark-color="var(--green)" style="width:90px;display:inline-block;"></span>
+        <span>2:</span><span data-spark="3,6" data-spark-color="var(--green)" style="width:90px;display:inline-block;"></span>
+        <span>n:</span><span data-spark="4,5,4,6,7,6,8" data-spark-color="var(--green)" style="width:90px;display:inline-block;"></span>
+        <span>down:</span><span data-spark="8,6,7,5,6,4,5" data-spark-color="var(--red)" style="width:90px;display:inline-block;"></span>
+      </div>
+      <p class="ref__caption" style="margin-top:20px;">Line chart with only 2 weeks of real data (no fabricated trend)</p>
+      <div class="m-card m-card--pad" style="width:340px;">
+        <div class="m-chart"><h3 class="m-chart__title">2-Week Sample</h3><div class="m-chart__canvas" data-line="twoweek"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= EMPTY STATE ================= -->
+  <section class="ref__section">
+    <h2>10 · Empty state</h2>
+    <div class="m-card" style="max-width:520px;">
+      <div class="m-empty">
+        <div class="m-empty__icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg></div>
+        <p class="m-empty__title">No reports yet</p>
+        <p class="m-empty__text">Uploaded weekly reports will appear here. Nothing has been processed for this period.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SIDEBAR ISOLATED ================= -->
+  <section class="ref__section">
+    <h2>11 · Sidebar (both active idioms: gold nav bar + indigo cycle pill)</h2>
+    <div class="ref__row">
+      <div class="ref__sidebar-preview" style="width:215px;">
+        <aside class="m-sidebar">
+          <div class="m-sidebar__logo"><div class="m-logo-mark">Q</div><div class="m-logo-word">Metry360</div></div>
+          <nav class="m-nav">
+            <button class="m-nav__item is-active">Management View</button>
+            <button class="m-nav__item">Director Drilldown</button>
+            <button class="m-nav__item">AM Productivity</button>
+            <button class="m-nav__item">Recruitment</button>
+          </nav>
+          <div class="m-sidebar__divider"></div>
+          <div class="m-sidebar__label">Select Cycle 26-27</div>
+          <div class="m-cycle">
+            <button class="m-cycle__item is-active">Q1 (Apr - Jun)</button>
+            <button class="m-cycle__item">Q2 (Jul - Sep)</button>
+            <button class="m-cycle__item">Q3 (Oct - Dec)</button>
+            <button class="m-cycle__item">Q4 (Jan - Mar)</button>
+          </div>
+          <div class="m-sidebar__divider"></div>
+          <div class="m-sidebar__label">Views</div>
+          <div class="m-views">
+            <button class="m-views__item">Renege Watch</button>
+            <button class="m-views__item">Coverage Gap</button>
+            <button class="m-views__item">Amazon Ops</button>
+            <button class="m-views__item">ITS</button>
+          </div>
+        </aside>
+      </div>
+      <p class="ref__note" style="max-width:360px;">Active nav item = lighter row (<code>--sidebar-active-bg</code>) + 3px gold left bar (<code>--sidebar-accent</code>). Active cycle quarter = filled indigo pill (<code>--sidebar-quarter-bg</code>). Two distinct idioms, both preserved.</p>
+    </div>
+  </section>
+
+</div>
+
+<script src="./assets/metry-charts.js"></script>
+<script>
+  // Resolve a CSS var reference like "var(--green)" to its computed value.
+  function cssVal(ref) {
+    if (!ref) return undefined;
+    var m = /^var\((--[a-z0-9-]+)\)$/i.exec(ref.trim());
+    if (m) return getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim();
+    return ref;
+  }
+
+  // ---- Render all donuts ----
+  document.querySelectorAll("[data-donut]").forEach(function (node) {
+    var pct = Number(node.getAttribute("data-donut"));
+    var color = cssVal(node.getAttribute("data-donut-color")) || undefined;
+    // donut helper preserves an existing .m-donut__center overlay
+    MetryCharts.donut(node, pct, color, { size: 150, thickness: 15 });
+  });
+
+  // ---- Render all sparklines ----
+  document.querySelectorAll("[data-spark]").forEach(function (node) {
+    var raw = node.getAttribute("data-spark");
+    var vals = raw ? raw.split(",").map(Number) : [];
+    var color = cssVal(node.getAttribute("data-spark-color")) || undefined;
+    MetryCharts.sparkline(node, vals, color, { width: 90, height: 24 });
+  });
+
+  // ---- Render line charts ----
+  var weekLabels8 = ["Week 1","Week 2","Week 3","Week 4","Week 1","Week 2","Week 3","Week 4"];
+  var lineDefs = {
+    joiner:    { series:[{ values:[3,3.2,3,3.6,3.8,4.1,4.3,4.6], color: cssVal("var(--line-joiner)") }], labels: weekLabels8, yMax:8, yTicks:[0,4,8] },
+    selection: { series:[{ values:[3,3.4,3.2,3.6,3.9,4.1,4.4,4.7], color: cssVal("var(--line-selection)") }], labels: weekLabels8, yMax:8, yTicks:[0,4,8] },
+    twoweek:   { series:[{ values:[3,4.2], color: cssVal("var(--line-joiner)") }], labels:["Week 1","Week 2"], yMax:8, yTicks:[0,4,8] }
+  };
+  document.querySelectorAll("[data-line]").forEach(function (node) {
+    var def = lineDefs[node.getAttribute("data-line")];
+    if (def) MetryCharts.lineChart(node, def);
+  });
+
+  // ---- Expandable rows demo ----
+  document.querySelectorAll("[data-expand]").forEach(function (row) {
+    var key = row.getAttribute("data-expand");
+    var chevron = row.querySelector(".m-team__chevron");
+    var children = document.querySelectorAll('[data-child="' + key + '"]');
+    // default-collapse everything except the pre-opened one
+    var open = chevron && chevron.classList.contains("is-open");
+    children.forEach(function (c) { if (!open) c.classList.add("is-hidden"); });
+    if (chevron) {
+      chevron.addEventListener("click", function () {
+        var nowOpen = chevron.classList.toggle("is-open");
+        children.forEach(function (c) { c.classList.toggle("is-hidden", !nowOpen); });
+      });
+    }
+  });
+
+  // ---- Token swatch board ----
+  var swatches = {
+    "swatch-brand": ["--sidebar-bg","--sidebar-active-bg","--sidebar-quarter-bg","--sidebar-accent","--sidebar-label","--sidebar-text"],
+    "swatch-surface": ["--page-bg","--card-bg","--card-border","--table-head-bg","--row-divider","--text-heading","--text-body","--text-muted","--text-subtle"],
+    "swatch-semantic": ["--primary","--primary-hover","--primary-soft","--green","--green-solid","--green-soft","--amber","--amber-solid","--amber-soft","--red","--red-alt","--red-soft"],
+    "swatch-chart": ["--track","--donut-health","--donut-focus","--donut-center","--line-joiner","--line-selection","--grid","--axis-label"]
+  };
+  Object.keys(swatches).forEach(function (containerId) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    swatches[containerId].forEach(function (name) {
+      var hex = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      var card = document.createElement("div");
+      card.className = "swatch";
+      var chip = document.createElement("div");
+      chip.className = "swatch__chip";
+      chip.style.background = hex;
+      var meta = document.createElement("div");
+      meta.className = "swatch__meta";
+      meta.innerHTML = '<div class="swatch__name">' + name + '</div><div class="swatch__hex">' + hex + '</div>';
+      card.appendChild(chip);
+      card.appendChild(meta);
+      container.appendChild(card);
+    });
+  });
+</script>
+</body>
+</html>

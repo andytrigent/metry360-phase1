@@ -691,6 +691,93 @@ def clean(s):
     """TRIM + collapse whitespace (name standardization is the #1 join failure point)"""
     return re.sub(r'\s+', ' ', str(s or '').strip())
 
+# ============================================================================
+# CANONICAL ORG CHART  (the single authoritative structure for grouping)
+# ----------------------------------------------------------------------------
+# Derived from the real org chart 'Hirearchy Tracker.xlsx'. Grouping must NOT
+# depend on the per-row BU Head / Director / GM columns in the raw files: those
+# reflect the BU head of each *job*, so the same AM shows up under several
+# directors across rows (e.g. Anuradha appears under 4 different BU Heads in
+# Coverage). The org chart decides where each AM lives; the file columns are
+# only a fallback for AMs the org chart doesn't list yet.
+#
+# Long-term home for this map is a dashboard Config sheet (CLAUDE.md Phase-1
+# open item #4). Directors are stored in the full form the Staffing report uses
+# (Staffing is the head-count backbone the HC/RPR join keys on).
+#
+# canonical AM  ->  canonical (home) Director
+CANONICAL_ORG = {
+    # Jyothsna's team  (director appears in data as 'Sajja Jyosthna Devi')
+    'Priyanka Gadadmathad': 'Sajja Jyosthna Devi',
+    'Tanu Gupta':           'Sajja Jyosthna Devi',
+    'Bharath C N':          'Sajja Jyosthna Devi',
+    'Anuradha H':           'Sajja Jyosthna Devi',
+    'Roshan Dominic':       'Sajja Jyosthna Devi',
+    # Sanjib's team
+    'Bindu T S':            'Sanjib Saha',
+    'Abhilash S':           'Sanjib Saha',
+    'Kavita Nyamagoud':     'Sanjib Saha',
+    'Praveen Kumar M':      'Sanjib Saha',
+    'Sachin L':             'Sanjib Saha',
+    'Dadishetty Sankeerth': 'Sanjib Saha',
+    'Vivek Singh Sengar':   'Sanjib Saha',
+    'Rumman Firdous':       'Sanjib Saha',
+    # Manisha's team
+    'Nishant Tyagi':        'Manisha Jishtu',
+    'DivyaLakshmi':         'Manisha Jishtu',
+    'Sathish Kumar B':      'Manisha Jishtu',
+}
+
+def _norm(s):
+    """Loose key for alias lookup: trimmed, whitespace-collapsed, lower-cased."""
+    return re.sub(r'\s+', ' ', str(s or '').strip()).lower()
+
+# Spelling variants VERIFIED to occur across the raw files -> canonical AM.
+# (case/whitespace differences are handled by _norm; only genuine variants live
+# here.) Each was confirmed to appear in the actual uploaded reports.
+AM_ALIASES = {
+    'anuradha':        'Anuradha H',           # Coverage/Selects drop the 'H'
+    'anuradha h':      'Anuradha H',
+    'bharath cn':      'Bharath C N',          # Submissions writes 'Bharath CN'
+    'bharath c n':     'Bharath C N',
+    'priyanka g':      'Priyanka Gadadmathad', # Submissions short form
+    'roshan d':        'Roshan Dominic',       # Submissions short form
+    'sachin l':        'Sachin L',
+    'sachil l':        'Sachin L',             # org chart typo for 'Sachin L'
+    'sankeerth d':     'Dadishetty Sankeerth', # org chart short form
+    'dadishetty sankeerth': 'Dadishetty Sankeerth',
+    'divyalakshmi':    'DivyaLakshmi',
+}
+
+# Director spelling variants VERIFIED across the raw files -> canonical Director.
+# NB: 'Sajja Jyosthna Devi' (Coverage/Staffing/Joiners) vs 'Sajja Jyothsna Devi'
+# (Submissions) are the same person; the unrelated 'Jyothsna Palla' is NOT.
+# 'Sivaranjani' (Coverage BU Head) is 'Sivaranjani Pandian' in Staffing.
+DIRECTOR_ALIASES = {
+    'sajja jyosthna devi': 'Sajja Jyosthna Devi',
+    'sajja jyothsna devi': 'Sajja Jyosthna Devi',
+    'sivaranjani':         'Sivaranjani Pandian',
+    'sivaranjani pandian': 'Sivaranjani Pandian',
+}
+
+def canon_am(name):
+    """Resolve any AM name spelling to its canonical form."""
+    c = clean(name)
+    if not c:
+        return ''
+    return AM_ALIASES.get(_norm(c), c)
+
+def canon_dir(name):
+    """Resolve any Director/BU Head/GM name spelling to its canonical form."""
+    c = clean(name)
+    if not c:
+        return ''
+    return DIRECTOR_ALIASES.get(_norm(c), c)
+
+def am_home_director(am):
+    """Org chart is authoritative: canonical AM -> its home Director, else None."""
+    return CANONICAL_ORG.get(am)
+
 def num(v):
     try:
         return float(str(v).strip() or 0)
@@ -713,11 +800,96 @@ def sheet_with_header(sheets, *must):
     return None, None, {}
 
 def cg(row, cm, *names):
+    """Get a cell by header name. Prefer exact, then whole-word, then substring
+    matches, so e.g. 'Count' never binds to 'Account Manager' (the substring bug)."""
+    def val(j):
+        return row[j] if j < len(row) else None
     for want in names:
+        w = want.lower().strip()
         for h, j in cm.items():
-            if want.lower() in h.lower():
-                return row[j] if j < len(row) else None
+            if h.lower().strip() == w:
+                return val(j)
+        for h, j in cm.items():
+            if re.search(r'(?<![a-z0-9])' + re.escape(w) + r'(?![a-z0-9])', h.lower()):
+                return val(j)
+        for h, j in cm.items():
+            if w in h.lower():
+                return val(j)
     return None
+
+def norm_key(s):
+    """Loose key for cross-file month matching, e.g. 'July-2026' == 'July 2026'."""
+    return re.sub(r'[^a-z0-9]', '', str(s or '').lower())
+
+def parse_recruiters(sheets):
+    """Avg Subs (multi-sheet): one data row per recruiter, Reporting Manager = AM,
+    BU/DU Head = Director. Returns (recruiters_by_am, recruiters_by_dir, total)."""
+    by_am, by_dir, total = {}, {}, 0
+    if not sheets:
+        return by_am, by_dir, total
+    for sh in sheets:
+        hi, cm = find_header(sh, 'Reporting Manager')
+        if hi is None:
+            continue
+        for r in sh[hi + 1:]:
+            name = clean(cg(r, cm, 'Name'))
+            if not name or name.lower().startswith('total'):
+                continue
+            total += 1
+            am = canon_am(cg(r, cm, 'Reporting Manager'))
+            dirn = canon_dir(cg(r, cm, 'BU Head', 'DU Head'))
+            if am:
+                by_am[am] = by_am.get(am, 0) + 1
+            if dirn:
+                by_dir[dirn] = by_dir.get(dirn, 0) + 1
+    return by_am, by_dir, total
+
+def parse_staffing_hc(sheets):
+    """Staffing 'Summary - Deployed': per-director head count read off the subtotal
+    'Total' rows (Opening + Entry - Exit = closing). The director name appears once
+    per block (sometimes mid-block); the block's Total row carries the authoritative
+    figures. Returns {director: {opening, closing, joiners_week, exits_week}}."""
+    hc = {}
+    if not sheets:
+        return hc
+    target = None
+    for sh in sheets:
+        flat = [clean(c).lower() for r in sh[:6] for c in r]
+        if any('opening head count' in v for v in flat) and any(v == 'client name' for v in flat):
+            target = sh
+            break
+    if target is None:
+        return hc
+    hrow = hrow_i = crow = crow_i = None
+    for i, r in enumerate(target[:6]):
+        low = [clean(c).lower() for c in r]
+        if hrow is None and 'opening head count' in low:
+            hrow, hrow_i = low, i
+        if crow is None and 'client name' in low:
+            crow, crow_i = low, i
+    if hrow is None or crow is None:
+        return hc
+    open_i = hrow.index('opening head count')
+    ent_i = hrow.index('entry') if 'entry' in hrow else open_i + 1
+    ex_i = hrow.index('exit') if 'exit' in hrow else open_i + 2
+    clo_i = hrow.index('total') if 'total' in hrow else open_i + 3
+    client_i = crow.index('client name')
+    dir_i = crow.index('director') if 'director' in crow else 0
+    cur = None
+    for r in target[max(hrow_i, crow_i) + 1:]:
+        dname = clean(r[dir_i]) if len(r) > dir_i else ''
+        if dname:
+            cur = canon_dir(dname)
+        cval = clean(r[client_i]).lower() if len(r) > client_i else ''
+        if not cval or 'grand' in cval:
+            continue
+        if cval == 'total' and cur:
+            e = hc.setdefault(cur, dict(opening=0, closing=0, joiners_week=0, exits_week=0))
+            e['opening'] += int(num(r[open_i])) if len(r) > open_i else 0
+            e['joiners_week'] += int(num(r[ent_i])) if len(r) > ent_i else 0
+            e['exits_week'] += int(num(r[ex_i])) if len(r) > ex_i else 0
+            e['closing'] += int(num(r[clo_i])) if len(r) > clo_i else 0
+    return hc
 
 def compute_dashboard_data(report_id):
     """Aggregate the report's raw files to AM level (Coverage/Selects/Renege/Joiners/Exits)."""
@@ -732,13 +904,29 @@ def compute_dashboard_data(report_id):
         return parse_xlsx(obj['Body'].read())
 
     ams = {}
-    am_dir = {}
+    am_dir = {}          # canonical AM -> resolved Director (filled after all joins)
+    dir_votes = {}       # canonical AM -> {canonical Director: rows}  (fallback only)
+    clients = {}
+
+    # Recruiter counts (Avg Subs) and head count (Staffing) are file-level parses
+    recruiters_by_am, recruiters_by_dir, total_recruiters = parse_recruiters(
+        load('Submissions (Avg Subs) Raw Report'))
+    hc_by_dir = parse_staffing_hc(load('Staffing Report for YTJ & YTE'))
+    mtd_by_am, mtd_by_dir = {}, {}
+    report_month = norm_key(metadata.get('month'))
 
     def rec(am):
         return ams.setdefault(am, dict(positions=0, submissions=0, jobs_with_subs=0,
                                        selections=0, reneges=0, joiners=0, exits=0))
 
-    # Coverage: demand + coverage inputs (Active jobs only)
+    def vote_dir(am, file_dir):
+        """Record a file's Director/BU Head/GM value for an AM. Only used to place
+        AMs the org chart doesn't list; org-chart AMs ignore these votes entirely."""
+        if am and am != 'Unassigned' and file_dir:
+            dir_votes.setdefault(am, {})
+            dir_votes[am][file_dir] = dir_votes[am].get(file_dir, 0) + 1
+
+    # Coverage: demand + coverage inputs (Active jobs only); also per-client rollup
     sheets = load('Coverage Raw Report')
     if sheets:
         sh, hi, cm = sheet_with_header(sheets, 'Job Code', 'Account Manager')
@@ -746,14 +934,18 @@ def compute_dashboard_data(report_id):
             for r in sh[hi + 1:]:
                 if clean(cg(r, cm, 'Job Status')) != 'Active':
                     continue
-                am = clean(cg(r, cm, 'Account Manager')) or 'Unassigned'
+                am = canon_am(cg(r, cm, 'Account Manager')) or 'Unassigned'
                 d = rec(am)
                 d['positions'] += num(cg(r, cm, '# Open Positions'))
                 d['submissions'] += num(cg(r, cm, '#Of Submissions'))
                 d['jobs_with_subs'] += num(cg(r, cm, '#Of Jobs With Submissions'))
-                bu = clean(cg(r, cm, 'BU Head', 'Director'))
-                if bu and am != 'Unassigned':
-                    am_dir[am] = bu
+                vote_dir(am, canon_dir(cg(r, cm, 'BU Head', 'Director')))
+                cl = clean(cg(r, cm, 'Client'))
+                if cl:
+                    c = clients.setdefault(cl, dict(positions=0, submissions=0, jobs_with_subs=0))
+                    c['positions'] += num(cg(r, cm, '# Open Positions'))
+                    c['submissions'] += num(cg(r, cm, '#Of Submissions'))
+                    c['jobs_with_subs'] += num(cg(r, cm, '#Of Jobs With Submissions'))
 
     # Selects: weekly client approvals
     sheets = load('Weekly Selects Report')
@@ -761,7 +953,7 @@ def compute_dashboard_data(report_id):
         sh, hi, cm = sheet_with_header(sheets, 'Account Manager')
         if sh:
             for r in sh[hi + 1:]:
-                am = clean(cg(r, cm, 'Account Manager'))
+                am = canon_am(cg(r, cm, 'Account Manager'))
                 if not am or am.lower().startswith('total'):
                     continue
                 rec(am)['selections'] += num(cg(r, cm, 'Confirmation', 'Selection'))
@@ -772,20 +964,24 @@ def compute_dashboard_data(report_id):
         sh, hi, cm = sheet_with_header(sheets, 'Account Manager')
         if sh:
             for r in sh[hi + 1:]:
-                am = clean(cg(r, cm, 'Account Manager'))
+                am = canon_am(cg(r, cm, 'Account Manager'))
                 if not am or am.lower().startswith('total'):
                     continue
                 rec(am)['reneges'] += num(cg(r, cm, 'Count'))
 
-    # Joiners: one row per new hire
+    # Joiners: one row per new hire; MTD = rows whose Month(Onboard) == report month
     sheets = load('Weekly Joiners Report')
     if sheets:
         sh, hi, cm = sheet_with_header(sheets, 'Employee Id', 'Account Manager')
         if sh:
             for r in sh[hi + 1:]:
-                am = clean(cg(r, cm, 'Account Manager'))
+                am = canon_am(cg(r, cm, 'Account Manager'))
                 if am and clean(cg(r, cm, 'Employee Name')):
                     rec(am)['joiners'] += 1
+                    vote_dir(am, canon_dir(cg(r, cm, 'Director')))
+                    mon = norm_key(cg(r, cm, 'Month (Onboard)', 'Month'))
+                    if report_month and mon == report_month:
+                        mtd_by_am[am] = mtd_by_am.get(am, 0) + 1
 
     # Exits: EXITED + APPROVED only (exclude pending SUBMITTED)
     sheets = load('Weekly Exits Report')
@@ -793,9 +989,28 @@ def compute_dashboard_data(report_id):
         sh, hi, cm = sheet_with_header(sheets, 'Employee Id', 'Account Manager')
         if sh:
             for r in sh[hi + 1:]:
-                am = clean(cg(r, cm, 'Account Manager'))
+                am = canon_am(cg(r, cm, 'Account Manager'))
                 if am and clean(cg(r, cm, 'HRMS Status')).upper() in ('EXITED', 'APPROVED'):
                     rec(am)['exits'] += 1
+                    vote_dir(am, canon_dir(cg(r, cm, 'GM', 'Director')))
+
+    # Resolve each AM's Director: org chart wins; otherwise the modal file BU Head;
+    # otherwise the AM stays out of am_dir and lands under 'Unassigned'. Blank-AM
+    # rows are keyed 'Unassigned' already, so Unassigned = truly unknown AMs only.
+    for am in ams:
+        if am == 'Unassigned':
+            continue
+        home = am_home_director(am)
+        if home:
+            am_dir[am] = home
+        elif dir_votes.get(am):
+            am_dir[am] = max(dir_votes[am].items(), key=lambda kv: kv[1])[0]
+
+    # Director-level MTD follows the same canonical grouping (sum of its AMs' MTD),
+    # so it can never disagree with the AM rows shown beneath it.
+    for am, n in mtd_by_am.items():
+        dname = am_dir.get(am, 'Unassigned')
+        mtd_by_dir[dname] = mtd_by_dir.get(dname, 0) + n
 
     def enrich(d):
         out = {k: round(v, 2) for k, v in d.items()}
@@ -816,16 +1031,51 @@ def compute_dashboard_data(report_id):
             for k in dtot:
                 dtot[k] += d[k]
                 grand[k] += d[k]
-            am_list.append(dict(name=am, **enrich(d)))
-        dir_list.append(dict(name=dname, totals=enrich(dtot), ams=am_list))
+            am_obj = dict(name=am, **enrich(d))
+            am_obj['recruiters'] = recruiters_by_am.get(am)   # None => AM not in Avg Subs (often a name-form mismatch)
+            am_obj['mtd_joiners'] = mtd_by_am.get(am, 0)
+            am_list.append(am_obj)
+        dobj = dict(name=dname, totals=enrich(dtot), ams=am_list)
+        dobj['recruiters'] = recruiters_by_dir.get(dname)
+        dobj['hc'] = hc_by_dir.get(dname)
+        dobj['mtd_joiners'] = mtd_by_dir.get(dname, 0)
+        closing = (dobj['hc'] or {}).get('closing')
+        dobj['rpr'] = round(dobj['mtd_joiners'] / closing, 2) if closing else None
+        dir_list.append(dobj)
+
+    # Surface directors that appear in Staffing/Joiners but have no Coverage AM rows
+    # (their coverage positions land under 'Unassigned' because Coverage AM is blank),
+    # so their real head count / MTD / RPR aren't lost. Coverage metrics stay 0.
+    seen = {d['name'] for d in dir_list}
+    zeros = dict(positions=0, submissions=0, jobs_with_subs=0, selections=0, reneges=0, joiners=0, exits=0)
+    for dname in (set(hc_by_dir) | set(mtd_by_dir)) - seen:
+        hc = hc_by_dir.get(dname)
+        mtd = mtd_by_dir.get(dname, 0)
+        closing = (hc or {}).get('closing')
+        dir_list.append(dict(name=dname, totals=enrich(dict(zeros)), ams=[],
+                             recruiters=recruiters_by_dir.get(dname), hc=hc,
+                             mtd_joiners=mtd,
+                             rpr=round(mtd / closing, 2) if closing else None))
     dir_list.sort(key=lambda x: (x['name'] == 'Unassigned', -x['totals']['positions']))
+
+    client_list = []
+    for cl, c in clients.items():
+        client_list.append(dict(
+            name=cl,
+            positions=round(c['positions'], 2),
+            submissions=round(c['submissions'], 2),
+            jobs_with_subs=round(c['jobs_with_subs'], 2),
+            coverage_pct=round(100.0 * c['jobs_with_subs'] / c['positions'], 1) if c['positions'] else 0,
+            avg_sub=round(c['submissions'] / c['positions'], 2) if c['positions'] else 0))
+    client_list.sort(key=lambda x: -x['positions'])
 
     return {
         'report_id': report_id,
         'data_week_ending': metadata.get('data_week_ending'),
         'data_period': metadata.get('data_period'),
-        'totals': enrich(grand),
-        'directors': dir_list
+        'totals': dict(enrich(grand), recruiters=total_recruiters),
+        'directors': dir_list,
+        'clients': client_list
     }
 
 def get_dashboard_data(event, context):
@@ -845,6 +1095,46 @@ def get_dashboard_data(event, context):
         return response(200, dict(success=True, **data, timestamp=datetime.utcnow().isoformat()))
     except Exception as e:
         return error_response(500, 'DASHBOARD_DATA_FAILED', str(e))
+
+def get_trends(event, context):
+    """GET /api/trends - one entry per uploaded report, chronological, with the same
+    totals shape as /api/dashboard-data so the frontend can draw cross-week series."""
+    try:
+        table = dynamodb.Table(DYNAMODB_TABLE)
+        reports = table.scan(Limit=50).get('Items', [])
+
+        weeks = []
+        for rep in reports:
+            rid = rep.get('report_id')
+            if not rid:
+                continue
+            try:
+                data = compute_dashboard_data(rid)
+            except Exception as e:
+                print(f"trends: skipping {rid}: {e}")
+                continue
+            weeks.append({
+                'report_id': rid,
+                'week_ending': data.get('data_week_ending') or rep.get('data_week_ending'),
+                'month': rep.get('month'),
+                'totals': data['totals']
+            })
+
+        def sort_key(w):
+            try:
+                return datetime.strptime(str(w.get('week_ending')), '%d-%b-%Y')
+            except (ValueError, TypeError):
+                return datetime.min
+
+        weeks.sort(key=sort_key)
+        log_event('GetTrends', {'count': len(weeks)})
+        return response(200, {
+            'success': True,
+            'weeks': weeks,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        return error_response(500, 'TRENDS_FAILED', str(e))
 
 def get_reporting_period(event, context):
     """GET /api/reporting-period - Week-ending (Friday) dates derived from latest uploaded data"""
@@ -949,6 +1239,9 @@ def lambda_handler(event, context):
 
         elif path == '/api/dashboard-data' and method == 'GET':
             return get_dashboard_data(event, context)
+
+        elif path == '/api/trends' and method == 'GET':
+            return get_trends(event, context)
 
         elif path.startswith('/api/reports/') and method == 'GET':
             report_id = path.split('/')[-1]

@@ -1,1808 +1,1245 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SOJPE C2H - The Weekly Scorecard</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary-dark: #1a2942;
-            --primary: #1F4E78;
-            --secondary: #2E5C8A;
-            --accent: #4CAF50;
-            --amber: #FFC107;
-            --red: #F44336;
-            --gray-light: #F5F5F5;
-            --gray-border: #EBEBEB;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-            background: #FAFBFC;
-            color: #333;
-        }
-
-        /* Main Layout */
-        .layout {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            width: 220px;
-            background: var(--primary-dark);
-            color: white;
-            padding: 24px 0;
-            overflow-y: auto;
-            position: fixed;
-            height: 100vh;
-            left: 0;
-            top: 0;
-        }
-
-        .sidebar-logo {
-            padding: 0 20px 30px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 20px;
-        }
-
-        .sidebar-logo-circle {
-            width: 24px;
-            height: 24px;
-            background: var(--accent);
-            border-radius: 50%;
-        }
-
-        .sidebar-section {
-            margin-bottom: 30px;
-        }
-
-        .sidebar-section-title {
-            padding: 0 20px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: rgba(255,255,255,0.5);
-            margin-bottom: 12px;
-        }
-
-        .sidebar-item {
-            padding: 12px 20px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 13px;
-            border-left: 3px solid transparent;
-            color: rgba(255,255,255,0.7);
-        }
-
-        .sidebar-item:hover {
-            background: rgba(255,255,255,0.05);
-            color: white;
-        }
-
-        .sidebar-item.active {
-            background: rgba(255,255,255,0.1);
-            color: white;
-            border-left-color: var(--accent);
-        }
-
-        /* Main Content */
-        .main {
-            margin-left: 220px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Header */
-        .header {
-            background: white;
-            padding: 20px 30px;
-            border-bottom: 1px solid var(--gray-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .header-left h1 {
-            font-size: 24px;
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        .header-controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .control-btn {
-            padding: 8px 12px;
-            border: 1px solid var(--gray-border);
-            background: white;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            color: #666;
-        }
-
-        .control-btn:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-        }
-
-        .control-btn.primary {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        .header-right {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-
-        .status-badge {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 12px;
-            color: #666;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--accent);
-        }
-
-        /* Content Area */
-        .content {
-            flex: 1;
-            padding: 30px;
-            overflow-y: auto;
-        }
-
-        /* Main Grid */
-        .main-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
-        }
-
-        /* Left Panel - Chart & Description */
-        .chart-panel {
-            background: white;
-            border-radius: 8px;
-            padding: 24px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-            display: flex;
-            gap: 30px;
-        }
-
-        .chart-container {
-            width: 140px;
-            height: 140px;
-            flex-shrink: 0;
-        }
-
-        .chart-description {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .chart-description h3 {
-            font-size: 14px;
-            color: var(--primary);
-            margin-bottom: 10px;
-            font-weight: 600;
-        }
-
-        .chart-description p {
-            font-size: 12px;
-            color: #666;
-            line-height: 1.6;
-        }
-
-        /* KPI Cards Grid */
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-        }
-
-        .kpi-card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        }
-
-        .kpi-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #999;
-            margin-bottom: 8px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .rag-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--accent);
-        }
-
-        .rag-indicator.amber {
-            background: var(--amber);
-        }
-
-        .rag-indicator.red {
-            background: var(--red);
-        }
-
-        .kpi-value {
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--primary);
-            margin-bottom: 6px;
-        }
-
-        .kpi-note {
-            font-size: 11px;
-            color: #999;
-        }
-
-        .kpi-note.positive {
-            color: var(--accent);
-        }
-
-        .kpi-note.negative {
-            color: var(--red);
-        }
-
-        /* Table Section */
-        .table-section {
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-            margin-bottom: 30px;
-        }
-
-        .table-header {
-            background: var(--gray-light);
-            padding: 16px 24px;
-            font-weight: 600;
-            font-size: 13px;
-            color: var(--primary);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-        }
-
-        thead th {
-            background: var(--gray-light);
-            padding: 12px 24px;
-            text-align: left;
-            font-weight: 600;
-            color: #999;
-            text-transform: uppercase;
-            font-size: 10px;
-            letter-spacing: 0.5px;
-            border-bottom: 1px solid var(--gray-border);
-        }
-
-        tbody td {
-            padding: 12px 24px;
-            border-bottom: 1px solid var(--gray-border);
-            color: #666;
-        }
-
-        tbody tr:hover {
-            background: var(--gray-light);
-        }
-
-        .name-cell {
-            font-weight: 600;
-            color: var(--primary);
-        }
-
-        .name-cell.child {
-            padding-left: 48px;
-            font-weight: normal;
-            color: #666;
-        }
-
-        /* Director row styles */
-        tbody tr.director-row {
-            cursor: pointer;
-            background: #f9f9f9;
-        }
-
-        tbody tr.director-row:hover {
-            background: #f0f0f0;
-        }
-
-        tbody tr.director-row .name-cell::before {
-            content: '▼ ';
-            color: var(--primary);
-            font-size: 10px;
-            margin-right: 4px;
-        }
-
-        tbody tr.director-row.collapsed .name-cell::before {
-            content: '▶ ';
-        }
-
-        tbody tr.child-row.hidden {
-            display: none;
-        }
-
-        .name-cell.total {
-            background: var(--gray-light);
-            font-weight: 600;
-        }
-
-        .metric-value {
-            text-align: right;
-            font-weight: 500;
-        }
-
-        .metric-percentage {
-            text-align: right;
-            font-weight: 500;
-        }
-
-        .metric-percentage.good {
-            color: var(--accent);
-        }
-
-        .metric-percentage.warning {
-            color: var(--amber);
-        }
-
-        .metric-percentage.bad {
-            color: var(--red);
-        }
-
-        /* Alert Section */
-        .alerts-section {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .alert-box {
-            padding: 16px;
-            border-radius: 6px;
-            border-left: 4px solid;
-        }
-
-        .alert-box.success {
-            background: #E8F5E9;
-            border-color: var(--accent);
-        }
-
-        .alert-box.warning {
-            background: #FFF9C4;
-            border-color: var(--amber);
-        }
-
-        .alert-box.error {
-            background: #FFEBEE;
-            border-color: var(--red);
-        }
-
-        .alert-title {
-            font-weight: 600;
-            font-size: 12px;
-            margin-bottom: 6px;
-        }
-
-        .alert-box.success .alert-title {
-            color: var(--accent);
-        }
-
-        .alert-box.warning .alert-title {
-            color: #F57F17;
-        }
-
-        .alert-box.error .alert-title {
-            color: var(--red);
-        }
-
-        .alert-message {
-            font-size: 11px;
-            color: #666;
-            line-height: 1.5;
-        }
-
-        /* Charts Row */
-        .charts-row {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-        }
-
-        .chart-box {
-            background: white;
-            border-radius: 8px;
-            padding: 24px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        }
-
-        .chart-title {
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--primary);
-            margin-bottom: 20px;
-        }
-
-        .chart-placeholder {
-            height: 200px;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #999;
-            font-size: 12px;
-        }
-
-        /* Responsive */
-        @media (max-width: 1200px) {
-            .main-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .alerts-section {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 0;
-                display: none;
-            }
-
-            .main {
-                margin-left: 0;
-            }
-
-            .kpi-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .charts-row {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* Empty State */
-        .empty-state {
-            background: white;
-            border-radius: 8px;
-            padding: 60px 40px;
-            text-align: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        }
-
-        .empty-state-icon {
-            font-size: 48px;
-            margin-bottom: 20px;
-        }
-
-        .empty-state h2 {
-            font-size: 20px;
-            color: var(--primary);
-            margin-bottom: 10px;
-        }
-
-        .empty-state p {
-            color: #999;
-            font-size: 13px;
-            margin-bottom: 25px;
-        }
-
-        .btn-primary {
-            background: var(--accent);
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
-
-        .btn-primary:hover {
-            background: #45a049;
-        }
-
-        .view-section {
-            display: none;
-        }
-
-        .view-section.active {
-            display: block;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Metry360 — The Weekly ScoreCard</title>
+  <link rel="stylesheet" href="./assets/metry-ds.css" />
+  <style>
+    /* Page-level scaffolding beyond the design system. Kept minimal. */
+    html, body { margin: 0; }
+
+    /* RAG rail becomes a positioning context so the popover can overlay the band. */
+    .m-rail { position: relative; }
+    .m-rail__pop {
+      position: absolute;
+      top: 0;
+      right: 0;
+      z-index: 20;
+    }
+
+    /* Client-filter note under a client-scoped table. */
+    .view-note {
+      font-size: 12px;
+      color: var(--text-subtle);
+      margin: 0 0 0;
+      padding: 14px 24px 0;
+    }
+
+    /* Report History cards (operational view, restyled with DS tokens). */
+    .rh-list { display: grid; gap: 16px; }
+    .rh-card { padding: 20px 22px; }
+    .rh-card__top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 14px; }
+    .rh-card__id { font-size: 15px; font-weight: 700; color: var(--text-heading); margin: 0; }
+    .rh-card__meta { font-size: 12px; color: var(--text-muted); margin: 4px 0 0; }
+    .rh-card__week { font-size: 12px; color: var(--primary); font-weight: 600; margin: 4px 0 0; }
+    .rh-badge { font-size: 11px; font-weight: 600; color: #fff; padding: 5px 11px; border-radius: 6px; white-space: nowrap; }
+    .rh-files { display: grid; gap: 6px; margin-bottom: 14px; }
+    .rh-file {
+      font-size: 11px; padding: 6px 10px; background: var(--page-bg);
+      border: 1px solid var(--card-border); border-radius: 6px; color: var(--text-body);
+      display: flex; justify-content: space-between; gap: 12px;
+    }
+    .rh-file span { color: var(--text-subtle); }
+    .rh-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    @media print {
+      .m-sidebar, .m-toolbar, .m-rail__pop { display: none !important; }
+      .m-shell__content { padding: 0; }
+      .m-band { grid-template-columns: 230px 1fr; }
+      .m-card { break-inside: avoid; box-shadow: none; }
+    }
+  </style>
 </head>
-<body>
-    <div class="layout">
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <div class="sidebar-logo">
-                <div class="sidebar-logo-circle"></div>
-                <span>metry360</span>
-            </div>
+<body class="m-app">
+  <div class="m-shell">
+    <aside class="m-sidebar" id="sidebar"></aside>
+    <main class="m-shell__content" id="content"></main>
+  </div>
 
-            <div class="sidebar-section">
-                <div class="sidebar-section-title">Dashboard Views</div>
-                <div class="sidebar-item active" onclick="showView('recruitment')">📊 Recruitment</div>
-                <div class="sidebar-item" onclick="showView('management-collapsed')">👥 Management (Summary)</div>
-                <div class="sidebar-item" onclick="showView('management-expanded')">👥 Management (Details)</div>
-                <div class="sidebar-item" onclick="showView('productivity')">💼 AM Productivity</div>
-                <div class="sidebar-item" onclick="showView('director')">🎯 Director Drilldown</div>
-            </div>
+  <script src="./assets/metry-charts.js"></script>
+  <script>
+  "use strict";
+  (function () {
+    /* =====================================================================
+       STATE
+       ===================================================================== */
+    var state = {
+      view: "recruitment",       // active nav view
+      reports: [],               // /api/reports, chronological ascending
+      dataById: {},              // report_id -> dashboard-data payload
+      activeReportId: null,      // report feeding the current view
+      activeMonthKey: null,      // "2026-7" month currently selected in toolbar
+      tab: "health",             // active table filter tab
+      ragOpen: false,            // RAG popover expanded?
+      client: "",                // selected client filter (needs backend clients[])
+      loadError: false
+    };
 
-            <div class="sidebar-section">
-                <div class="sidebar-section-title">Week Navigation</div>
-                <div class="sidebar-item" id="week1-nav" onclick="showView('week1')">📅 <span id="week1-label">Loading...</span></div>
-                <div class="sidebar-item" id="week2-nav" onclick="showView('week2')">📅 <span id="week2-label">Loading...</span></div>
-                <div class="sidebar-item" id="week3-nav" onclick="showView('week3')">📅 <span id="week3-label">Loading...</span></div>
-                <div class="sidebar-item" id="week4-nav" onclick="showView('week4')">📅 <span id="week4-label">Loading...</span></div>
-                <div class="sidebar-item" id="week5-nav" onclick="showView('week5')" style="display: none;">📅 <span id="week5-label">Loading...</span></div>
-            </div>
+    var $content = document.getElementById("content");
+    var $sidebar = document.getElementById("sidebar");
 
-            <div class="sidebar-section">
-                <div class="sidebar-section-title">Tools</div>
-                <div class="sidebar-item" onclick="showView('upload')">📁 Upload Files</div>
-                <div class="sidebar-item" onclick="showView('history')">📋 Report History</div>
-                <div class="sidebar-item" onclick="showView('settings')">⚙️ Settings</div>
-            </div>
-        </div>
+    /* =====================================================================
+       SMALL UTILITIES
+       ===================================================================== */
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+      });
+    }
+    function fmtInt(v) { return Math.round(Number(v) || 0).toLocaleString(); }
+    function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
+    function firstWord(s) { return String(s || "").trim().split(/\s+/)[0] || ""; }
 
-        <!-- Main Content -->
-        <div class="main">
-            <!-- Header -->
-            <div class="header">
-                <div class="header-left">
-                    <h1>The Weekly Scorecard</h1>
-                    <div class="header-controls">
-                        <button class="control-btn" id="currentWeekBtn">Loading...</button>
-                    </div>
-                </div>
-                <div class="header-right">
-                    <div class="status-badge">
-                        <div class="status-dot"></div>
-                        <span>Report Ready</span>
-                    </div>
-                    <button class="control-btn primary" onclick="exportDashboard()">📤 Export</button>
-                </div>
-            </div>
+    var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    // "10-Jul-2026" -> Date
+    function parseWeekEnding(s) {
+      var p = String(s || "").split("-");
+      if (p.length < 3) return null;
+      var mi = MONTHS.indexOf(p[1]);
+      if (mi < 0) return null;
+      return new Date(Number(p[2]), mi, Number(p[0]));
+    }
+    // "10-Jul-2026" -> "10-Jul"
+    function shortWeek(s) {
+      var p = String(s || "").split("-");
+      return p.length >= 2 ? parseInt(p[0], 10) + "-" + p[1] : s;
+    }
+    // "July 2026" -> { y, m(1-12) }
+    function parseMonthLabel(s) {
+      var p = String(s || "").split(" ");
+      if (p.length < 2) return null;
+      var names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+      var mi = names.indexOf(p[0]);
+      if (mi < 0) return null;
+      return { y: Number(p[1]), m: mi + 1 };
+    }
+    function monthKey(y, m) { return y + "-" + m; }
+    function weekOfMonth(dateStr) {
+      var d = parseWeekEnding(dateStr);
+      return d ? Math.ceil(d.getDate() / 7) : 0;
+    }
+    // Fiscal year label for "Select Cycle": FY starts in April. Jul 2026 -> "26-27".
+    function fiscalCycleLabel(y, m) {
+      var start = m >= 4 ? y : y - 1;
+      return (start % 100) + "-" + ((start + 1) % 100);
+    }
 
-            <!-- Content -->
-            <div class="content">
-                <!-- VIEW 1: RECRUITMENT SCORECARD -->
-                <div id="view-recruitment" class="view-section active">
-                <!-- Main Grid: Chart + KPIs -->
-                <div class="main-grid">
-                    <!-- Chart Panel -->
-                    <div class="chart-panel">
-                        <div class="chart-container">
-                            <canvas id="mainChart"></canvas>
-                        </div>
-                        <div class="chart-description">
-                            <h3>🎯 Performance Overview</h3>
-                            <p>Loading metrics from the latest uploaded report…</p>
-                        </div>
-                    </div>
+    /* =====================================================================
+       RAG / HEALTH
+       ===================================================================== */
+    function ragCoverage(p) { p = num(p); return p >= 80 ? "green" : p >= 70 ? "amber" : "red"; }
+    function ragAvgSub(v) { v = num(v); return v >= 4 ? "green" : v >= 3 ? "amber" : "red"; }
+    // Honest partial composite: only Coverage vs 80 + Avg Sub vs 4 are computable today.
+    function healthComposite(cov, sub) {
+      var c = Math.min(num(cov) / 80, 1);
+      var s = Math.min(num(sub) / 4, 1);
+      return Math.round(((c + s) / 2) * 100);
+    }
+    function healthBand(h) { return h >= 80 ? "green" : h >= 60 ? "amber" : "red"; }
+    function healthTag(band) { return band === "green" ? "H" : band === "amber" ? "W" : "C"; }
 
-                    <!-- KPI Cards -->
-                    <div class="kpi-grid">
-                        <div class="kpi-card">
-                            <div class="kpi-label">
-                                <span class="rag-indicator"></span>
-                                Positions Open
-                            </div>
-                            <div class="kpi-value">—</div>
-                            <div class="kpi-note">from uploaded data</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label">
-                                <span class="rag-indicator"></span>
-                                Coverage %
-                            </div>
-                            <div class="kpi-value">—</div>
-                            <div class="kpi-note">Target: ≥80%</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label">
-                                <span class="rag-indicator"></span>
-                                Avg Submissions
-                            </div>
-                            <div class="kpi-value">—</div>
-                            <div class="kpi-note positive">Target: ≥4</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label">
-                                <span class="rag-indicator amber"></span>
-                                Select %
-                            </div>
-                            <div class="kpi-value">—</div>
-                            <div class="kpi-note negative">↓ Target: ≥75%</div>
-                        </div>
-                    </div>
-                </div>
+    // An entity has coverage metrics only if it actually has Coverage-file positions.
+    // Directors that exist only in Staffing/Joiners have positions 0 but real HC/RPR.
+    function hasCoverage(e) { return num(e.positions) > 0; }
 
-                <!-- Recruitment Table -->
-                <div class="table-section">
-                    <div class="table-header">
-                        <span>Recruitment Scorecard</span>
-                        <span style="font-size: 11px; font-weight: normal; color: #999;" class="week-display" id="weekDisplay">Loading...</span>
-                    </div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Team / Account Manager</th>
-                                <th style="text-align: right;">Positions</th>
-                                <th style="text-align: right;">Submissions</th>
-                                <th style="text-align: right;">Coverage %</th>
-                                <th style="text-align: right;">Selections</th>
-                                <th style="text-align: right;">Offers</th>
-                                <th style="text-align: right;">Joiners</th>
-                                <th style="text-align: right;">Reneges</th>
-                                <th style="text-align: right;">Select %</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="director-row">
-                                <td class="name-cell total">Jyothsna (Director)</td>
-                                <td class="metric-value">45</td>
-                                <td class="metric-value">165</td>
-                                <td class="metric-percentage good">92%</td>
-                                <td class="metric-value">12</td>
-                                <td class="metric-value">10</td>
-                                <td class="metric-value">8</td>
-                                <td class="metric-value">1</td>
-                                <td class="metric-percentage good">80%</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Priyanka Gadadmathad</td>
-                                <td class="metric-value">15</td>
-                                <td class="metric-value">58</td>
-                                <td class="metric-percentage">93%</td>
-                                <td class="metric-value">5</td>
-                                <td class="metric-value">4</td>
-                                <td class="metric-value">3</td>
-                                <td class="metric-value">0</td>
-                                <td class="metric-percentage">83%</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Tanu Gupta</td>
-                                <td class="metric-value">20</td>
-                                <td class="metric-value">72</td>
-                                <td class="metric-percentage">90%</td>
-                                <td class="metric-value">5</td>
-                                <td class="metric-value">4</td>
-                                <td class="metric-value">4</td>
-                                <td class="metric-value">1</td>
-                                <td class="metric-percentage">75%</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Bharath C N</td>
-                                <td class="metric-value">10</td>
-                                <td class="metric-value">35</td>
-                                <td class="metric-percentage">95%</td>
-                                <td class="metric-value">2</td>
-                                <td class="metric-value">2</td>
-                                <td class="metric-value">1</td>
-                                <td class="metric-value">0</td>
-                                <td class="metric-percentage">70%</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Anuradha H</td>
-                                <td class="metric-value">8</td>
-                                <td class="metric-value">28</td>
-                                <td class="metric-percentage">88%</td>
-                                <td class="metric-value">2</td>
-                                <td class="metric-value">1</td>
-                                <td class="metric-value">1</td>
-                                <td class="metric-value">0</td>
-                                <td class="metric-percentage">75%</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Roshan Dominic</td>
-                                <td class="metric-value">12</td>
-                                <td class="metric-value">42</td>
-                                <td class="metric-percentage good">92%</td>
-                                <td class="metric-value">3</td>
-                                <td class="metric-value">3</td>
-                                <td class="metric-value">2</td>
-                                <td class="metric-value">0</td>
-                                <td class="metric-percentage">78%</td>
-                            </tr>
-                            <tr class="director-row">
-                                <td class="name-cell total">Sanjib (Director)</td>
-                                <td class="metric-value">76</td>
-                                <td class="metric-value">272</td>
-                                <td class="metric-percentage warning">88%</td>
-                                <td class="metric-value">18</td>
-                                <td class="metric-value">15</td>
-                                <td class="metric-value">12</td>
-                                <td class="metric-value">5</td>
-                                <td class="metric-percentage warning">72%</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Bindu T S</td>
-                                <td class="metric-value">25</td>
-                                <td class="metric-value">92</td>
-                                <td class="metric-percentage">91%</td>
-                                <td class="metric-value">7</td>
-                                <td class="metric-value">6</td>
-                                <td class="metric-value">5</td>
-                                <td class="metric-value">2</td>
-                                <td class="metric-percentage">78%</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Abhilash S</td>
-                                <td class="metric-value">28</td>
-                                <td class="metric-value">104</td>
-                                <td class="metric-percentage">85%</td>
-                                <td class="metric-value">8</td>
-                                <td class="metric-value">7</td>
-                                <td class="metric-value">5</td>
-                                <td class="metric-value">2</td>
-                                <td class="metric-percentage">69%</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Kavita Nyamagoud</td>
-                                <td class="metric-value">23</td>
-                                <td class="metric-value">76</td>
-                                <td class="metric-percentage">89%</td>
-                                <td class="metric-value">3</td>
-                                <td class="metric-value">2</td>
-                                <td class="metric-value">2</td>
-                                <td class="metric-value">1</td>
-                                <td class="metric-percentage">63%</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Vivek Singh Sengar</td>
-                                <td class="metric-value">18</td>
-                                <td class="metric-value">65</td>
-                                <td class="metric-percentage">86%</td>
-                                <td class="metric-value">4</td>
-                                <td class="metric-value">3</td>
-                                <td class="metric-value">3</td>
-                                <td class="metric-value">1</td>
-                                <td class="metric-percentage">67%</td>
-                            </tr>
-                            <tr class="director-row">
-                                <td class="name-cell total">Manisha (Director)</td>
-                                <td class="metric-value">35</td>
-                                <td class="metric-value">127</td>
-                                <td class="metric-percentage good">91%</td>
-                                <td class="metric-value">8</td>
-                                <td class="metric-value">7</td>
-                                <td class="metric-value">6</td>
-                                <td class="metric-value">1</td>
-                                <td class="metric-percentage good">75%</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Sathish Kumar B</td>
-                                <td class="metric-value">12</td>
-                                <td class="metric-value">42</td>
-                                <td class="metric-percentage">90%</td>
-                                <td class="metric-value">3</td>
-                                <td class="metric-value">2</td>
-                                <td class="metric-value">2</td>
-                                <td class="metric-value">0</td>
-                                <td class="metric-percentage">75%</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Nishant Tyagi</td>
-                                <td class="metric-value">12</td>
-                                <td class="metric-value">42</td>
-                                <td class="metric-percentage">91%</td>
-                                <td class="metric-value">3</td>
-                                <td class="metric-value">3</td>
-                                <td class="metric-value">2</td>
-                                <td class="metric-value">1</td>
-                                <td class="metric-percentage">77%</td>
-                            </tr>
-                            <tr class="child-row">
-                                <td class="name-cell child">Divya Lakshmi</td>
-                                <td class="metric-value">11</td>
-                                <td class="metric-value">43</td>
-                                <td class="metric-percentage">92%</td>
-                                <td class="metric-value">2</td>
-                                <td class="metric-value">2</td>
-                                <td class="metric-value">2</td>
-                                <td class="metric-value">0</td>
-                                <td class="metric-percentage">73%</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+    /* =====================================================================
+       DIRECTOR ROLLUPS
+       Names arrive already canonicalized server-side (backend merges duplicate
+       directors against the org chart, Hirearchy Tracker.xlsx). The frontend
+       renders them as-is — no client-side alias/merge stopgap.
+       ===================================================================== */
+    // Global RPR = Σ director MTD joiners / Σ director closing HC (totals.rpr is absent).
+    function globalRPR(d) {
+      var mtd = 0, hc = 0, any = false;
+      (d.directors || []).forEach(function (dir) {
+        if (dir.hc && dir.hc.closing != null) { hc += num(dir.hc.closing); mtd += num(dir.mtd_joiners); any = true; }
+      });
+      if (!any || hc <= 0) return null;
+      return mtd / hc;
+    }
 
-                <!-- Alerts Section (generated from data) -->
-                <div class="alerts-section" id="alerts-root"></div>
-                </div>
-                <!-- END VIEW 1 -->
-
-                <!-- VIEW 2: MANAGEMENT COLLAPSED (SUMMARY) -->
-                <div id="view-management-collapsed" class="view-section">
-                    <div id="mgmt-summary-root"></div>
-                </div>
-                <!-- END VIEW 2 -->
-
-                <!-- VIEW 2B: MANAGEMENT EXPANDED (DETAILED) -->
-                <div id="view-management-expanded" class="view-section">
-                    <div id="mgmt-details-root"></div>
-                </div>
-                <!-- END VIEW 2B -->
-
-                <!-- VIEW 3: AM PRODUCTIVITY -->
-                <div id="view-productivity" class="view-section">
-                    <div id="productivity-root"></div>
-                </div>
-                <!-- END VIEW 3 -->
-
-                <!-- VIEW 4: DIRECTOR DRILLDOWN -->
-                <div id="view-director" class="view-section">
-                    <div id="director-root"></div>
-                </div>
-                <!-- END VIEW 4 -->
-
-                <!-- WEEK VIEWS -->
-                <div id="view-week1" class="view-section">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📅</div>
-                        <h2 id="view-week1-title">Weekly Report</h2>
-                        <p id="view-week1-date"></p>
-                        <p style="color: #666; margin-top: 15px;">Showing recruitment data for this week. Performance metrics and team analytics.</p>
-                        <button class="btn-primary" onclick="showView('recruitment')">📊 View Dashboard for This Week</button>
-                    </div>
-                </div>
-
-                <div id="view-week2" class="view-section">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📅</div>
-                        <h2 id="view-week2-title">Weekly Report</h2>
-                        <p id="view-week2-date"></p>
-                        <p style="color: #666; margin-top: 15px;">Showing recruitment data for this week. Performance metrics and team analytics.</p>
-                        <button class="btn-primary" onclick="showView('recruitment')">📊 View Dashboard for This Week</button>
-                    </div>
-                </div>
-
-                <div id="view-week3" class="view-section">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📅</div>
-                        <h2 id="view-week3-title">Weekly Report</h2>
-                        <p id="view-week3-date"></p>
-                        <p style="color: #666; margin-top: 15px;">Showing recruitment data for this week. Performance metrics and team analytics.</p>
-                        <button class="btn-primary" onclick="showView('recruitment')">📊 View Dashboard for This Week</button>
-                    </div>
-                </div>
-
-                <div id="view-week4" class="view-section">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📅</div>
-                        <h2 id="view-week4-title">Weekly Report</h2>
-                        <p id="view-week4-date"></p>
-                        <p style="color: #666; margin-top: 15px;">Showing recruitment data for this week. Performance metrics and team analytics.</p>
-                        <button class="btn-primary" onclick="showView('recruitment')">📊 View Dashboard for This Week</button>
-                    </div>
-                </div>
-
-                <div id="view-week5" class="view-section">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📅</div>
-                        <h2 id="view-week5-title">Weekly Report</h2>
-                        <p id="view-week5-date"></p>
-                        <p style="color: #666; margin-top: 15px;">Showing recruitment data for this week. Performance metrics and team analytics.</p>
-                        <button class="btn-primary" onclick="showView('recruitment')">📊 View Dashboard for This Week</button>
-                    </div>
-                </div>
-
-                <!-- TOOLS VIEWS -->
-                <div id="view-upload" class="view-section">
-                    <div style="text-align: center; padding: 60px 40px;">
-                        <div style="font-size: 48px; margin-bottom: 20px;">📁</div>
-                        <h2 style="font-size: 24px; color: #1F4E78; margin-bottom: 10px;">Upload Files</h2>
-                        <p style="color: #999; font-size: 13px; margin-bottom: 25px;">Upload raw data files for processing</p>
-                        <p style="color: #666; margin-bottom: 20px;">Use this page to upload weekly raw export files from Ceipal and People.trigent systems.</p>
-                        <button class="btn-primary" onclick="window.location.href='upload.html'">Go to Upload Page</button>
-                    </div>
-                </div>
-
-                <div id="view-history" class="view-section">
-                    <div style="padding: 40px;">
-                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 30px;">
-                            <div style="font-size: 36px;">📋</div>
-                            <div>
-                                <h2 style="font-size: 24px; color: #1F4E78; margin: 0;">Report History & Approval Workflow</h2>
-                                <p style="color: #999; font-size: 12px; margin: 5px 0 0 0;">Draft → Review → Approve & Publish. Files only downloadable after approval.</p>
-                            </div>
-                        </div>
-
-                        <!-- Report Cards (rendered from /api/reports) -->
-                        <div id="report-history-list" style="display: grid; gap: 20px;">
-                            <div style="text-align: center; padding: 40px; color: #999; font-size: 13px;">Loading reports…</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- REVIEW DETAILS VIEW -->
-                <div id="view-review-details" class="view-section">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">🔍</div>
-                        <h2>Report Review & Audit Trail</h2>
-                        <p style="color: #666; margin-top: 15px; max-width: 520px; margin-left:auto; margin-right:auto;">
-                            The step-by-step transformation audit trail is generated by the 83-step pipeline,
-                            which is not yet implemented. Raw input files for each report are available in
-                            Report History; computed metrics come from /api/dashboard-data.</p>
-                        <button class="btn-primary" onclick="showView('history')">← Back to Report History</button>
-                    </div>
-                </div>
-
-                <div id="view-settings" class="view-section">
-                    <div style="text-align: center; padding: 60px 40px;">
-                        <div style="font-size: 48px; margin-bottom: 20px;">⚙️</div>
-                        <h2 style="font-size: 24px; color: #1F4E78; margin-bottom: 10px;">Settings</h2>
-                        <p style="color: #999; font-size: 13px; margin-bottom: 25px;">Configure dashboard preferences</p>
-                        <div style="background: #f5f5f5; padding: 30px; border-radius: 8px; margin-top: 30px; text-align: left;">
-                            <h3 style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 15px;">Dashboard Settings</h3>
-                            <div style="margin-bottom: 15px;">
-                                <label style="display: flex; align-items: center; font-size: 13px;">
-                                    <input type="checkbox" checked style="margin-right: 10px;">
-                                    Enable real-time notifications
-                                </label>
-                            </div>
-                            <div style="margin-bottom: 15px;">
-                                <label style="display: flex; align-items: center; font-size: 13px;">
-                                    <input type="checkbox" checked style="margin-right: 10px;">
-                                    Show alerts on critical metrics
-                                </label>
-                            </div>
-                            <div style="margin-bottom: 15px;">
-                                <label style="display: flex; align-items: center; font-size: 13px;">
-                                    <input type="checkbox" checked style="margin-right: 10px;">
-                                    Enable data export functionality
-                                </label>
-                            </div>
-                            <h3 style="font-size: 14px; font-weight: 600; color: #333; margin-top: 25px; margin-bottom: 15px;">Data Settings</h3>
-                            <div style="margin-bottom: 15px;">
-                                <label style="font-size: 13px; font-weight: 600; color: #666;">Default Report Format:</label>
-                                <select style="width: 100%; padding: 8px; margin-top: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                    <option>Excel (.xlsx)</option>
-                                    <option>PDF (.pdf)</option>
-                                    <option>CSV (.csv)</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Initialize recruitment chart on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            initRecruitmentChart();
+    /* =====================================================================
+       DATA ACCESS HELPERS
+       ===================================================================== */
+    function activeData() { return state.dataById[state.activeReportId] || null; }
+    function chronoReports() { return state.reports; } // already sorted ascending
+    // All AMs (flattened) for the active report, each tagged with its director.
+    function activeAMs() {
+      var d = activeData();
+      if (!d) return [];
+      var out = [];
+      (d.directors || []).forEach(function (dir) {
+        (dir.ams || []).forEach(function (am) {
+          out.push(Object.assign({ director: dir.name }, am));
         });
+      });
+      return out;
+    }
 
-        function showView(view) {
-            console.log('Showing view:', view);
-
-            // Handle week clicks - the selected week becomes the dashboard's active week.
-            // All views (header, scorecard badges) render for this week until another is chosen.
-            if (view.startsWith('week')) {
-                const weekNum = parseInt(view.replace('week', ''));
-                window.selectedWeek = weekNum;
-                updateWeekHeader(weekNum);
-                const dates = window.dynamicWeekEndingDates || [];
-                const weekShort = dates[weekNum - 1];
-                const dateEl = document.getElementById(`view-${view}-date`);
-                if (dateEl) {
-                    dateEl.textContent = weekShort ? `Week Ending ${weekShort}` : '';
-                }
-                // Load THIS week's report data into the dashboard (honest empty state if none)
-                if (weekShort) {
-                    const reportId = window.reportsByWeek[weekShort];
-                    if (reportId) {
-                        loadDashboardData(reportId);
-                    } else {
-                        renderNoDataWeek(weekShort);
-                    }
-                }
-            }
-
-            // Hide all view sections
-            document.querySelectorAll('.view-section').forEach(section => {
-                section.classList.remove('active');
+    // Build a 2-point trend series for an entity by matching name across reports.
+    // metric = avg_sub. Returns { values:[...], color }.
+    function trendSeries(kind, name) {
+      var vals = [];
+      chronoReports().forEach(function (r) {
+        var d = state.dataById[r.report_id];
+        if (!d) return;
+        var v = null;
+        if (kind === "director") {
+          (d.directors || []).some(function (dir) {
+            if (dir.name === name) { v = num(dir.totals.avg_sub); return true; }
+            return false;
+          });
+        } else {
+          (d.directors || []).some(function (dir) {
+            return (dir.ams || []).some(function (am) {
+              if (am.name === name) { v = num(am.avg_sub); return true; }
+              return false;
             });
-
-            // Load reports if showing history tab
-            if (view === 'history') {
-                loadReportHistory();
-            }
-
-            // Show selected view
-            const selectedView = document.getElementById(`view-${view}`);
-            if (selectedView) {
-                selectedView.classList.add('active');
-                console.log('Activated view:', `view-${view}`);
-            }
-
-            // Update sidebar highlighting - find the clicked item and mark as active
-            document.querySelectorAll('.sidebar-item').forEach(item => {
-                item.classList.remove('active');
-            });
-
-            // Mark the appropriate sidebar item as active based on view
-            const sidebarItems = document.querySelectorAll('.sidebar-item');
-            sidebarItems.forEach((item, index) => {
-                const text = item.textContent.toLowerCase();
-                if ((view === 'recruitment' && text.includes('recruitment')) ||
-                    (view === 'management-collapsed' && text.includes('summary')) ||
-                    (view === 'management-expanded' && text.includes('details')) ||
-                    (view === 'productivity' && text.includes('productivity')) ||
-                    (view === 'director' && text.includes('drilldown')) ||
-                    (view === 'week1' && text.includes('week 1')) ||
-                    (view === 'week2' && text.includes('week 2')) ||
-                    (view === 'week3' && text.includes('week 3')) ||
-                    (view === 'week4' && text.includes('week 4')) ||
-                    (view === 'upload' && text.includes('upload')) ||
-                    (view === 'history' && text.includes('history')) ||
-                    (view === 'settings' && text.includes('settings'))) {
-                    item.classList.add('active');
-                }
-            });
-
-            // Reinitialize charts
-            setTimeout(() => {
-                if (view === 'recruitment') initRecruitmentChart();
-                else if (view === 'management-collapsed') initManagementChart();
-                else if (view === 'management-expanded') initManagementExpandedChart();
-                else if (view === 'productivity') initProductivityChart();
-                else if (view === 'director') initDirectorChart();
-            }, 100);
+          });
         }
+        if (v != null) vals.push(v);
+      });
+      var color = "var(--green)";
+      if (vals.length >= 2 && vals[vals.length - 1] < vals[0]) color = "var(--red)";
+      return { values: vals, color: color };
+    }
 
-        function initRecruitmentChart() {
-            const ctx = document.getElementById('mainChart');
-            if (ctx && window.recruitmentChartInstance) {
-                window.recruitmentChartInstance.destroy();
-            }
-            if (ctx) {
-                window.recruitmentChartInstance = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Covered', 'Remaining'],
-                        datasets: [{
-                            data: [0, 100],
-                            backgroundColor: ['#FFA500', '#E8E8E8'],
-                            borderWidth: 0,
-                            cutout: '70%'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: { legend: { display: false } }
-                    }
-                });
-            }
-        }
+    /* =====================================================================
+       FETCH LAYER
+       ===================================================================== */
+    function getJSON(url) {
+      return fetch(url).then(function (r) {
+        if (!r.ok) throw new Error(url + " -> " + r.status);
+        return r.json();
+      });
+    }
 
-        function initManagementChart() {
-            const ctx = document.getElementById('managementChart');
-            if (ctx && window.managementChartInstance) {
-                window.managementChartInstance.destroy();
-            }
-            if (ctx) {
-                window.managementChartInstance = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['On Track', 'Needs Attention'],
-                        datasets: [{
-                            data: [78.5, 21.5],
-                            backgroundColor: ['#4CAF50', '#FFC107'],
-                            borderWidth: 0,
-                            cutout: '70%'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: { legend: { display: false } }
-                    }
-                });
-            }
-        }
-
-        function initManagementExpandedChart() {
-            const ctx = document.getElementById('managementExpandedChart');
-            if (ctx && window.managementExpandedChartInstance) {
-                window.managementExpandedChartInstance.destroy();
-            }
-            if (ctx) {
-                window.managementExpandedChartInstance = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['On Track', 'Needs Attention'],
-                        datasets: [{
-                            data: [78.5, 21.5],
-                            backgroundColor: ['#4CAF50', '#FFC107'],
-                            borderWidth: 0,
-                            cutout: '70%'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: { legend: { display: false } }
-                    }
-                });
-            }
-        }
-
-        function initProductivityChart() {
-            const ctx = document.getElementById('productivityChart');
-            if (ctx && window.productivityChartInstance) {
-                window.productivityChartInstance.destroy();
-            }
-            if (ctx) {
-                window.productivityChartInstance = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Achieved', 'Target Remaining'],
-                        datasets: [{
-                            data: [68, 32],
-                            backgroundColor: ['#2196F3', '#E8E8E8'],
-                            borderWidth: 0,
-                            cutout: '70%'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: { legend: { display: false } }
-                    }
-                });
-            }
-        }
-
-        function initDirectorChart() {
-            const ctx = document.getElementById('directorChart');
-            if (ctx && window.directorChartInstance) {
-                window.directorChartInstance.destroy();
-            }
-            if (ctx) {
-                window.directorChartInstance = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Performing', 'Underperforming'],
-                        datasets: [{
-                            data: [55, 45],
-                            backgroundColor: ['#4CAF50', '#F44336'],
-                            borderWidth: 0,
-                            cutout: '70%'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: { legend: { display: false } }
-                    }
-                });
-            }
-        }
-
-        // Calculate week of month
-        function getWeekOfMonth(date) {
-            const d = new Date(date);
-            const firstDay = new Date(d.getFullYear(), d.getMonth(), 1);
-            const firstMonday = new Date(firstDay);
-            firstMonday.setDate(firstMonday.getDate() + (1 - firstMonday.getDay() + 7) % 7);
-            if (d < firstMonday) return 1;
-            return Math.ceil((d.getDate() + firstDay.getDay() - 1) / 7);
-        }
-
-        function getMonthName(date) {
-            return date.toLocaleString('default', { month: 'long' });
-        }
-
-        // Shorten "10-Jul-2026" -> "10-Jul" for compact sidebar display
-        function shortenWeekEnding(s) {
-            const parts = String(s).split('-');
-            return parts.length >= 2 ? `${parseInt(parts[0], 10)}-${parts[1]}` : s;
-        }
-
-        // Fallback only when API is unreachable: this month's Fridays from the live clock (never hardcoded)
-        function computeFridaysOfCurrentMonth() {
-            const now = new Date();
-            const fridays = [];
-            const d = new Date(now.getFullYear(), now.getMonth(), 1);
-            d.setDate(d.getDate() + (5 - d.getDay() + 7) % 7); // first Friday (Sun=0..Fri=5)
-            while (d.getMonth() === now.getMonth()) {
-                fridays.push(`${d.getDate()}-${d.toLocaleString('default', {month: 'short'})}`);
-                d.setDate(d.getDate() + 7);
-            }
-            return fridays;
-        }
-
-        // Populate sidebar week items from week-ending dates; hide items with no matching week
-        function applyWeekEndings(weekEndings) {
-            const shorts = weekEndings.map(shortenWeekEnding);
-            window.dynamicWeekEndingDates = shorts;
-            for (let i = 1; i <= 5; i++) {
-                const item = document.getElementById(`week${i}-nav`);
-                const label = document.getElementById(`week${i}-label`);
-                if (!item) continue;
-                if (shorts[i - 1]) {
-                    item.style.display = '';
-                    if (label) label.textContent = `Ending ${shorts[i - 1]}`;
-                } else {
-                    item.style.display = 'none';
-                }
-            }
-        }
-
-        // Fetch reporting period from API; week-ending dates come from the uploaded data
-        async function fetchReportingPeriod() {
-            try {
-                const response = await fetch('/api/reporting-period');
-                if (!response.ok) throw new Error(`API returned ${response.status}`);
-                const data = await response.json();
-                if (data.success && data.reporting_period) {
-                    const period = data.reporting_period;
-                    console.log('Reporting period from API:', period);
-                    applyWeekEndings(period.week_endings || []);
-                    return period;
-                }
-            } catch (error) {
-                console.warn('Reporting period API unavailable, deriving weeks from current date:', error);
-            }
-            applyWeekEndings(computeFridaysOfCurrentMonth());
-            return null;
-        }
-
-        // ============ REAL DATA RENDERING (computed server-side from uploaded files) ============
-        window.reportsByWeek = {};  // 'DD-Mon' -> report_id
-
-        async function loadReportsIndex() {
-            try {
-                const r = await fetch('/api/reports');
-                const d = await r.json();
-                (d.reports || []).forEach(rep => {
-                    if (rep.data_week_ending) {
-                        const short = shortenWeekEnding(rep.data_week_ending);
-                        if (!window.reportsByWeek[short]) window.reportsByWeek[short] = rep.report_id;
-                    }
-                });
-            } catch (e) { console.warn('reports index unavailable:', e); }
-        }
-
-        async function loadDashboardData(reportId) {
-            try {
-                const url = '/api/dashboard-data' + (reportId ? '?report_id=' + encodeURIComponent(reportId) : '');
-                const r = await fetch(url);
-                const d = await r.json();
-                if (d.success) {
-                    window.lastDashboardData = d;
-                    renderRecruitment(d);
-                    if (window.recruitmentChartInstance && d.totals) {
-                        const c = d.totals.coverage_pct || 0;
-                        window.recruitmentChartInstance.data.datasets[0].data = [c, Math.max(0, 100 - c)];
-                        window.recruitmentChartInstance.update();
-                    }
-                    renderAlerts(d);
-                    renderMgmtSummary(d);
-                    renderMgmtDetails(d);
-                    renderProductivity(d);
-                    renderDirectorDrilldown(d);
-                    return d;
-                }
-            } catch (e) { console.warn('dashboard data unavailable:', e); }
-            return null;
-        }
-
-        function tableShell(title, headers, bodyHtml, dwe) {
-            const ths = headers.map((h, i) => `<th${i ? ' style="text-align: right;"' : ''}>${h}</th>`).join('');
-            return `<div class="table-section">
-                <div class="table-header"><span>${title}</span>
-                <span style="font-size: 11px; font-weight: normal; color: #999;">Data week ending ${dwe || '—'}</span></div>
-                <table><thead><tr>${ths}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`;
-        }
-
-        function renderAlerts(d) {
-            const root = document.getElementById('alerts-root');
-            if (!root) return;
-            const t = d.totals, alerts = [];
-            alerts.push(t.coverage_pct >= 80
-                ? { c: 'success', title: '✓ On Track: Coverage Strong', msg: `Coverage at ${t.coverage_pct}% — above the 80% target.` }
-                : { c: t.coverage_pct >= 70 ? 'warning' : 'error', title: t.coverage_pct >= 70 ? '⚠ Watch: Coverage Below Target' : '🔴 Action: Coverage Low', msg: `Coverage at ${t.coverage_pct}% against the 80% target. Focus submissions on uncovered positions.` });
-            alerts.push(t.avg_sub >= 4
-                ? { c: 'success', title: '✓ On Track: Submission Velocity', msg: `Avg Sub at ${t.avg_sub} — meeting the ≥4 target.` }
-                : { c: t.avg_sub >= 3 ? 'warning' : 'error', title: '⚠ Watch: Submission Velocity', msg: `Avg Sub at ${t.avg_sub}, below the ≥4 target.` });
-            if (t.reneges > 0) alerts.push({ c: 'warning', title: '⚠ Reneges This Week', msg: `${fmtInt(t.reneges)} renege(s) recorded — review offer management.` });
-            alerts.push({ c: 'success', title: `📊 Week Ending ${d.data_week_ending || '—'}`, msg: `${fmtInt(t.selections)} selections, ${fmtInt(t.joiners)} joiners, ${fmtInt(t.exits)} exits across ${d.directors.length} directors.` });
-            root.innerHTML = alerts.map(a => `<div class="alert-box ${a.c}"><div class="alert-title">${a.title}</div><div class="alert-message">${a.msg}</div></div>`).join('');
-        }
-
-        function renderMgmtSummary(d) {
-            const root = document.getElementById('mgmt-summary-root');
-            if (!root) return;
-            const t = d.totals;
-            let body = d.directors.map(dir => {
-                const dt = dir.totals;
-                return `<tr class="director-row"><td class="name-cell total">${dir.name}</td>
-                    <td class="metric-value">${dir.ams.length}</td>
-                    <td class="metric-value">${fmtInt(dt.positions)}</td>
-                    <td class="metric-value">${fmtInt(dt.submissions)}</td>
-                    <td class="metric-percentage ${ragCoverage(dt.coverage_pct)}">${dt.coverage_pct}%</td>
-                    <td class="metric-percentage ${ragAvgSub(dt.avg_sub)}">${dt.avg_sub}</td>
-                    <td class="metric-value">${fmtInt(dt.selections)}</td>
-                    <td class="metric-value">${fmtInt(dt.joiners)}</td>
-                    <td class="metric-value">${fmtInt(dt.exits)}</td></tr>`;
-            }).join('');
-            body += `<tr class="director-row"><td class="name-cell total">Grand Total</td>
-                <td class="metric-value">${d.directors.reduce((n, x) => n + x.ams.length, 0)}</td>
-                <td class="metric-value">${fmtInt(t.positions)}</td>
-                <td class="metric-value">${fmtInt(t.submissions)}</td>
-                <td class="metric-percentage ${ragCoverage(t.coverage_pct)}">${t.coverage_pct}%</td>
-                <td class="metric-percentage ${ragAvgSub(t.avg_sub)}">${t.avg_sub}</td>
-                <td class="metric-value">${fmtInt(t.selections)}</td>
-                <td class="metric-value">${fmtInt(t.joiners)}</td>
-                <td class="metric-value">${fmtInt(t.exits)}</td></tr>`;
-            root.innerHTML = tableShell('Team Performance Summary — Director Level',
-                ['Director', 'AMs', 'Positions', 'Submissions', 'Coverage %', 'Avg Sub', 'Selections', 'Joiners', 'Exits'], body, d.data_week_ending);
-        }
-
-        function renderMgmtDetails(d) {
-            const root = document.getElementById('mgmt-details-root');
-            if (!root) return;
-            let body = '';
-            d.directors.forEach(dir => {
-                const dt = dir.totals;
-                body += `<tr class="director-row"><td class="name-cell total">${dir.name} (Director)</td>
-                    <td class="metric-value">${fmtInt(dt.positions)}</td><td class="metric-value">${fmtInt(dt.submissions)}</td>
-                    <td class="metric-percentage ${ragCoverage(dt.coverage_pct)}">${dt.coverage_pct}%</td>
-                    <td class="metric-percentage ${ragAvgSub(dt.avg_sub)}">${dt.avg_sub}</td>
-                    <td class="metric-value">${fmtInt(dt.selections)}</td><td class="metric-value">${fmtInt(dt.reneges)}</td>
-                    <td class="metric-value">${fmtInt(dt.joiners)}</td><td class="metric-value">${fmtInt(dt.exits)}</td></tr>`;
-                dir.ams.forEach(am => {
-                    body += `<tr class="child-row"><td class="name-cell child">${am.name}</td>
-                        <td class="metric-value">${fmtInt(am.positions)}</td><td class="metric-value">${fmtInt(am.submissions)}</td>
-                        <td class="metric-percentage ${ragCoverage(am.coverage_pct)}">${am.coverage_pct}%</td>
-                        <td class="metric-percentage ${ragAvgSub(am.avg_sub)}">${am.avg_sub}</td>
-                        <td class="metric-value">${fmtInt(am.selections)}</td><td class="metric-value">${fmtInt(am.reneges)}</td>
-                        <td class="metric-value">${fmtInt(am.joiners)}</td><td class="metric-value">${fmtInt(am.exits)}</td></tr>`;
-                });
-            });
-            root.innerHTML = tableShell('Individual AM Performance — Full Detail',
-                ['Team / Account Manager', 'Positions', 'Submissions', 'Coverage %', 'Avg Sub', 'Selections', 'Reneges', 'Joiners', 'Exits'], body, d.data_week_ending);
-            setupDirectorToggle();
-        }
-
-        function renderProductivity(d) {
-            const root = document.getElementById('productivity-root');
-            if (!root) return;
-            const ams = d.directors.flatMap(dir => dir.ams.map(am => ({ ...am, director: dir.name })))
-                .sort((a, b) => b.submissions - a.submissions);
-            const body = ams.map(am => `<tr class="child-row"><td class="name-cell">${am.name}</td>
-                <td class="metric-value" style="text-align:right;">${am.director}</td>
-                <td class="metric-value">${fmtInt(am.positions)}</td><td class="metric-value">${fmtInt(am.submissions)}</td>
-                <td class="metric-percentage ${ragAvgSub(am.avg_sub)}">${am.avg_sub}</td>
-                <td class="metric-percentage ${ragCoverage(am.coverage_pct)}">${am.coverage_pct}%</td>
-                <td class="metric-value">${fmtInt(am.selections)}</td><td class="metric-value">${fmtInt(am.joiners)}</td></tr>`).join('');
-            root.innerHTML = tableShell('AM Productivity — Ranked by Submissions',
-                ['Account Manager', 'Director', 'Positions', 'Submissions', 'Avg Sub', 'Coverage %', 'Selections', 'Joiners'], body, d.data_week_ending);
-        }
-
-        function renderDirectorDrilldown(d) {
-            const root = document.getElementById('director-root');
-            if (!root) return;
-            const body = d.directors.map(dir => {
-                const dt = dir.totals;
-                const status = dt.coverage_pct >= 80 ? '<span class="metric-percentage good">Performing</span>'
-                    : dt.coverage_pct >= 70 ? '<span class="metric-percentage warning">Monitor</span>'
-                    : '<span class="metric-percentage bad">At Risk</span>';
-                return `<tr class="director-row"><td class="name-cell total">${dir.name}</td>
-                    <td class="metric-value">${dir.ams.length}</td>
-                    <td class="metric-value">${fmtInt(dt.positions)}</td>
-                    <td class="metric-percentage ${ragCoverage(dt.coverage_pct)}">${dt.coverage_pct}%</td>
-                    <td class="metric-percentage ${ragAvgSub(dt.avg_sub)}">${dt.avg_sub}</td>
-                    <td class="metric-value">${fmtInt(dt.selections)}</td>
-                    <td class="metric-value">${fmtInt(dt.joiners)}</td>
-                    <td class="metric-value">${fmtInt(dt.exits)}</td>
-                    <td style="text-align:right;">${status}</td></tr>`;
-            }).join('');
-            root.innerHTML = tableShell('Director Comparative Analysis',
-                ['Director', 'AMs', 'Positions', 'Coverage %', 'Avg Sub', 'Selections', 'Joiners', 'Exits', 'Status'], body, d.data_week_ending);
-        }
-
-        function ragCoverage(p) { return p >= 80 ? 'good' : (p >= 70 ? 'warning' : 'bad'); }
-        function ragAvgSub(v) { return v >= 4 ? 'good' : (v >= 3 ? 'warning' : 'bad'); }
-        function fmtInt(v) { return Math.round(Number(v) || 0).toLocaleString(); }
-
-        function renderRecruitment(d) {
-            const t = d.totals || {};
-
-            // KPI cards (order: Positions, Coverage, Avg Sub, Select %)
-            const kpis = document.querySelectorAll('#view-recruitment .kpi-card');
-            if (kpis.length >= 4) {
-                kpis[0].querySelector('.kpi-value').textContent = fmtInt(t.positions);
-                kpis[0].querySelector('.kpi-note').textContent = `${d.directors.length} directors`;
-                kpis[1].querySelector('.kpi-value').textContent = (t.coverage_pct || 0) + '%';
-                kpis[2].querySelector('.kpi-value').textContent = t.avg_sub || 0;
-                kpis[3].querySelector('.kpi-value').textContent = fmtInt(t.selections);
-                kpis[3].querySelector('.kpi-label').innerHTML = '<span class="rag-indicator"></span>Selections';
-                kpis[3].querySelector('.kpi-note').textContent = 'Select % needs monthly target config';
-            }
-
-            // Performance overview text
-            const amCount = d.directors.reduce((n, dir) => n + dir.ams.length, 0);
-            const p = document.querySelector('#view-recruitment .chart-description p');
-            if (p) {
-                const rel = t.coverage_pct >= 80 ? 'above' : 'below';
-                p.innerHTML = `Team Coverage at ${t.coverage_pct}% — ${rel} the 80% target. <strong>${fmtInt(t.positions)} positions</strong> across <strong>${d.directors.length} directors</strong> and <strong>${amCount} account managers</strong>. Data week ending ${d.data_week_ending || '—'}.`;
-            }
-
-            // Scorecard table
-            const tbody = document.querySelector('#view-recruitment .table-section tbody');
-            if (!tbody) return;
-            const cell = (v, cls) => `<td class="${cls || 'metric-value'}">${v}</td>`;
-            let html = '';
-            d.directors.forEach(dir => {
-                const dt = dir.totals;
-                html += `<tr class="director-row">
-                    <td class="name-cell total">${dir.name} (Director)</td>
-                    ${cell(fmtInt(dt.positions))}${cell(fmtInt(dt.submissions))}
-                    ${cell(dt.coverage_pct + '%', 'metric-percentage ' + ragCoverage(dt.coverage_pct))}
-                    ${cell(fmtInt(dt.selections))}${cell('—')}${cell(fmtInt(dt.joiners))}${cell(fmtInt(dt.reneges))}${cell('—')}
-                </tr>`;
-                dir.ams.forEach(am => {
-                    html += `<tr class="child-row">
-                        <td class="name-cell child">${am.name}</td>
-                        ${cell(fmtInt(am.positions))}${cell(fmtInt(am.submissions))}
-                        ${cell(am.coverage_pct + '%', 'metric-percentage ' + ragCoverage(am.coverage_pct))}
-                        ${cell(fmtInt(am.selections))}${cell('—')}${cell(fmtInt(am.joiners))}${cell(fmtInt(am.reneges))}${cell('—')}
-                    </tr>`;
-                });
-            });
-            tbody.innerHTML = html;
-            setupDirectorToggle();
-        }
-
-        function renderNoDataWeek(weekShort) {
-            window.lastDashboardData = null;
-            const emptyMsg = `<div style="text-align:center; padding: 60px 40px; color:#999; background:white; border:2px dashed #ddd; border-radius:8px;">
-                📭 No data uploaded for week ending ${weekShort}. Upload that week's 7 raw files to see its metrics.</div>`;
-            const tbody = document.querySelector('#view-recruitment .table-section tbody');
-            if (tbody) {
-                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 40px; color:#999;">
-                    📭 No data uploaded for week ending ${weekShort}. Upload that week's 7 raw files to see its metrics.</td></tr>`;
-            }
-            document.querySelectorAll('#view-recruitment .kpi-card .kpi-value').forEach(k => k.textContent = '—');
-            const p = document.querySelector('#view-recruitment .chart-description p');
-            if (p) p.textContent = `No report uploaded for the week ending ${weekShort}.`;
-            ['alerts-root', 'mgmt-summary-root', 'mgmt-details-root', 'productivity-root', 'director-root'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.innerHTML = id === 'alerts-root' ? '' : emptyMsg;
-            });
-        }
-
-        // Initialize on page load - set active week based on latest uploads
-        document.addEventListener('DOMContentLoaded', async function() {
-            // Try to get reporting period from API first
-            const reportingPeriod = await fetchReportingPeriod();
-
-            let currentWeekOfMonth;
-
-            if (reportingPeriod) {
-                currentWeekOfMonth = reportingPeriod.week;
-                console.log('Loaded from API - Week', currentWeekOfMonth, 'of', reportingPeriod.month,
-                            '- ending', reportingPeriod.week_ending, '(source:', reportingPeriod.source + ')');
-            } else {
-                // API unavailable: pick the week whose Friday is closest to today
-                const today = new Date();
-                const dates = window.dynamicWeekEndingDates || [];
-                currentWeekOfMonth = Math.max(1, dates.findIndex(d => parseInt(d, 10) >= today.getDate()) + 1) || 1;
-                console.log('Using fallback - Week', currentWeekOfMonth);
-            }
-
-            // The data's current week is the default selected week
-            window.selectedWeek = currentWeekOfMonth;
-            updateWeekHeader(currentWeekOfMonth);
-
-            // Load real computed metrics for the latest report
-            await loadReportsIndex();
-            loadDashboardData();
-
-            // Initialize charts
-            initRecruitmentChart();
-
-            // Setup collapse/expand for directors
-            setupDirectorToggle();
+    function loadAll() {
+      return getJSON("/api/reports")
+        .then(function (d) {
+          var reports = (d.reports || []).slice();
+          // chronological ascending by data week-ending date
+          reports.sort(function (a, b) {
+            var da = parseWeekEnding(a.data_week_ending), db = parseWeekEnding(b.data_week_ending);
+            return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
+          });
+          state.reports = reports;
+          // fetch dashboard-data for every report (2 today) so trends/velocity are real
+          return Promise.all(reports.map(function (r) {
+            return getJSON("/api/dashboard-data?report_id=" + encodeURIComponent(r.report_id))
+              .then(function (dd) { if (dd && dd.success) state.dataById[r.report_id] = dd; })
+              .catch(function () { /* leave absent; UI degrades to empty */ });
+          }));
+        })
+        .then(function () {
+          // default active report = latest (last in chrono list)
+          var latest = state.reports[state.reports.length - 1];
+          if (latest) {
+            state.activeReportId = latest.report_id;
+            var pm = parseMonthLabel(latest.month);
+            if (pm) state.activeMonthKey = monthKey(pm.y, pm.m);
+          }
+        })
+        .catch(function (e) {
+          console.warn("Failed to load reports:", e);
+          state.loadError = true;
         });
+    }
 
-        function formatFileSize(bytes) {
-            const n = Number(bytes) || 0;
-            if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
-            if (n >= 1024) return Math.round(n / 1024) + ' KB';
-            return n + ' B';
+    /* =====================================================================
+       TOOLBAR MODEL — months (with gap-fill) + weeks
+       ===================================================================== */
+    function monthModel() {
+      // distinct months from reports
+      var byKey = {};
+      state.reports.forEach(function (r) {
+        var pm = parseMonthLabel(r.month);
+        if (!pm) return;
+        byKey[monthKey(pm.y, pm.m)] = { y: pm.y, m: pm.m, reportId: r.report_id, label: r.month };
+      });
+      var keys = Object.keys(byKey);
+      if (!keys.length) return [];
+      // find min/max to fill the gap (e.g. May..July -> May, June, July)
+      var yms = keys.map(function (k) { return byKey[k]; });
+      yms.sort(function (a, b) { return (a.y * 12 + a.m) - (b.y * 12 + b.m); });
+      var min = yms[0], max = yms[yms.length - 1];
+      var out = [];
+      var y = min.y, m = min.m;
+      var monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+      while (y < max.y || (y === max.y && m <= max.m)) {
+        var k = monthKey(y, m);
+        out.push(byKey[k] || { y: y, m: m, reportId: null, label: monthNames[m - 1] + " " + y });
+        m++; if (m > 12) { m = 1; y++; }
+      }
+      return out;
+    }
+
+    /* =====================================================================
+       SIDEBAR
+       ===================================================================== */
+    var NAV = [
+      { view: "management", label: "Management View" },
+      { view: "director", label: "Director Drilldown" },
+      { view: "productivity", label: "AM Productivity" },
+      { view: "recruitment", label: "Recruitment" }
+    ];
+    // Metric-driven exception views only. Client shortcuts are rendered separately
+    // from the API's clients[] (see renderSidebar) — never hardcoded from the design.
+    var VIEWS = [
+      { view: "renege-watch", label: "Renege Watch" },
+      { view: "coverage-gap", label: "Coverage Gap" }
+    ];
+
+    // Top N clients by open positions for the active report — feeds sidebar shortcuts
+    // and mirrors the Select Client dropdown. All labels are real client names.
+    function topClients(n) {
+      var d = activeData();
+      var cs = (d && Array.isArray(d.clients)) ? d.clients.slice() : [];
+      cs.sort(function (a, b) { return num(b.positions) - num(a.positions); });
+      return cs.slice(0, n);
+    }
+
+    // Active quarter derived from the active report's month (FY quarters: Q1=Apr-Jun...).
+    function activeQuarter() {
+      var d = activeData();
+      var pm = d ? parseMonthLabel(d.data_period ? monthFromPeriod(d) : null) : null;
+      // simpler: derive from active report month label
+      var rep = reportById(state.activeReportId);
+      var mm = rep ? parseMonthLabel(rep.month) : null;
+      if (!mm) return 0;
+      // FY quarter: Apr-Jun=1, Jul-Sep=2, Oct-Dec=3, Jan-Mar=4
+      var m = mm.m;
+      if (m >= 4 && m <= 6) return 1;
+      if (m >= 7 && m <= 9) return 2;
+      if (m >= 10 && m <= 12) return 3;
+      return 4;
+    }
+    function monthFromPeriod() { return null; }
+    function reportById(id) {
+      for (var i = 0; i < state.reports.length; i++) if (state.reports[i].report_id === id) return state.reports[i];
+      return null;
+    }
+
+    function renderSidebar() {
+      var rep = reportById(state.activeReportId);
+      var mm = rep ? parseMonthLabel(rep.month) : null;
+      var cycle = mm ? fiscalCycleLabel(mm.y, mm.m) : "";
+      var q = activeQuarter();
+      var quarters = [
+        { n: 1, label: "Q1 (Apr - Jun)" },
+        { n: 2, label: "Q2 (Jul - Sep)" },
+        { n: 3, label: "Q3 (Oct - Dec)" },
+        { n: 4, label: "Q4 (Jan - Mar)" }
+      ];
+
+      var html = "";
+      html += '<div class="m-sidebar__logo"><div class="m-logo-mark">Q</div><div class="m-logo-word">Metry360</div></div>';
+      html += '<nav class="m-nav">';
+      NAV.forEach(function (n) {
+        html += '<button class="m-nav__item' + (state.view === n.view ? " is-active" : "") +
+          '" data-nav="' + n.view + '">' + esc(n.label) + "</button>";
+      });
+      html += "</nav>";
+
+      html += '<div class="m-sidebar__divider"></div>';
+      html += '<div class="m-sidebar__label">Select Cycle ' + esc(cycle) + "</div>";
+      html += '<div class="m-cycle">';
+      quarters.forEach(function (qq) {
+        html += '<button class="m-cycle__item' + (q === qq.n ? " is-active" : "") +
+          '" data-quarter="' + qq.n + '">' + esc(qq.label) + "</button>";
+      });
+      html += "</div>";
+
+      html += '<div class="m-sidebar__divider"></div>';
+      html += '<div class="m-sidebar__label">Views</div>';
+      html += '<div class="m-views">';
+      VIEWS.forEach(function (v) {
+        html += '<button class="m-views__item' + (state.view === v.view ? " is-active" : "") +
+          '" data-nav="' + v.view + '" style="' + (state.view === v.view ? "color:#fff;font-weight:600;" : "") + '">' +
+          esc(v.label) + "</button>";
+      });
+      // Data-driven client shortcuts: top 3 clients by positions for the active report.
+      // Labels are real client names; each opens the same client-scoped view as the dropdown.
+      topClients(3).forEach(function (c) {
+        var on = state.view === "client" && state.client === c.name;
+        html += '<button class="m-views__item' + (on ? " is-active" : "") +
+          '" data-client-view="' + esc(c.name) + '" style="' + (on ? "color:#fff;font-weight:600;" : "") + '">' +
+          esc(c.name) + "</button>";
+      });
+      html += "</div>";
+
+      // Operational links kept discreet at the bottom so no functionality is lost.
+      html += '<div class="m-sidebar__divider"></div>';
+      html += '<div class="m-sidebar__label">Workspace</div>';
+      html += '<div class="m-views">';
+      html += '<button class="m-views__item" data-nav="upload">Upload Files</button>';
+      html += '<button class="m-views__item' + (state.view === "history" ? " is-active" : "") +
+        '" data-nav="history" style="' + (state.view === "history" ? "color:#fff;font-weight:600;" : "") + '">Report History</button>';
+      html += "</div>";
+
+      $sidebar.innerHTML = html;
+    }
+
+    /* =====================================================================
+       TOOLBAR
+       ===================================================================== */
+    function renderToolbar() {
+      var months = monthModel();
+      var d = activeData();
+      var clients = (d && Array.isArray(d.clients)) ? d.clients : null;
+
+      var html = '<div class="m-toolbar">';
+
+      // Client dropdown — enabled only when backend provides clients[]
+      html += '<div class="m-dropdown">';
+      if (clients && clients.length) {
+        html += '<select class="m-dropdown__select" data-client>';
+        html += '<option value="">Select Client</option>';
+        clients.forEach(function (c) {
+          html += '<option value="' + esc(c.name) + '"' + (state.client === c.name ? " selected" : "") + ">" + esc(c.name) + "</option>";
+        });
+        html += "</select>";
+      } else {
+        html += '<select class="m-dropdown__select" disabled title="Client breakdown needs backend deploy"><option>Select Client</option></select>';
+      }
+      html += "</div>";
+
+      // Month chips
+      html += '<div class="m-toolbar__group">';
+      months.forEach(function (mo) {
+        var k = monthKey(mo.y, mo.m);
+        var isActive = k === state.activeMonthKey;
+        var monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+        // Active chip shows full "July 2026"; inactive shows just the month name (mirrors the design).
+        var label = isActive ? mo.label : monthNames[mo.m - 1];
+        html += '<button class="m-chip' + (isActive ? " is-active" : "") + '"' +
+          (mo.reportId ? "" : ' title="No report uploaded for this month"') +
+          ' data-month="' + k + '">' + esc(label) + "</button>";
+      });
+      html += "</div>";
+
+      // Week chips for the active month
+      html += '<div class="m-toolbar__group">';
+      var activeMonth = months.filter(function (mo) { return monthKey(mo.y, mo.m) === state.activeMonthKey; })[0];
+      var repWeek = 0;
+      if (activeMonth && activeMonth.reportId) {
+        var rep = reportById(activeMonth.reportId);
+        repWeek = rep ? weekOfMonth(rep.data_week_ending) : 0;
+      }
+      var maxWeek = Math.max(4, repWeek);
+      for (var w = 1; w <= maxWeek; w++) {
+        var enabled = (w === repWeek);
+        var isActive = enabled && activeMonth && activeMonth.reportId === state.activeReportId;
+        html += '<button class="m-chip m-chip--week' + (isActive ? " is-active" : "") + '"' +
+          (enabled ? ' data-week="' + w + '"' : ' disabled title="No report for this week"') +
+          ' style="' + (enabled ? "" : "opacity:.45;") + '">W' + w + "</button>";
+      }
+      html += "</div>";
+
+      html += '<div class="m-toolbar__spacer"></div>';
+      html += '<button class="m-btn m-btn--ghost" data-export="csv" style="margin-right:8px;">CSV</button>';
+      html += '<button class="m-btn m-btn--primary" data-export="pdf">Export PDF</button>';
+      html += "</div>";
+      return html;
+    }
+
+    /* =====================================================================
+       TOP BAR
+       ===================================================================== */
+    function renderTopbar() {
+      var d = activeData();
+      var subtitle = "A director's digest";
+      if (d && d.data_period) {
+        subtitle += " for " + esc(prettyPeriod(d.data_period));
+      } else if (state.activeMonthKey) {
+        subtitle += " — no report for the selected period";
+      }
+      return '<h1 class="m-topbar__title">The Weekly ScoreCard</h1>' +
+        '<p class="m-topbar__subtitle">' + subtitle + "</p>";
+    }
+    // "06-Jul-2026 to 10-Jul-2026" -> "06–10 Jul 2026"
+    function prettyPeriod(p) {
+      var m = /^(\d{1,2})-([A-Za-z]{3})-(\d{4})\s+to\s+(\d{1,2})-([A-Za-z]{3})-(\d{4})$/.exec(String(p).trim());
+      if (!m) return p;
+      var d1 = m[1], mo1 = m[2], y1 = m[3], d2 = m[4], mo2 = m[5], y2 = m[6];
+      if (mo1 === mo2 && y1 === y2) return d1 + "–" + d2 + " " + mo1 + " " + y1;
+      return d1 + " " + mo1 + " – " + d2 + " " + mo2 + " " + y2;
+    }
+
+    /* =====================================================================
+       KPI BAND (shared across analytics views)
+       ===================================================================== */
+    function ragIcon(kind) {
+      if (kind === "green") return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>';
+      if (kind === "amber") return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>';
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16v.5"/></svg>';
+    }
+
+    function effortBrief(d) {
+      var t = d.totals;
+      var cov = num(t.coverage_pct), sub = num(t.avg_sub);
+      // top director by selections
+      var top = null;
+      (d.directors || []).forEach(function (dir) {
+        if (!top || num(dir.totals.selections) > num(top.totals.selections)) top = dir;
+      });
+      var covRel = cov >= 80 ? "holds above the 80% threshold" : cov >= 70 ? "sits just under the 80% threshold" : "is below the 70% floor";
+      var parts = [];
+      parts.push("Coverage " + covRel + " at <strong>" + cov + "%</strong>");
+      parts.push("average submission is <strong>" + sub + "</strong> against the 4.0 goal");
+      var rn = num(t.reneges);
+      parts.push("<strong>" + fmtInt(rn) + "</strong> renege" + (rn === 1 ? "" : "s") + " recorded this week");
+      var sentence = parts.join(", ") + ".";
+      if (top) {
+        sentence += " <strong>" + esc(firstWord(top.name)) + "</strong> leads on selections with <strong>" +
+          fmtInt(top.totals.selections) + "</strong> this week";
+        sentence += (t.recruiters != null) ? ", across <strong>" + fmtInt(t.recruiters) + "</strong> recruiters." : ".";
+      }
+      return sentence;
+    }
+
+    function renderBand(d) {
+      var t = d.totals;
+      var health = healthComposite(t.coverage_pct, t.avg_sub);
+      var covBand = ragCoverage(t.coverage_pct);
+      var subBand = ragAvgSub(t.avg_sub);
+
+      var html = '<div class="m-band">';
+
+      // Org health
+      html += '<div class="m-card m-card--pad m-orghealth">';
+      html += '<div class="m-eyebrow">Organization Health</div>';
+      html += '<div class="m-donut m-orghealth__donut" data-donut="' + health + '" data-donut-color="var(--donut-health)"></div>';
+      html += '<div class="m-orghealth__caption">Partial composite: Coverage &amp; Avg Sub only — Selection / Renege / Achievement need target config.</div>';
+      html += "</div>";
+
+      // center
+      html += '<div class="m-band__center">';
+      html += '<div class="m-card m-card--pad"><div class="m-eyebrow">Effort\'s Brief</div><p class="m-brief__body">' + effortBrief(d) + "</p></div>";
+      html += '<div class="m-kpis">';
+
+      // KPI 1: Monthly Target — no target config available
+      html += '<div class="m-card m-card--pad m-kpi">' +
+        '<div class="m-kpi__icon m-kpi__icon--blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg></div>' +
+        '<div class="m-kpi__label">Monthly Target</div>' +
+        '<div class="m-kpi__value">—<span class="m-kpi__suffix">/ —</span></div>' +
+        '<div class="m-kpi__status m-kpi__status--amber">Needs monthly target config</div></div>';
+
+      // KPI 2: Coverage
+      html += '<div class="m-card m-card--pad m-kpi">' +
+        '<div class="m-kpi__icon m-kpi__icon--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15 20c0-2.5 1.4-4.2 3.6-4.2"/></svg></div>' +
+        '<div class="m-kpi__label">Coverage</div>' +
+        '<div class="m-kpi__value">' + num(t.coverage_pct) + '%</div>' +
+        '<div class="m-kpi__status m-kpi__status--' + covBand + '">' + coverageStatus(t.coverage_pct) + '</div></div>';
+
+      // KPI 3: Average Submission
+      html += '<div class="m-card m-card--pad m-kpi">' +
+        '<div class="m-kpi__icon m-kpi__icon--amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M10 12h5M10 16h5"/></svg></div>' +
+        '<div class="m-kpi__label">Average Submission</div>' +
+        '<div class="m-kpi__value">' + num(t.avg_sub) + '</div>' +
+        '<div class="m-kpi__status m-kpi__status--' + subBand + '">' + avgSubStatus(t.avg_sub) + '</div></div>';
+
+      // KPI 4: Renege — show COUNT; % needs Offers
+      html += '<div class="m-card m-card--pad m-kpi">' +
+        '<div class="m-kpi__icon m-kpi__icon--red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8l6 6 3-3 7 7"/><path d="M15 18h5v-5"/></svg></div>' +
+        '<div class="m-kpi__label">Reneges</div>' +
+        '<div class="m-kpi__value">' + fmtInt(t.reneges) + '</div>' +
+        '<div class="m-kpi__status m-kpi__status--amber">Renege % needs Offers data</div></div>';
+
+      html += "</div></div>"; // kpis, center
+
+      // RAG rail (+ optional popover)
+      html += renderRail();
+
+      html += "</div>"; // band
+      return html;
+    }
+
+    function coverageStatus(p) { p = num(p); return p >= 80 ? "Above 80% Threshold" : p >= 70 ? "Warning: Below 80%" : "Critical: Below 70%"; }
+    function avgSubStatus(v) { v = num(v); return v >= 4 ? "Above 4.0 Goal" : v >= 3 ? "Warning: Below 4.0 Goal" : "Critical: Below 3.0"; }
+
+    function renderRail() {
+      var html = '<div class="m-card m-rail">';
+      html += '<button class="m-rail__header" data-rag-toggle>' + (state.ragOpen ? "&rarr;" : "&larr;") + ' RAG</button>';
+      html += '<div class="m-rail__legend">';
+      html += '<div class="m-rail__entry"><div class="m-ragchip m-ragchip--green">' + ragIcon("green") + '</div><span class="m-rail__entry-label">Healthy</span></div>';
+      html += '<div class="m-rail__entry"><div class="m-ragchip m-ragchip--amber">' + ragIcon("amber") + '</div><span class="m-rail__entry-label">Warning</span></div>';
+      html += '<div class="m-rail__entry"><div class="m-ragchip m-ragchip--red">' + ragIcon("red") + '</div><span class="m-rail__entry-label">Critical</span></div>';
+      html += "</div>";
+      if (state.ragOpen) html += renderRagPop();
+      html += "</div>";
+      return html;
+    }
+
+    // Threshold matrix from CLAUDE.md RAG reference.
+    function renderRagPop() {
+      function cell(label, val) { return '<div><div class="m-ragpop__metric-label">' + label + '</div><div class="m-ragpop__metric-value">' + val + "</div></div>"; }
+      var html = '<div class="m-ragpop m-rail__pop">';
+      html += '<div class="m-ragpop__header" data-rag-toggle style="cursor:pointer;">&rarr; RAG</div>';
+      html += '<div class="m-ragpop__row"><div class="m-ragpop__rowhead"><div class="m-ragchip m-ragchip--green">' + ragIcon("green") + '</div><span class="m-ragpop__rowtitle m-ragpop__rowtitle--green">Healthy</span></div><div class="m-ragpop__grid">' +
+        cell("Coverage", "&ge; 80%") + cell("Avg Sub", "&ge; 4") + cell("Selection", "&ge; 75%") + cell("Renege", "&lt; 20%") + "</div></div>";
+      html += '<div class="m-ragpop__row"><div class="m-ragpop__rowhead"><div class="m-ragchip m-ragchip--amber">' + ragIcon("amber") + '</div><span class="m-ragpop__rowtitle m-ragpop__rowtitle--amber">Warning</span></div><div class="m-ragpop__grid">' +
+        cell("Coverage", "70–80%") + cell("Avg Sub", "3–4") + cell("Selection", "60–75%") + cell("Renege", "20–30%") + "</div></div>";
+      html += '<div class="m-ragpop__row"><div class="m-ragpop__rowhead"><div class="m-ragchip m-ragchip--red">' + ragIcon("red") + '</div><span class="m-ragpop__rowtitle m-ragpop__rowtitle--red">Critical</span></div><div class="m-ragpop__grid">' +
+        cell("Coverage", "&lt; 70%") + cell("Avg Sub", "&lt; 3") + cell("Selection", "&lt; 60%") + cell("Renege", "&gt; 30%") + "</div></div>";
+      html += "</div>";
+      return html;
+    }
+
+    /* =====================================================================
+       TABLE — shared metric cells + tabs
+       ===================================================================== */
+    var TABLE_HEADERS = ["Team","Health","Coverage","Submission","Selection","Renege","MTD","Achieve","Trend"];
+
+    // Returns the 8 metric <td>s (everything after the TEAM cell).
+    // trend: {kind, name} to build the sparkline, or null.
+    function metricCells(e, trend) {
+      var cover = hasCoverage(e);
+      var mtdN = (e.mtd_joiners != null) ? e.mtd_joiners : e.joiners;
+      var dash = '<td class="m-val--muted">—</td>';
+      var html = "";
+      if (cover) {
+        var health = healthComposite(e.coverage_pct, e.avg_sub);
+        var hBand = healthBand(health);
+        var cov = num(e.coverage_pct), sub = num(e.avg_sub);
+        html += '<td class="m-val--' + hBand + '">' + health + '<span class="m-val__tag">' + healthTag(hBand) + "</span></td>";
+        html += '<td class="m-val--' + ragCoverage(cov) + '">' + cov + "</td>";
+        html += '<td class="m-val--' + ragAvgSub(sub) + '">' + sub + "</td>";
+        // Funnel fields are absent on client-level rows — show "—", never a fabricated 0.
+        html += (e.selections == null) ? dash : '<td class="m-val--muted">' + fmtInt(e.selections) + "</td>";
+        html += (e.reneges == null) ? dash : '<td class="m-val--muted">' + fmtInt(e.reneges) + "</td>";
+      } else {
+        // Staffing/Joiners-only entity: no Coverage/funnel presence. Show "—" for the
+        // metrics it genuinely lacks (health, coverage, submission, selection, renege) —
+        // never zeros that read as terrible performance. MTD (and HC/RPR elsewhere) stay real.
+        html += dash + dash + dash + dash + dash;
+      }
+      html += (mtdN == null) ? dash : '<td class="m-val--muted">' + fmtInt(mtdN) + "/—</td>"; // MTD stays real when present
+      html += dash; // achieve — needs monthly target
+      if (trend && cover) {
+        var ts = trendSeries(trend.kind, trend.name);
+        html += '<td><span data-spark="' + ts.values.join(",") + '" data-spark-color="' + ts.color + '"></span></td>';
+      } else {
+        html += dash;
+      }
+      return html;
+    }
+
+    function tableHead(title) {
+      var tabs = ["health","coverage","renege","achievement"];
+      var labels = { health: "Health", coverage: "Coverage", renege: "Renege", achievement: "Achievement" };
+      var h = '<div class="m-tablecard__head"><h2 class="m-card__title">' + esc(title) + '</h2><div class="m-tabs">';
+      tabs.forEach(function (t) {
+        h += '<button class="m-tab' + (state.tab === t ? " is-active" : "") + '" data-tab="' + t + '">' + labels[t] + "</button>";
+      });
+      h += "</div></div>";
+      return h;
+    }
+
+    function tableColHead() {
+      var h = "<thead><tr>";
+      TABLE_HEADERS.forEach(function (c) { h += "<th>" + esc(c) + "</th>"; });
+      h += "</tr></thead>";
+      return h;
+    }
+
+    // Sort a list of entities per the active tab. Coverage-less entities (HC-only
+    // directors) always sink to the bottom — they have no coverage/health to rank.
+    function sortByTab(list) {
+      var withCov = list.filter(hasCoverage);
+      var without = list.filter(function (e) { return !hasCoverage(e); });
+      if (state.tab === "coverage") withCov.sort(function (a, b) { return num(b.coverage_pct) - num(a.coverage_pct); });
+      else if (state.tab === "renege") withCov.sort(function (a, b) { return num(b.reneges) - num(a.reneges); });
+      else if (state.tab === "health") withCov.sort(function (a, b) {
+        return healthComposite(b.coverage_pct, b.avg_sub) - healthComposite(a.coverage_pct, a.avg_sub);
+      });
+      // achievement: no meaningful sort (all —), keep input order
+      return withCov.concat(without);
+    }
+
+    /* =====================================================================
+       VIEW: RECRUITMENT (flat AM rows)
+       ===================================================================== */
+    function viewRecruitment(d) {
+      var ams = sortByTab(activeAMs());
+      var body = "";
+      ams.forEach(function (am) {
+        body += "<tr><td>" + teamCell(am.name, am.director, false, false) + "</td>" +
+          metricCells(am, { kind: "am", name: am.name }) + "</tr>";
+      });
+      if (!ams.length) body = emptyRow();
+
+      var html = renderBand(d);
+      html += '<div class="m-card m-tablecard m-section">' + tableHead("Recruitment") +
+        '<div class="m-table-scroll"><table class="m-table">' + tableColHead() + "<tbody>" + body + "</tbody></table></div></div>";
+
+      html += '<div class="m-panels m-panels--2">';
+      html += intelligenceCard(d);
+      html += velocityCard("Velocity & Health");
+      html += "</div>";
+      return html;
+    }
+
+    /* =====================================================================
+       VIEW: MANAGEMENT / DIRECTOR (expandable director rows)
+       ===================================================================== */
+    function viewExpandableDirectors(d, title) {
+      var dirs = sortByTab((d.directors || []).map(function (dir) {
+        // Flatten director totals + director-level extras (mtd_joiners/hc/rpr live outside .totals).
+        return Object.assign({ _dir: dir }, dir.totals, { name: dir.name, mtd_joiners: dir.mtd_joiners });
+      }));
+      var body = "";
+      dirs.forEach(function (row) {
+        var dir = row._dir;
+        var key = "d-" + dir.name.replace(/\W+/g, "");
+        var ams = dir.ams || [];
+        var coverLess = !hasCoverage(dir.totals);
+        // HC-only directors (no Coverage rows) get a note and no chevron (nothing to expand).
+        var sub = coverLess
+          ? dir.name + (dir.hc && dir.hc.closing != null ? " · HC only (" + fmtInt(dir.hc.closing) + " deployed)" : " · Staffing only")
+          : dir.name;
+        body += '<tr data-expand="' + key + '"><td>' + teamCell("Team " + firstWord(dir.name), sub, ams.length > 0, false) + "</td>" +
+          metricCells(row, { kind: "director", name: dir.name }) + "</tr>";
+        ams.forEach(function (am) {
+          body += '<tr class="m-subrow is-hidden" data-child="' + key + '"><td>' + teamCell(am.name, "", false, false) + "</td>" +
+            metricCells(am, { kind: "am", name: am.name }) + "</tr>";
+        });
+      });
+      if (!dirs.length) body = emptyRow();
+
+      var html = renderBand(d);
+      html += '<div class="m-card m-tablecard m-section">' + tableHead(title) +
+        '<div class="m-table-scroll"><table class="m-table">' + tableColHead() + "<tbody>" + body + "</tbody></table></div></div>";
+      html += '<div class="m-panels m-panels--3">' + intelligenceCard(d) + focusCard(d) + velocityCard("Velocity Trend") + "</div>";
+      return html;
+    }
+
+    /* =====================================================================
+       VIEW: AM PRODUCTIVITY (flat, ranked)
+       ===================================================================== */
+    function viewProductivity(d) {
+      var ams = activeAMs().slice();
+      // default rank by submissions; tab overrides
+      if (state.tab === "health") ams = sortByTab(ams);
+      else if (state.tab === "coverage" || state.tab === "renege") ams = sortByTab(ams);
+      else ams.sort(function (a, b) { return num(b.submissions) - num(a.submissions); });
+
+      var body = "";
+      ams.forEach(function (am) {
+        body += "<tr><td>" + teamCell(am.name, am.director, false, false) + "</td>" +
+          metricCells(am, { kind: "am", name: am.name }) + "</tr>";
+      });
+      if (!ams.length) body = emptyRow();
+
+      var html = renderBand(d);
+      html += '<div class="m-card m-tablecard m-section">' + tableHead("AM Productivity") +
+        '<div class="m-table-scroll"><table class="m-table">' + tableColHead() + "<tbody>" + body + "</tbody></table></div></div>";
+      html += '<div class="m-panels m-panels--3">' + intelligenceCard(d) + focusCard(d) + velocityCard("Velocity Trend") + "</div>";
+      return html;
+    }
+
+    /* =====================================================================
+       VIEW: CLIENT / EXCEPTION VIEWS
+       ===================================================================== */
+    function viewCoverageGap(d) {
+      // Fully derivable now: AMs under 70% coverage, worst first.
+      var ams = activeAMs().filter(function (am) { return num(am.coverage_pct) < 70; })
+        .sort(function (a, b) { return num(a.coverage_pct) - num(b.coverage_pct); });
+      var html = renderBand(d);
+      html += '<div class="m-card m-tablecard m-section">' + tableHead("Coverage Gap");
+      if (ams.length) {
+        var body = "";
+        ams.forEach(function (am) {
+          body += "<tr><td>" + teamCell(am.name, am.director, false, false) + "</td>" +
+            metricCells(am, { kind: "am", name: am.name }) + "</tr>";
+        });
+        html += '<p class="view-note">Account Managers below the 70% coverage floor, worst first (' + ams.length + ").</p>";
+        html += '<div class="m-table-scroll"><table class="m-table">' + tableColHead() + "<tbody>" + body + "</tbody></table></div>";
+      } else {
+        html += emptyState("No coverage gaps", "Every Account Manager is at or above 70% coverage for this week.");
+      }
+      html += "</div>";
+      html += '<div class="m-panels m-panels--2">' + intelligenceCard(d) + velocityCard("Velocity & Health") + "</div>";
+      return html;
+    }
+
+    function viewRenegeWatch(d) {
+      var ams = activeAMs().filter(function (am) { return num(am.reneges) > 0; })
+        .sort(function (a, b) { return num(b.reneges) - num(a.reneges); });
+      var html = renderBand(d);
+      html += '<div class="m-card m-tablecard m-section">' + tableHead("Renege Watch");
+      if (ams.length) {
+        var body = "";
+        ams.forEach(function (am) {
+          body += "<tr><td>" + teamCell(am.name, am.director, false, false) + "</td>" +
+            metricCells(am, { kind: "am", name: am.name }) + "</tr>";
+        });
+        html += '<div class="m-table-scroll"><table class="m-table">' + tableColHead() + "<tbody>" + body + "</tbody></table></div>";
+      } else {
+        html += emptyState("No reneges recorded", "No AM shows a renege for this week. Note: renege parsing is being corrected in the backend — counts may read as zero until that deploys.");
+      }
+      html += "</div>";
+      return html;
+    }
+
+    // Client-scoped view: single real client selected from clients[] (via sidebar
+    // shortcut or the Select Client dropdown). Everything renders from the API.
+    function viewClient(d) {
+      var clients = (d && Array.isArray(d.clients)) ? d.clients : null;
+      var title = state.client || "Client";
+      var html = renderBand(d);
+      html += '<div class="m-card m-tablecard m-section">' + tableHead(title);
+      if (!clients || !clients.length) {
+        html += emptyState("No client breakdown", "This week's data has no per-client aggregation.");
+      } else if (!state.client) {
+        html += emptyState("Select a client", "Choose a client from the sidebar or the Select Client dropdown to scope this view.");
+      } else {
+        var c = clients.filter(function (x) { return x.name === state.client; })[0];
+        if (!c) {
+          html += emptyState("Client not in this week", "“" + esc(state.client) + "” has no positions in this week's data.");
+        } else {
+          html += '<p class="view-note">Coverage view for ' + esc(c.name) + " — " + fmtInt(c.positions) +
+            " open position" + (num(c.positions) === 1 ? "" : "s") + " this week.</p>";
+          var body = "<tr><td>" + teamCell(c.name, "", false, false) + "</td>" + metricCells(c, null) + "</tr>";
+          html += '<div class="m-table-scroll"><table class="m-table">' + tableColHead() + "<tbody>" + body + "</tbody></table></div>";
         }
+      }
+      html += "</div>";
+      html += '<div class="m-panels m-panels--2">' + intelligenceCard(d) + velocityCard("Velocity & Health") + "</div>";
+      return html;
+    }
 
-        function renderReportFiles(files) {
-            if (!Array.isArray(files) || files.length === 0) return '';
-            const rows = files.map(f => `
-                <div style="font-size: 11px; padding: 6px 8px; background: white; border: 1px solid #ddd; border-radius: 4px; color: #666;">✓ ${f.name} <span style="float: right; color: #999;">${formatFileSize(f.size)}</span></div>
-            `).join('');
-            return `
-                <div style="margin-bottom: 15px;">
-                    <p style="font-size: 11px; font-weight: 600; color: #333; margin: 0 0 8px 0;">📄 INPUT FILES USED (${files.length} Raw Files):</p>
-                    <div style="display: grid; gap: 6px;">${rows}</div>
-                </div>`;
+    /* =====================================================================
+       SHARED CARDS: Intelligence, Focus, Velocity
+       ===================================================================== */
+    function intelligenceCard(d) {
+      var alerts = buildAlerts(d).slice(0, 4);
+      var html = '<div class="m-card m-card--pad"><h2 class="m-card__title">Intelligence Report</h2><div class="m-alerts">';
+      alerts.forEach(function (a) {
+        html += '<div class="m-alert m-alert--' + a.type + '"><div class="m-alert__kicker">' + a.kicker + '</div><p class="m-alert__body">' + a.body + "</p></div>";
+      });
+      if (!alerts.length) html += '<p class="m-brief__body">No threshold breaches to report for this week.</p>';
+      html += "</div></div>";
+      return html;
+    }
+
+    // Alerts derived strictly from computable metrics (Coverage %, Avg Sub, positions).
+    function buildAlerts(d) {
+      var t = d.totals, out = [];
+      var dirs = (d.directors || []);
+
+      // WIN: best director beating coverage 80% or avg sub 4
+      var bestCov = null, bestSub = null;
+      dirs.forEach(function (dir) {
+        if (num(dir.totals.coverage_pct) >= 80 && (!bestCov || num(dir.totals.coverage_pct) > num(bestCov.totals.coverage_pct))) bestCov = dir;
+        if (num(dir.totals.avg_sub) >= 4 && (!bestSub || num(dir.totals.avg_sub) > num(bestSub.totals.avg_sub))) bestSub = dir;
+      });
+      if (bestCov) out.push({ type: "win", kicker: "Strategic Win", body: "<strong>" + esc(firstWord(bestCov.name)) + " coverage:</strong> " + num(bestCov.totals.coverage_pct) + "% — clearing the 80% target." });
+      else if (bestSub) out.push({ type: "win", kicker: "Strategic Win", body: "<strong>" + esc(firstWord(bestSub.name)) + " submissions:</strong> avg " + num(bestSub.totals.avg_sub) + " — above the 4.0 goal." });
+
+      // RISK: amber-zone overall avg sub
+      if (num(t.avg_sub) >= 3 && num(t.avg_sub) < 4) {
+        out.push({ type: "risk", kicker: "Operational Risk", body: "<strong>Pipeline health:</strong> average submission is " + num(t.avg_sub) + ", under the 4.0 goal across " + fmtInt(t.positions) + " open positions." });
+      } else if (num(t.coverage_pct) >= 70 && num(t.coverage_pct) < 80) {
+        out.push({ type: "risk", kicker: "Operational Risk", body: "<strong>Coverage watch:</strong> overall coverage is " + num(t.coverage_pct) + "%, in the amber 70–80% band." });
+      }
+
+      // BLOCKER: overall coverage red
+      if (num(t.coverage_pct) < 70) {
+        out.push({ type: "blocker", kicker: "Critical Blocker", body: "<strong>Coverage crisis:</strong> overall coverage is " + num(t.coverage_pct) + "% against a 70% floor, across " + fmtInt(t.positions) + " positions." });
+      }
+      // BLOCKER: global RPR below 1.0 (MTD joiners per deployed HC, summed over directors that have HC)
+      var grpr = globalRPR(d);
+      if (grpr != null && grpr < 1.0) {
+        out.push({ type: "blocker", kicker: "Critical Blocker", body: "<strong>Efficiency crisis:</strong> global RPR is " + grpr.toFixed(2) + " (MTD joiners per deployed head count) — far below the 1.0 target." });
+      }
+      // BLOCKER: an AM with a large position bucket and low coverage (e.g. unassigned/spread-thin)
+      var worst = null;
+      activeAMs().forEach(function (am) {
+        if (num(am.positions) >= 100 && num(am.coverage_pct) < 40) {
+          if (!worst || num(am.positions) > num(worst.positions)) worst = am;
         }
+      });
+      if (worst) out.push({ type: "blocker", kicker: "Critical Blocker", body: "<strong>" + esc(worst.name) + ":</strong> " + fmtInt(worst.positions) + " positions at only " + num(worst.coverage_pct) + "% coverage — a concentrated gap." });
 
-        // Load reports from API - single source of truth, no hardcoded reports
-        async function loadReportHistory() {
-            const container = document.getElementById('report-history-list');
-            if (!container) return;
+      return out;
+    }
 
-            try {
-                const response = await fetch('/api/reports');
-                if (!response.ok) throw new Error('Failed to fetch reports');
-                const data = await response.json();
-                const reportsList = data.reports || [];
+    function focusCard(d) {
+      // Focus on the top director by selections (real, weekly).
+      var dir = null;
+      (d.directors || []).forEach(function (x) { if (!dir || num(x.totals.selections) > num(dir.totals.selections)) dir = x; });
+      if (!dir) return '<div class="m-card m-card--pad m-focus"><h3 class="m-focus__title">Focus</h3><p class="m-brief__body">No director data.</p></div>';
+      var dt = dir.totals;
+      var health = healthComposite(dt.coverage_pct, dt.avg_sub);
+      var rpr = dir.rpr;
+      var rprCell = (rpr == null) ? '<span class="m-minikpi__value m-minikpi__value--muted">—</span>'
+        : '<span class="m-minikpi__value m-minikpi__value--' + (num(rpr) >= 1 ? "green" : "red") + '">' + num(rpr).toFixed(2) + "</span>";
+      var recCell = (dir.recruiters == null) ? '<span class="m-minikpi__value m-minikpi__value--muted">—</span>'
+        : '<span class="m-minikpi__value">' + fmtInt(dir.recruiters) + "</span>";
+      var mtdCell = (dir.mtd_joiners == null) ? '<span class="m-minikpi__value m-minikpi__value--muted">—</span>'
+        : '<span class="m-minikpi__value m-minikpi__value--green">' + fmtInt(dir.mtd_joiners) + '<span class="m-minikpi__suffix">/—</span></span>';
+      var html = '<div class="m-card m-card--pad m-focus">';
+      html += '<h3 class="m-focus__title">Focus · Team ' + esc(firstWord(dir.name)) + "</h3>";
+      html += '<div class="m-donut m-focus__donut" data-donut="' + health + '" data-donut-color="var(--donut-focus)"></div>';
+      html += '<div class="m-focus__grid">';
+      html += '<div class="m-minikpi"><span class="m-minikpi__label">MTD Joiners</span>' + mtdCell + "</div>";
+      html += '<div class="m-minikpi"><span class="m-minikpi__label">RPR</span>' + rprCell + "</div>";
+      html += '<div class="m-minikpi"><span class="m-minikpi__label">Coverage</span><span class="m-minikpi__value m-minikpi__value--' + ragCoverage(dt.coverage_pct) + '">' + num(dt.coverage_pct) + '%</span></div>';
+      html += '<div class="m-minikpi"><span class="m-minikpi__label">Recruiters</span>' + recCell + "</div>";
+      html += "</div></div>";
+      return html;
+    }
 
-                if (reportsList.length === 0) {
-                    container.innerHTML = `
-                        <div style="text-align: center; padding: 60px 40px; border: 2px dashed #ddd; border-radius: 8px;">
-                            <div style="font-size: 40px; margin-bottom: 12px;">📭</div>
-                            <h3 style="font-size: 16px; color: #1F4E78; margin: 0 0 8px 0;">No reports yet</h3>
-                            <p style="font-size: 12px; color: #999; margin: 0 0 20px 0;">Upload the 7 weekly raw files to create the first report for review.</p>
-                            <button class="btn-primary" onclick="showView('upload')">📁 Upload Files</button>
-                        </div>`;
-                    console.log('Report history: no reports in database');
-                    return;
-                }
+    function velocityCard(title) {
+      var reports = chronoReports().filter(function (r) { return state.dataById[r.report_id]; });
+      var html = '<div class="m-card m-card--pad"><h2 class="m-card__title">' + esc(title) + '</h2>';
+      if (reports.length < 2) {
+        html += '<div class="m-charts">' + emptyState("Trend needs ≥ 2 uploaded weeks", "Only " + reports.length + " week of data is available. Velocity charts appear once a second week is uploaded.") + "</div>";
+        html += "</div>";
+        return html;
+      }
+      html += '<div class="m-charts">';
+      html += '<div class="m-chart"><h3 class="m-chart__title">Joiner Velocity Trend</h3><div class="m-chart__canvas" data-line="joiner"></div></div>';
+      html += '<div class="m-chart"><h3 class="m-chart__title">Selection Velocity Trend</h3><div class="m-chart__canvas" data-line="selection"></div></div>';
+      html += "</div></div>";
+      return html;
+    }
 
-                container.innerHTML = reportsList.map(report => `
-                    <div style="border: 2px solid ${getStatusColor(report.status)}; border-radius: 8px; padding: 20px; background: ${getStatusBg(report.status)};">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
-                            <div>
-                                <h3 style="font-size: 14px; font-weight: 600; color: #1F4E78; margin: 0;">${report.report_id}</h3>
-                                ${report.data_week_ending ? `<p style="font-size: 12px; color: #1F4E78; font-weight: 600; margin: 5px 0 0 0;">📊 Data Week: Ending ${report.data_week_ending}${report.data_period ? ` (${report.data_period})` : ''}</p>` : ''}
-                                <p style="font-size: 12px; color: #999; margin: 5px 0 0 0;">Uploaded: ${new Date(String(report.created_at).endsWith('Z') ? report.created_at : report.created_at + 'Z').toLocaleString()}</p>
-                            </div>
-                            <div style="background: ${getStatusColor(report.status)}; color: white; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: 600;">${String(report.status || '').replace('_', ' ')}</div>
-                        </div>
-                        ${renderReportFiles(report.files)}
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            ${report.status !== 'APPROVED' ? `<button onclick="reprocessReport('${report.report_id}')" style="padding: 8px 16px; font-size: 12px; background: #FF9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🔄 Reprocess Data</button>` : ''}
-                            ${report.status === 'IN_REVIEW' ? `<button onclick="showView('review-details')" style="padding: 8px 16px; font-size: 12px; background: #1F4E78; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🔍 Review Details & Audit Trail</button>` : ''}
-                            ${report.status === 'APPROVED'
-                                ? `<button style="padding: 8px 16px; font-size: 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">📥 Download All Files (${report.file_count || 0} raw files)</button>`
-                                : `<button style="padding: 8px 16px; font-size: 12px; background: #999; color: white; border: none; border-radius: 4px; cursor: not-allowed; font-weight: 600;" disabled>📥 Download Files (Locked until approved)</button>`}
-                        </div>
-                    </div>
-                `).join('');
-                console.log(`Loaded ${reportsList.length} reports from API`);
-            } catch (error) {
-                container.innerHTML = `
-                    <div style="text-align: center; padding: 40px; border: 2px solid #F44336; border-radius: 8px; background: #fff5f5;">
-                        <p style="font-size: 13px; color: #F44336; margin: 0;">⚠ Could not load reports from the server. Check the API connection and try again.</p>
-                    </div>`;
-                console.error('Failed to load report history:', error);
-            }
+    /* =====================================================================
+       TEAM CELL + EMPTY HELPERS
+       ===================================================================== */
+    function teamCell(name, sub, expandable, open) {
+      var h = '<div class="m-team">';
+      if (expandable) h += '<span class="m-team__chevron' + (open ? "" : "") + '" role="button" aria-label="Expand">›</span>';
+      h += '<div class="m-team__names"><span class="m-team__name">' + esc(name) + "</span>";
+      if (sub) h += '<span class="m-team__sub">' + esc(sub) + "</span>";
+      h += "</div></div>";
+      return h;
+    }
+    function emptyRow() {
+      return '<tr><td colspan="' + TABLE_HEADERS.length + '" style="padding:0;">' +
+        emptyState("No data", "No rows for this selection.") + "</td></tr>";
+    }
+    function emptyState(title, text) {
+      return '<div class="m-empty"><div class="m-empty__icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg></div>' +
+        '<p class="m-empty__title">' + esc(title) + '</p><p class="m-empty__text">' + esc(text) + "</p></div>";
+    }
+
+    /* =====================================================================
+       REPORT HISTORY (operational, restyled)
+       ===================================================================== */
+    var STATUS_BG = { DRAFT: "#FFB74D", IN_REVIEW: "#42A5F5", PROCESSING: "#42A5F5", APPROVED: "#4CAF50" };
+    function statusColor(s) { return STATUS_BG[s] || "#999"; }
+    function fmtSize(b) {
+      var n = Number(b) || 0;
+      if (n >= 1048576) return (n / 1048576).toFixed(1) + " MB";
+      if (n >= 1024) return Math.round(n / 1024) + " KB";
+      return n + " B";
+    }
+    function viewHistory() {
+      var html = '<h1 class="m-topbar__title">Report History</h1>';
+      html += '<p class="m-topbar__subtitle">Draft → Review → Approve &amp; Publish. Files download only after approval.</p>';
+      html += '<div class="m-section rh-list">';
+      if (state.loadError) {
+        html += '<div class="m-card">' + emptyState("Could not load reports", "The reports API was unreachable. Check the connection and reload.") + "</div>";
+      } else if (!state.reports.length) {
+        html += '<div class="m-card">' + emptyState("No reports yet", "Upload the 7 weekly raw files to create the first report for review.") + "</div>";
+      } else {
+        // newest first for history
+        var reps = state.reports.slice().reverse();
+        reps.forEach(function (r) {
+          var color = statusColor(r.status);
+          html += '<div class="m-card rh-card">';
+          html += '<div class="rh-card__top"><div>';
+          html += '<p class="rh-card__id">' + esc(r.report_id) + "</p>";
+          if (r.data_week_ending) html += '<p class="rh-card__week">Data week ending ' + esc(r.data_week_ending) + (r.data_period ? " (" + esc(r.data_period) + ")" : "") + "</p>";
+          html += '<p class="rh-card__meta">Uploaded ' + esc(fmtUploaded(r.created_at)) + "</p>";
+          html += '</div><span class="rh-badge" style="background:' + color + '">' + esc(String(r.status || "").replace("_", " ")) + "</span></div>";
+          if (Array.isArray(r.files) && r.files.length) {
+            html += '<div class="rh-files">';
+            r.files.forEach(function (f) { html += '<div class="rh-file">' + esc(f.name) + "<span>" + fmtSize(f.size) + "</span></div>"; });
+            html += "</div>";
+          }
+          html += '<div class="rh-actions">';
+          if (r.status !== "APPROVED") html += '<button class="m-btn m-btn--ghost" data-reprocess="' + esc(r.report_id) + '">Reprocess Data</button>';
+          if (r.status === "APPROVED") html += '<button class="m-btn m-btn--primary">Download Files (' + (r.file_count || 0) + ")</button>";
+          else html += '<button class="m-btn m-btn--ghost" disabled style="opacity:.5;cursor:not-allowed;">Download (locked until approved)</button>';
+          html += "</div></div>";
+        });
+      }
+      html += "</div>";
+      return html;
+    }
+    function fmtUploaded(s) {
+      try {
+        var iso = String(s).endsWith("Z") ? s : s + "Z";
+        return new Date(iso).toLocaleString();
+      } catch (e) { return s; }
+    }
+
+    /* =====================================================================
+       MAIN RENDER
+       ===================================================================== */
+    function render() {
+      renderSidebar();
+
+      // Operational view: report history (no toolbar/band)
+      if (state.view === "history") {
+        $content.innerHTML = viewHistory();
+        wireCharts();
+        return;
+      }
+
+      var d = activeData();
+      var html = renderTopbar();
+      html += renderToolbar();
+
+      if (!d) {
+        // selected month/week has no report
+        var rep = reportById(state.activeReportId);
+        var monthLabel = "";
+        var months = monthModel();
+        months.forEach(function (mo) { if (monthKey(mo.y, mo.m) === state.activeMonthKey) monthLabel = mo.label; });
+        html += '<div class="m-card m-section">' +
+          emptyState("No report for " + (monthLabel || "this period"),
+            "Nothing has been uploaded for the selected month/week. Only weeks with an uploaded report show metrics.") + "</div>";
+        $content.innerHTML = html;
+        wireCharts();
+        return;
+      }
+
+      switch (state.view) {
+        case "recruitment": html += viewRecruitment(d); break;
+        case "management": html += viewExpandableDirectors(d, "Management Scorecard"); break;
+        case "director": html += viewExpandableDirectors(d, "Director Drilldown"); break;
+        case "productivity": html += viewProductivity(d); break;
+        case "coverage-gap": html += viewCoverageGap(d); break;
+        case "renege-watch": html += viewRenegeWatch(d); break;
+        case "client": html += viewClient(d); break;
+        default: html += viewRecruitment(d);
+      }
+
+      $content.innerHTML = html;
+      wireCharts();
+    }
+
+    /* =====================================================================
+       CHART WIRING (donuts / sparklines / line charts)
+       ===================================================================== */
+    function cssVal(ref) {
+      if (!ref) return undefined;
+      var m = /^var\((--[a-z0-9-]+)\)$/i.exec(ref.trim());
+      if (m) return getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim();
+      return ref;
+    }
+    function wireCharts() {
+      if (!window.MetryCharts) return;
+      document.querySelectorAll("[data-donut]").forEach(function (node) {
+        var pct = Number(node.getAttribute("data-donut"));
+        var color = cssVal(node.getAttribute("data-donut-color"));
+        // donut() wipes the node's innerHTML, so draw first then re-add the styled center overlay
+        MetryCharts.donut(node, pct, color, { size: 150, thickness: 15, showLabel: false });
+        var center = document.createElement("div");
+        center.className = "m-donut__center";
+        center.textContent = pct + "%";
+        node.appendChild(center);
+      });
+      document.querySelectorAll("[data-spark]").forEach(function (node) {
+        var raw = node.getAttribute("data-spark");
+        var vals = raw ? raw.split(",").map(Number).filter(function (v) { return !isNaN(v); }) : [];
+        var color = cssVal(node.getAttribute("data-spark-color"));
+        MetryCharts.sparkline(node, vals, color, { width: 90, height: 24 });
+      });
+
+      // Velocity line charts fed from the two real weeks.
+      var reports = chronoReports().filter(function (r) { return state.dataById[r.report_id]; });
+      if (reports.length >= 2) {
+        // compact labels (points sit at the chart edges; long labels would clip)
+        var labels = reports.map(function (r) { return shortWeek(r.data_week_ending); });
+        var joiner = reports.map(function (r) { return num(state.dataById[r.report_id].totals.joiners); });
+        var selection = reports.map(function (r) { return num(state.dataById[r.report_id].totals.selections); });
+        // marginTop 18 keeps the top y-tick label (e.g. "40") clear of the card edge.
+        var defs = {
+          joiner: { series: [{ values: joiner, color: cssVal("var(--line-joiner)") }], labels: labels, yTicks: yTicksFor(joiner), marginTop: 18 },
+          selection: { series: [{ values: selection, color: cssVal("var(--line-selection)") }], labels: labels, yTicks: yTicksFor(selection), marginTop: 18 }
+        };
+        document.querySelectorAll("[data-line]").forEach(function (node) {
+          var def = defs[node.getAttribute("data-line")];
+          if (def) MetryCharts.lineChart(node, def);
+        });
+      }
+    }
+    function yTicksFor(vals) {
+      var max = Math.max.apply(null, vals.concat([1]));
+      var top = Math.ceil(max / 4) * 4 || 4;
+      return [0, top / 2, top];
+    }
+
+    /* =====================================================================
+       EVENTS (delegated)
+       ===================================================================== */
+    document.addEventListener("click", function (ev) {
+      var t = ev.target.closest("[data-nav],[data-client-view],[data-month],[data-week],[data-quarter],[data-tab],[data-rag-toggle],[data-export],[data-reprocess],.m-team__chevron");
+      if (!t) return;
+
+      // Expand/collapse chevron
+      if (t.classList.contains("m-team__chevron")) {
+        var tr = t.closest("tr");
+        var key = tr && tr.getAttribute("data-expand");
+        if (key) {
+          var nowOpen = t.classList.toggle("is-open");
+          document.querySelectorAll('[data-child="' + key + '"]').forEach(function (c) {
+            c.classList.toggle("is-hidden", !nowOpen);
+          });
         }
+        return;
+      }
 
-        function getStatusColor(status) {
-            const colors = {
-                'DRAFT': '#FFB74D',
-                'IN_REVIEW': '#42A5F5',
-                'PROCESSING': '#42A5F5',
-                'APPROVED': '#4CAF50'
-            };
-            return colors[status] || '#999';
+      if (t.hasAttribute("data-nav")) {
+        var v = t.getAttribute("data-nav");
+        if (v === "upload") { window.location.href = "upload.html"; return; }
+        state.view = v;
+        state.ragOpen = false;
+        render();
+        return;
+      }
+      if (t.hasAttribute("data-client-view")) {
+        state.client = t.getAttribute("data-client-view");
+        state.view = "client";
+        state.ragOpen = false;
+        render();
+        return;
+      }
+      if (t.hasAttribute("data-quarter")) {
+        selectQuarter(Number(t.getAttribute("data-quarter")));
+        return;
+      }
+      if (t.hasAttribute("data-month")) {
+        selectMonth(t.getAttribute("data-month"));
+        return;
+      }
+      if (t.hasAttribute("data-week")) {
+        // clicking the (only enabled) week re-selects that month's report
+        var mo = monthModel().filter(function (x) { return monthKey(x.y, x.m) === state.activeMonthKey; })[0];
+        if (mo && mo.reportId) { state.activeReportId = mo.reportId; render(); }
+        return;
+      }
+      if (t.hasAttribute("data-tab")) {
+        state.tab = t.getAttribute("data-tab");
+        render();
+        return;
+      }
+      if (t.hasAttribute("data-rag-toggle")) {
+        state.ragOpen = !state.ragOpen;
+        render();
+        return;
+      }
+      if (t.hasAttribute("data-export")) {
+        if (t.getAttribute("data-export") === "pdf") window.print();
+        else exportCSV();
+        return;
+      }
+      if (t.hasAttribute("data-reprocess")) {
+        reprocess(t.getAttribute("data-reprocess"), t);
+        return;
+      }
+    });
+
+    document.addEventListener("change", function (ev) {
+      if (ev.target && ev.target.hasAttribute && ev.target.hasAttribute("data-client")) {
+        var name = ev.target.value;
+        if (name) {
+          // Scope to the chosen client — same view the sidebar shortcuts open.
+          state.client = name;
+          state.view = "client";
+        } else {
+          // "Select Client" cleared — drop the client scope and return to Recruitment.
+          state.client = "";
+          if (state.view === "client") state.view = "recruitment";
         }
+        state.ragOpen = false;
+        render();
+      }
+    });
 
-        function getStatusBg(status) {
-            const bgs = {
-                'DRAFT': '#fffbf0',
-                'IN_REVIEW': '#f0f7ff',
-                'PROCESSING': '#f0f7ff',
-                'APPROVED': '#f1f8f4'
-            };
-            return bgs[status] || '#f5f5f5';
-        }
+    function selectMonth(key) {
+      var mo = monthModel().filter(function (x) { return monthKey(x.y, x.m) === key; })[0];
+      state.activeMonthKey = key;
+      state.activeReportId = mo ? mo.reportId : null; // null -> empty state
+      render();
+    }
+    function selectQuarter(qn) {
+      // pick the first report (chronological) whose month falls in that FY quarter
+      var target = null;
+      state.reports.forEach(function (r) {
+        var mm = parseMonthLabel(r.month);
+        if (!mm) return;
+        var q = (mm.m >= 4 && mm.m <= 6) ? 1 : (mm.m >= 7 && mm.m <= 9) ? 2 : (mm.m >= 10 && mm.m <= 12) ? 3 : 4;
+        if (q === qn && !target) target = { r: r, mm: mm };
+      });
+      if (target) {
+        state.activeReportId = target.r.report_id;
+        state.activeMonthKey = monthKey(target.mm.y, target.mm.m);
+      } else {
+        // quarter has no data — clear active report to show an honest empty state,
+        // but keep a month key inside the quarter for the header
+        var fyStartMonthByQ = { 1: 4, 2: 7, 3: 10, 4: 1 };
+        var rep = reportById(state.activeReportId);
+        var mm = rep ? parseMonthLabel(rep.month) : { y: new Date().getFullYear(), m: 7 };
+        var y = (qn === 4) ? mm.y + 1 : mm.y; // Jan-Mar belongs to the next calendar year of the FY
+        state.activeMonthKey = monthKey(y, fyStartMonthByQ[qn]);
+        state.activeReportId = null;
+      }
+      render();
+    }
 
-        // Reprocess report data from S3
-        async function reprocessReport(reportId) {
-            if (!confirm(`Reprocess report ${reportId}? This will re-run the data pipeline.`)) {
-                return;
-            }
+    function exportCSV() {
+      var d = activeData();
+      if (!d) { alert("No data loaded for the selected period — nothing to export."); return; }
+      var headers = ["Director","Account Manager","Positions","Submissions","Coverage %","Avg Sub","Selections","Reneges","Joiners","Exits"];
+      var rows = [];
+      (d.directors || []).forEach(function (dir) {
+        var dt = dir.totals;
+        rows.push([dir.name, "(Director Total)", dt.positions, dt.submissions, dt.coverage_pct + "%", dt.avg_sub, dt.selections, dt.reneges, dt.joiners, dt.exits]);
+        (dir.ams || []).forEach(function (am) {
+          rows.push([dir.name, am.name, am.positions, am.submissions, am.coverage_pct + "%", am.avg_sub, am.selections, am.reneges, am.joiners, am.exits]);
+        });
+      });
+      var t = d.totals;
+      rows.push(["Grand Total", "", t.positions, t.submissions, t.coverage_pct + "%", t.avg_sub, t.selections, t.reneges, t.joiners, t.exits]);
+      var csv = headers.join(",") + "\n" + rows.map(function (r) {
+        return r.map(function (c) { return '"' + String(c) + '"'; }).join(",");
+      }).join("\n");
+      var blob = new Blob([csv], { type: "text/csv" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "SOJPE_C2H_WeekEnding_" + String(d.data_week_ending || "unknown").replace(/\s+/g, "") + ".csv";
+      document.body.appendChild(a); a.click();
+      URL.revokeObjectURL(url); document.body.removeChild(a);
+    }
 
-            const btn = event.target;
-            btn.disabled = true;
-            btn.textContent = '⏳ Processing...';
+    function reprocess(reportId, btn) {
+      if (!confirm("Reprocess report " + reportId + "? This re-runs the data pipeline.")) return;
+      btn.disabled = true; btn.textContent = "Processing…";
+      fetch("/api/reports/" + reportId + "/reprocess", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "reprocess" })
+      }).then(function (r) { return r.json(); }).then(function (data) {
+        if (data.success) { alert("Report reprocessed."); render(); }
+        else { alert("Reprocessing failed: " + ((data.error && data.error.message) || "Unknown error")); btn.disabled = false; btn.textContent = "Reprocess Data"; }
+      }).catch(function (e) { alert("Error: " + e.message); btn.disabled = false; btn.textContent = "Reprocess Data"; });
+    }
 
-            try {
-                const response = await fetch(`/api/reports/${reportId}/reprocess`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'reprocess' })
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    alert(`✓ Report reprocessed successfully!\nSteps completed: ${data.pipeline_progress.completed_steps}/${data.pipeline_progress.total_steps}`);
-                    // Reload to show updated status
-                    setTimeout(() => location.reload(), 1000);
-                } else {
-                    alert(`⚠️ Reprocessing failed: ${data.error?.message || 'Unknown error'}`);
-                    btn.disabled = false;
-                    btn.textContent = '🔄 Reprocess Data';
-                }
-            } catch (error) {
-                alert(`❌ Error: ${error.message}`);
-                btn.disabled = false;
-                btn.textContent = '🔄 Reprocess Data';
-            }
-        }
-
-        // Setup director collapse/expand functionality
-        function setupDirectorToggle() {
-            const directorRows = document.querySelectorAll('tbody tr.director-row');
-            directorRows.forEach(row => {
-                row.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const directorName = this.querySelector('.name-cell').textContent.trim();
-                    const isCollapsed = this.classList.contains('collapsed');
-
-                    if (isCollapsed) {
-                        // Expand
-                        this.classList.remove('collapsed');
-                        // Show all child rows
-                        let nextRow = this.nextElementSibling;
-                        while (nextRow && nextRow.classList.contains('child-row')) {
-                            nextRow.classList.remove('hidden');
-                            nextRow = nextRow.nextElementSibling;
-                        }
-                    } else {
-                        // Collapse
-                        this.classList.add('collapsed');
-                        // Hide all child rows
-                        let nextRow = this.nextElementSibling;
-                        while (nextRow && nextRow.classList.contains('child-row')) {
-                            nextRow.classList.add('hidden');
-                            nextRow = nextRow.nextElementSibling;
-                        }
-                    }
-                });
-            });
-        }
-
-        // Update week header from the week-ending dates loaded off the uploaded data
-        function updateWeekHeader(weekNumber) {
-            const dates = window.dynamicWeekEndingDates || [];
-            const ending = dates[weekNumber - 1];
-            const text = ending ? `Week Ending ${ending}` : `Week ${weekNumber}`;
-
-            const weekHeaderBtn = document.getElementById('currentWeekBtn');
-            if (weekHeaderBtn) {
-                weekHeaderBtn.textContent = text;
-            }
-
-            document.querySelectorAll('.week-display').forEach(el => {
-                el.textContent = text;
-            });
-        }
-
-        // Export dashboard data
-        function exportDashboard() {
-            const d = window.lastDashboardData;
-            if (!d) {
-                alert('No data loaded for the selected week — nothing to export.');
-                return;
-            }
-            const filename = `SOJPE_C2H_WeekEnding_${(d.data_week_ending || 'unknown').replace(/\s+/g, '')}.csv`;
-            const headers = ['Director', 'Account Manager', 'Positions', 'Submissions', 'Coverage %', 'Avg Sub', 'Selections', 'Reneges', 'Joiners', 'Exits'];
-            const rows = [];
-            d.directors.forEach(dir => {
-                const dt = dir.totals;
-                rows.push([dir.name, '(Director Total)', dt.positions, dt.submissions, dt.coverage_pct + '%', dt.avg_sub, dt.selections, dt.reneges, dt.joiners, dt.exits]);
-                dir.ams.forEach(am => {
-                    rows.push([dir.name, am.name, am.positions, am.submissions, am.coverage_pct + '%', am.avg_sub, am.selections, am.reneges, am.joiners, am.exits]);
-                });
-            });
-            const t = d.totals;
-            rows.push(['Grand Total', '', t.positions, t.submissions, t.coverage_pct + '%', t.avg_sub, t.selections, t.reneges, t.joiners, t.exits]);
-
-            let csv = headers.join(',') + '\n';
-            rows.forEach(row => {
-                csv += row.map(cell => `"${cell}"`).join(',') + '\n';
-            });
-
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-
-            console.log('Dashboard exported as:', filename);
-        }
-
-        // Initialize org chart from config
-        async function loadOrgChartConfig() {
-            try {
-                await window.orgChartManager.load();
-                console.log('✓ Organization chart loaded from config');
-                return true;
-            } catch (error) {
-                console.warn('Failed to load org chart config, using defaults:', error);
-                return false;
-            }
-        }
-
-        // Hook org chart loading into page initialization
-        const originalDOMContentLoaded = document.addEventListener;
-        document.addEventListener('DOMContentLoaded', async function() {
-            // Load org chart before showing dashboard
-            const loaded = await loadOrgChartConfig();
-            if (loaded) {
-                console.log('✓ Org chart initialized successfully');
-            }
-        }, { once: true });
-    </script>
-    <script src="./js/org-chart-manager.js"></script>
+    /* =====================================================================
+       BOOT
+       ===================================================================== */
+    // initial paint (loading) then hydrate
+    $content.innerHTML = '<h1 class="m-topbar__title">The Weekly ScoreCard</h1><p class="m-topbar__subtitle">Loading…</p>';
+    renderSidebar();
+    loadAll().then(render);
+  })();
+  </script>
 </body>
 </html>
