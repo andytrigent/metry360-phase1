@@ -369,6 +369,43 @@
             color: #999;
             margin-top: 8px;
         }
+
+        /* Optional files get an amber left rail; required stay red until uploaded. */
+        .file-item.optional { border-left: 4px solid var(--amber); }
+
+        /* Required vs optional pill on each checklist row. */
+        .type-badge {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .3px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .type-badge.req { background: #FFEBEE; color: var(--red); }
+        .type-badge.opt { background: #FFF8E1; color: #8a6d00; }
+
+        /* Muted status for an optional file that wasn't provided. */
+        .status-optional { background: #F0F0F0; color: #888; }
+
+        /* Amber impact warning shown BEFORE submit when an optional file is missing. */
+        .warning-message {
+            background: #FFF8E1;
+            border-left: 4px solid var(--amber);
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            color: #8a6d00;
+            font-size: 13px;
+        }
+        .submit-hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 10px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -387,7 +424,7 @@
         <div class="main-content">
             <div class="header">
                 <h1>📤 Upload Raw Data Files</h1>
-                <p>Upload 7 Excel files to initiate the 83-step data transformation pipeline</p>
+                <p>Upload the weekly raw Excel files. Five core files are required; Submissions, Exits, YTE and YTJ are optional (with reduced metrics noted below).</p>
             </div>
 
             <!-- Stats -->
@@ -397,8 +434,8 @@
                     <div class="stat-label">Files Uploaded</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number" id="filesRequired">7</div>
-                    <div class="stat-label">Files Required</div>
+                    <div class="stat-number" id="filesRequired">0/5</div>
+                    <div class="stat-label">Core Files (required)</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-number" id="pipelineProgress">0</div>
@@ -419,7 +456,7 @@
 
             <!-- File List -->
             <div class="file-list">
-                <h3>Required Files (7 total)</h3>
+                <h3 id="fileListTitle">File Checklist — 5 core required, 4 optional</h3>
                 <div id="fileListContainer"></div>
             </div>
 
@@ -432,7 +469,7 @@
                 </div>
                 <div class="summary-row">
                     <span class="summary-label">Files:</span>
-                    <span class="summary-value" id="fileCount">0/7</span>
+                    <span class="summary-value" id="fileCount">0 selected</span>
                 </div>
                 <div class="summary-row">
                     <span class="summary-label">Status:</span>
@@ -442,9 +479,12 @@
                     <span class="summary-label">Pipeline Status:</span>
                     <span class="summary-value" id="pipelineStatus">Pending</span>
                 </div>
-                <button class="btn btn-submit" onclick="submitUpload()" id="submitBtn">
+                <!-- Metric-impact warnings for missing optional files (rendered before submit) -->
+                <div id="uploadWarnings" style="margin-top:16px;"></div>
+                <button class="btn btn-submit" onclick="submitUpload()" id="submitBtn" disabled>
                     Start Processing (83-Step Pipeline)
                 </button>
+                <div class="submit-hint" id="submitHint"></div>
             </div>
 
             <!-- Pipeline Status -->
@@ -459,20 +499,31 @@
     </div>
 
     <script>
-        // Configuration
-        const API_BASE_URL = window.location.hostname === 'localhost'
-            ? 'http://localhost:5000'
-            : 'https://2g852sgu1i.execute-api.ap-south-1.amazonaws.com/prod';
+        // Configuration — relative /api so the same page works through the local proxy
+        // (127.0.0.1:8123) and the production Vercel rewrite identically (matches dashboard.html).
+        const API_BASE_URL = '';
 
-        const REQUIRED_FILES = [
-            'Coverage Raw Report',
-            'Submissions (Avg Subs) Raw Report',
-            'Weekly Selects Report',
-            'Weekly Renege Report',
-            'Weekly Joiners Report',
-            'Weekly Exits Report',
-            'Staffing Report for YTJ & YTE'
+        // File-type model. Core 5 are required to submit; the rest are optional and,
+        // when missing, trigger explicit metric-impact warnings (never silent).
+        // Keyword matching lets real-world names work (e.g. "Coveragejuly.xlsx",
+        // "Weekly Joiner report.xlsx" (singular), "YTE.xlsx", "Exit.xlsx").
+        const FILE_TYPES = [
+            { type: 'Coverage Raw Report',                 label: 'Coverage Raw Report',              required: true,  keywords: ['coverage'] },
+            { type: 'Weekly Selects Report',               label: 'Weekly Selects Report',            required: true,  keywords: ['select'] },
+            { type: 'Weekly Renege Report',                label: 'Weekly Renege Report',             required: true,  keywords: ['renege'] },
+            { type: 'Weekly Joiners Report',               label: 'Weekly Joiners Report',            required: true,  keywords: ['joiner'] },
+            { type: 'Staffing Report for YTJ & YTE',       label: 'Staffing Report (YTJ & YTE)',      required: true,  keywords: ['staffing'] },
+            { type: 'Submissions (Avg Subs) Raw Report',   label: 'Submissions / Avg Subs Report',    required: false, keywords: ['submission', 'avg sub', 'avgsub'] },
+            { type: 'Weekly Exits Report',                 label: 'Weekly Exits Report',              required: false, keywords: ['exit'] },
+            { type: 'YTE Report',                          label: 'YTE Report',                       required: false, keywords: ['yte'] },
+            { type: 'YTJ Report',                          label: 'YTJ Report',                       required: false, keywords: ['ytj'] }
         ];
+
+        // Core types that gate the Submit button.
+        const CORE_TYPES = FILE_TYPES.filter(t => t.required).map(t => t.type);
+        // Stable DOM id fragment for a type string (which contains spaces / & / parens).
+        function idFor(type) { return type.replace(/[^a-z0-9]+/gi, '_'); }
+        function typeInfo(type) { return FILE_TYPES.find(t => t.type === type); }
 
         const PIPELINE_STEPS = [
             { phase: 'PART_A', name: 'Ceipal Exports', steps: 29 },
@@ -492,18 +543,27 @@
             setupFileInput();
         }
 
-        // Render required files list
+        // Render the full checklist: required rows red until uploaded, optional rows
+        // muted (amber rail) and honestly marked "Optional — not provided".
         function renderFileList() {
             const container = document.getElementById('fileListContainer');
-            container.innerHTML = REQUIRED_FILES.map(file => `
-                <div class="file-item required" id="file-${file}">
+            container.innerHTML = FILE_TYPES.map(t => {
+                const id = idFor(t.type);
+                const badge = t.required
+                    ? '<span class="type-badge req">Required</span>'
+                    : '<span class="type-badge opt">Optional</span>';
+                const itemClass = t.required ? 'file-item required' : 'file-item optional';
+                const statusClass = t.required ? 'status-required' : 'status-optional';
+                const statusText = t.required ? '⚠️ Not Uploaded' : 'Optional — not provided';
+                return `
+                <div class="${itemClass}" id="file-${id}">
                     <div class="file-info">
-                        <div class="file-name">📄 ${file}.xlsx</div>
+                        <div class="file-name">📄 ${t.label}.xlsx${badge}</div>
                         <div class="file-size">Microsoft Excel File</div>
                     </div>
-                    <div class="file-status status-required" id="status-${file}">⚠️ Not Uploaded</div>
-                </div>
-            `).join('');
+                    <div class="file-status ${statusClass}" id="status-${id}">${statusText}</div>
+                </div>`;
+            }).join('');
         }
 
         // Setup drag and drop
@@ -538,65 +598,92 @@
             });
         }
 
-        // Keyword-based matching so real-world file names work (e.g. "Coveragejuly.xlsx", "Exit.xlsx")
-        const FILE_KEYWORDS = [
-            { type: 'Submissions (Avg Subs) Raw Report', keywords: ['submission', 'avg sub', 'avgsub'] },
-            { type: 'Coverage Raw Report', keywords: ['coverage'] },
-            { type: 'Weekly Selects Report', keywords: ['select'] },
-            { type: 'Weekly Renege Report', keywords: ['renege'] },
-            { type: 'Weekly Joiners Report', keywords: ['joiner'] },
-            { type: 'Weekly Exits Report', keywords: ['exit'] },
-            { type: 'Staffing Report for YTJ & YTE', keywords: ['staffing', 'ytj', 'yte'] }
-        ];
-
-        // Handle file selection
+        // Handle file selection. Matches by distinctive keyword; unmatched files raise
+        // a toast but never wedge the page (other files still process, page stays usable).
         function handleFiles(files) {
             Array.from(files).forEach(file => {
-                const fileNameBase = file.name.toLowerCase().replace('.xlsx', '').replace('.xls', '');
+                const fileNameBase = file.name.toLowerCase().replace(/\.xlsx?$/, '');
 
-                // Match by distinctive keywords in the file name
-                const hit = FILE_KEYWORDS.find(p => p.keywords.some(k => fileNameBase.includes(k)));
+                const hit = FILE_TYPES.find(t => t.keywords.some(k => fileNameBase.includes(k)));
                 const matchedFile = hit ? hit.type : null;
 
                 if (matchedFile) {
-                    uploadedFiles[matchedFile] = {
-                        file: file,
-                        size: file.size,
-                        name: file.name
-                    };
-
+                    uploadedFiles[matchedFile] = { file: file, size: file.size, name: file.name };
                     updateFileStatus(matchedFile, 'success', `✓ ${file.name}`);
                 } else {
-                    showMessage(`Could not match file: ${file.name}. Expected one of: ${REQUIRED_FILES.join(', ')}`, 'error');
+                    const known = FILE_TYPES.map(t => t.label).join(', ');
+                    showMessage(`Could not match "${file.name}". Recognized types: ${known}.`, 'error');
                 }
             });
 
             updateSummary();
         }
 
-        // Update file status
-        function updateFileStatus(fileName, status, label) {
-            const statusEl = document.getElementById(`status-${fileName}`);
-            const itemEl = document.getElementById(`file-${fileName}`);
+        // Update one checklist row's status.
+        function updateFileStatus(fileType, status, label) {
+            const id = idFor(fileType);
+            const statusEl = document.getElementById(`status-${id}`);
+            const itemEl = document.getElementById(`file-${id}`);
+            if (!statusEl || !itemEl) return;
 
             statusEl.className = `file-status status-${status}`;
             statusEl.textContent = label;
 
             if (status === 'success') {
                 itemEl.classList.remove('required');
+                itemEl.classList.remove('optional');
                 itemEl.classList.add('uploaded');
             }
         }
 
-        // Update summary
+        // Metric-impact warnings for missing optional files — shown before submit.
+        function currentWarnings() {
+            const w = [];
+            if (!uploadedFiles['Submissions (Avg Subs) Raw Report']) {
+                w.push('No Submissions (Avg Subs) file: Avg Sub, recruiter-level rows and Achieve % will be unavailable for this week.');
+            }
+            if (!uploadedFiles['Weekly Exits Report']) {
+                w.push("No Weekly Exits file: weekly exits will be derived from the Staffing workbook's Exit Report sheet.");
+            }
+            return w;
+        }
+
+        // Update summary + submit gating. Submit enables once the 5 core files are present.
         function updateSummary() {
             const uploadedCount = Object.keys(uploadedFiles).length;
+            const corePresent = CORE_TYPES.filter(t => uploadedFiles[t]).length;
+            const coreMissing = CORE_TYPES.filter(t => !uploadedFiles[t]);
+            const optionalPresent = uploadedCount - corePresent;
+            const coreComplete = corePresent === CORE_TYPES.length;
+
+            // Honest, dynamic counts (no fixed "N/7").
             document.getElementById('filesUploaded').textContent = uploadedCount;
-            document.getElementById('fileCount').textContent = `${uploadedCount}/7`;
+            document.getElementById('filesRequired').textContent = `${corePresent}/${CORE_TYPES.length}`;
+            document.getElementById('fileCount').textContent =
+                `${uploadedCount} selected — ${corePresent}/${CORE_TYPES.length} core`
+                + (optionalPresent ? ` + ${optionalPresent} optional` : '');
 
             if (uploadedCount > 0) {
                 document.getElementById('uploadSummary').style.display = 'block';
-                document.getElementById('submitBtn').disabled = uploadedCount < 7;
+            }
+
+            // Render amber impact warnings for any missing optional files.
+            const warnEl = document.getElementById('uploadWarnings');
+            warnEl.innerHTML = currentWarnings()
+                .map(msg => `<div class="warning-message">⚠️ ${msg}</div>`)
+                .join('');
+
+            // Submit gating + hint about what's still blocking.
+            const submitBtn = document.getElementById('submitBtn');
+            const hintEl = document.getElementById('submitHint');
+            submitBtn.disabled = !coreComplete;
+            if (!coreComplete) {
+                const labels = coreMissing.map(t => typeInfo(t).label).join(', ');
+                hintEl.textContent = `Add the ${coreMissing.length} remaining core file(s) to enable processing: ${labels}.`;
+            } else {
+                hintEl.textContent = `Ready: ${corePresent} core`
+                    + (optionalPresent ? ` + ${optionalPresent} optional` : ' (optional files not provided — see warnings above)')
+                    + ' will be uploaded.';
             }
         }
 
@@ -612,8 +699,9 @@
 
         // Submit upload
         async function submitUpload() {
-            if (Object.keys(uploadedFiles).length < 7) {
-                showMessage('Please upload all 7 files before submitting', 'error');
+            const coreMissing = CORE_TYPES.filter(t => !uploadedFiles[t]);
+            if (coreMissing.length) {
+                showMessage(`Missing ${coreMissing.length} core file(s): ${coreMissing.map(t => typeInfo(t).label).join(', ')}.`, 'error');
                 return;
             }
 

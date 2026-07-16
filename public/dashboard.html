@@ -61,6 +61,33 @@
     .rh-file span { color: var(--text-subtle); }
     .rh-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
+    /* ---- Master Tables (editable config grids) ---- */
+    .m-master-caution {
+      background: #FFF8E1; border-left: 4px solid var(--amber);
+      color: #8a6d00; padding: 10px 14px; border-radius: 6px;
+      font-size: 13px; margin: 4px 0 18px;
+    }
+    .m-master-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+    .m-master-search {
+      padding: 8px 12px; border: 1px solid var(--card-border); border-radius: 6px;
+      font-size: 13px; min-width: 240px; background: var(--card-bg); color: var(--text-body);
+    }
+    .m-master-count { font-size: 12px; color: var(--text-subtle); }
+    .m-master-dirty { font-size: 12px; font-weight: 700; color: var(--amber); }
+    .m-master-scroll { max-height: 62vh; overflow: auto; border: 1px solid var(--card-border); border-radius: 8px; }
+    .m-master-grid { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .m-master-grid th {
+      position: sticky; top: 0; z-index: 1; background: var(--card-bg);
+      text-align: left; padding: 9px 10px; border-bottom: 2px solid var(--card-border);
+      white-space: nowrap; font-size: 11px; text-transform: uppercase; letter-spacing: .3px; color: var(--text-subtle);
+    }
+    .m-master-grid td { padding: 5px 10px; border-bottom: 1px solid var(--card-border); vertical-align: top; color: var(--text-body); }
+    .m-master-grid td[contenteditable] { min-width: 90px; outline: none; }
+    .m-master-grid td[contenteditable]:focus { background: var(--page-bg); box-shadow: inset 0 0 0 2px var(--primary); }
+    .m-master-grid tr:hover td { background: var(--page-bg); }
+    .m-master-del { cursor: pointer; color: var(--red); border: none; background: none; font-size: 15px; line-height: 1; padding: 0 4px; }
+    .m-master-status { margin-top: 16px; }
+
     @media print {
       .m-sidebar, .m-toolbar, .m-rail__pop { display: none !important; }
       .m-shell__content { padding: 0; }
@@ -90,8 +117,18 @@
       activeMonthKey: null,      // "2026-7" month currently selected in toolbar
       tab: "health",             // active table filter tab
       ragOpen: false,            // RAG popover expanded?
-      client: "",                // selected client filter (needs backend clients[])
-      loadError: false
+      scope: "",                 // selected category (or client fallback) for the scoped view
+      loadError: false,
+      // Master Tables (editable config grids). data/dirty/loaded keyed by config name.
+      master: {
+        tab: "customer-master",
+        data: { "org-chart": null, "customer-master": null },
+        loaded: { "org-chart": false, "customer-master": false },
+        dirty: { "org-chart": false, "customer-master": false },
+        loading: false,
+        filter: "",
+        status: null
+      }
     };
 
     var $content = document.getElementById("content");
@@ -320,14 +357,27 @@
       { view: "coverage-gap", label: "Coverage Gap" }
     ];
 
-    // Top N clients by open positions for the active report — feeds sidebar shortcuts
-    // and mirrors the Select Client dropdown. All labels are real client names.
-    function topClients(n) {
-      var d = activeData();
-      var cs = (d && Array.isArray(d.clients)) ? d.clients.slice() : [];
-      cs.sort(function (a, b) { return num(b.positions) - num(a.positions); });
-      return cs.slice(0, n);
+    // Primary navigation scope for the dropdown, sidebar shortcuts, and scoped view.
+    // Categories (customer master: Sub Unit → Unit → Category) are preferred; clients
+    // are the fallback for old payloads that don't carry categories[].
+    function scopeModel(d) {
+      d = d || activeData();
+      if (d && Array.isArray(d.categories) && d.categories.length) {
+        return { kind: "category", label: "Category", items: d.categories };
+      }
+      if (d && Array.isArray(d.clients) && d.clients.length) {
+        return { kind: "client", label: "Client", items: d.clients };
+      }
+      return { kind: "client", label: "Client", items: [] };
     }
+    // Top N scope entities by open positions — feeds sidebar shortcuts + mirrors the dropdown.
+    function topScopeEntities(n) {
+      var items = scopeModel().items.slice();
+      items.sort(function (a, b) { return num(b.positions) - num(a.positions); });
+      return items.slice(0, n);
+    }
+    // Unit / sub-unit counts for a category entity (units/sub_units may be counts or arrays).
+    function countOf(v) { return Array.isArray(v) ? v.length : num(v); }
 
     // Active quarter derived from the active report's month (FY quarters: Q1=Apr-Jun...).
     function activeQuarter() {
@@ -388,12 +438,12 @@
           '" data-nav="' + v.view + '" style="' + (state.view === v.view ? "color:#fff;font-weight:600;" : "") + '">' +
           esc(v.label) + "</button>";
       });
-      // Data-driven client shortcuts: top 3 clients by positions for the active report.
-      // Labels are real client names; each opens the same client-scoped view as the dropdown.
-      topClients(3).forEach(function (c) {
-        var on = state.view === "client" && state.client === c.name;
+      // Data-driven shortcuts: top 3 scope entities (categories, or clients on old
+      // payloads) by positions. Labels are real names; each opens the scoped view.
+      topScopeEntities(3).forEach(function (c) {
+        var on = state.view === "scope" && state.scope === c.name;
         html += '<button class="m-views__item' + (on ? " is-active" : "") +
-          '" data-client-view="' + esc(c.name) + '" style="' + (on ? "color:#fff;font-weight:600;" : "") + '">' +
+          '" data-scope-view="' + esc(c.name) + '" style="' + (on ? "color:#fff;font-weight:600;" : "") + '">' +
           esc(c.name) + "</button>";
       });
       html += "</div>";
@@ -405,6 +455,8 @@
       html += '<button class="m-views__item" data-nav="upload">Upload Files</button>';
       html += '<button class="m-views__item' + (state.view === "history" ? " is-active" : "") +
         '" data-nav="history" style="' + (state.view === "history" ? "color:#fff;font-weight:600;" : "") + '">Report History</button>';
+      html += '<button class="m-views__item' + (state.view === "master" ? " is-active" : "") +
+        '" data-nav="master" style="' + (state.view === "master" ? "color:#fff;font-weight:600;" : "") + '">Master Tables</button>';
       html += "</div>";
 
       $sidebar.innerHTML = html;
@@ -425,21 +477,22 @@
     function renderToolbar() {
       var months = monthModel();
       var d = activeData();
-      var clients = (d && Array.isArray(d.clients)) ? d.clients : null;
+      var scope = scopeModel(d);
+      var placeholder = "Select " + scope.label;
 
       var html = '<div class="m-toolbar">';
 
-      // Client dropdown — enabled only when backend provides clients[]
+      // Scope dropdown — Category when the customer master is available, else Client.
       html += '<div class="m-dropdown">';
-      if (clients && clients.length) {
-        html += '<select class="m-dropdown__select" data-client>';
-        html += '<option value="">Select Client</option>';
-        clients.forEach(function (c) {
-          html += '<option value="' + esc(c.name) + '"' + (state.client === c.name ? " selected" : "") + ">" + esc(c.name) + "</option>";
+      if (scope.items.length) {
+        html += '<select class="m-dropdown__select" data-scope>';
+        html += '<option value="">' + esc(placeholder) + '</option>';
+        scope.items.forEach(function (c) {
+          html += '<option value="' + esc(c.name) + '"' + (state.scope === c.name ? " selected" : "") + ">" + esc(c.name) + "</option>";
         });
         html += "</select>";
       } else {
-        html += '<select class="m-dropdown__select" disabled title="Client breakdown needs backend deploy"><option>Select Client</option></select>';
+        html += '<select class="m-dropdown__select" disabled title="Category breakdown needs backend deploy"><option>' + esc(placeholder) + '</option></select>';
       }
       html += "</div>";
 
@@ -943,24 +996,31 @@
       return html;
     }
 
-    // Client-scoped view: single real client selected from clients[] (via sidebar
-    // shortcut or the Select Client dropdown). Everything renders from the API.
-    function viewClient(d) {
-      var clients = (d && Array.isArray(d.clients)) ? d.clients : null;
-      var title = state.client || "Client";
+    // Scope-scoped view: a single category (or client fallback) selected via the
+    // sidebar shortcut or the dropdown. Everything renders from the API.
+    function viewScope(d) {
+      var scope = scopeModel(d);
+      var kind = scope.label; // "Category" or "Client"
+      var title = state.scope || kind;
       var html = renderBand(d);
       html += '<div class="m-card m-tablecard m-section">' + tableHead(title);
-      if (!clients || !clients.length) {
-        html += emptyState("No client breakdown", "This week's data has no per-client aggregation.");
-      } else if (!state.client) {
-        html += emptyState("Select a client", "Choose a client from the sidebar or the Select Client dropdown to scope this view.");
+      if (!scope.items.length) {
+        html += emptyState("No " + kind.toLowerCase() + " breakdown", "This week's data has no per-" + kind.toLowerCase() + " aggregation.");
+      } else if (!state.scope) {
+        html += emptyState("Select a " + kind.toLowerCase(), "Choose a " + kind.toLowerCase() + " from the sidebar or the Select " + kind + " dropdown to scope this view.");
       } else {
-        var c = clients.filter(function (x) { return x.name === state.client; })[0];
+        var c = scope.items.filter(function (x) { return x.name === state.scope; })[0];
         if (!c) {
-          html += emptyState("Client not in this week", "“" + esc(state.client) + "” has no positions in this week's data.");
+          html += emptyState(kind + " not in this week", "“" + esc(state.scope) + "” has no positions in this week's data.");
         } else {
-          html += '<p class="view-note">Coverage view for ' + esc(c.name) + " — " + fmtInt(c.positions) +
-            " open position" + (num(c.positions) === 1 ? "" : "s") + " this week.</p>";
+          var note = "Coverage view for " + esc(c.name) + " — " + fmtInt(c.positions) +
+            " open position" + (num(c.positions) === 1 ? "" : "s") + " this week";
+          // Category rows carry unit / sub-unit rollup counts from the customer master.
+          if (scope.kind === "category" && (c.units != null || c.sub_units != null)) {
+            note += " · " + countOf(c.units) + " unit" + (countOf(c.units) === 1 ? "" : "s") +
+              ", " + countOf(c.sub_units) + " sub-unit" + (countOf(c.sub_units) === 1 ? "" : "s");
+          }
+          html += '<p class="view-note">' + note + ".</p>";
           var body = "<tr><td>" + teamCell(c.name, "", false, false) + "</td>" + metricCells(c, null) + "</tr>";
           html += '<div class="m-table-scroll"><table class="m-table">' + tableColHead() + "<tbody>" + body + "</tbody></table></div>";
         }
@@ -1153,6 +1213,248 @@
     }
 
     /* =====================================================================
+       MASTER TABLES — editable config grids (Org Chart + Project Mapping)
+       Plain-JS editable table: inline cell edit, add/delete row, text filter,
+       unsaved-changes indicator, Save (PUT the full array). Honest status only.
+       ===================================================================== */
+    // Two config shapes: customer-master is an array of row objects ("rows"); org-chart
+    // is three name→canonical maps ("maps"), which we flatten to Map/Key/Value rows for
+    // editing and rebuild into the 3-dict object on save.
+    var MASTER_CONFIGS = [
+      { key: "org-chart",       endpoint: "/api/config/org-chart",       label: "Org Chart",       kind: "maps", maps: ["canonical_org", "am_aliases", "director_aliases"] },
+      { key: "customer-master", endpoint: "/api/config/customer-master", label: "Project Mapping", kind: "rows" }
+    ];
+    // Fallback columns for the customer master when the array is empty, so Add Row
+    // still produces a usable row. Real columns are derived from the data when present.
+    var CUSTOMER_MASTER_COLUMNS = ["Unit","Sub Unit","HRPOC ID","HRPOC Name","Billing Approver ID","Billing Approver Name","Account Manager ID","Account Manager Name","Sr. Director ID","Sr. Director Name","Director ID","Director Name","Category"];
+    var masterSearchTimer = null;
+
+    function masterCfg(tab) { return MASTER_CONFIGS.filter(function (c) { return c.key === tab; })[0]; }
+
+    // Turn a config GET payload into editable rows (per config kind).
+    function masterParse(cfg, payload) {
+      if (cfg.kind === "maps") {
+        var rows = [];
+        (cfg.maps || []).forEach(function (mapName) {
+          var obj = (payload && payload[mapName]) || {};
+          Object.keys(obj).forEach(function (k) { rows.push({ Map: mapName, Key: k, Value: obj[k] }); });
+        });
+        return rows;
+      }
+      // rows kind: pull the array out of whatever envelope was returned.
+      if (Array.isArray(payload)) return payload.slice();
+      if (payload && Array.isArray(payload.rows)) return payload.rows.slice();
+      if (payload && Array.isArray(payload.data)) return payload.data.slice();
+      if (payload && typeof payload === "object") {
+        for (var k in payload) { if (Array.isArray(payload[k])) return payload[k].slice(); }
+      }
+      return [];
+    }
+
+    // Reconstruct the PUT body for a config (per kind).
+    function masterPutBody(cfg, rows) {
+      if (cfg.kind === "maps") {
+        var out = {}; (cfg.maps || []).forEach(function (m) { out[m] = {}; });
+        rows.forEach(function (r) {
+          var mp = r.Map, k = r.Key;
+          if (mp && String(mp).trim() && k != null && String(k).trim()) {
+            if (!out[mp]) out[mp] = {};
+            out[mp][String(k)] = r.Value;
+          }
+        });
+        return out;
+      }
+      return rows; // rows kind: PUT the array
+    }
+
+    // Column order = first-seen union of keys across rows (backend's own order).
+    function masterColumns(tab) {
+      var cfg = masterCfg(tab);
+      var rows = state.master.data[tab] || [];
+      var seen = {}, cols = [];
+      rows.forEach(function (r) {
+        if (r && typeof r === "object") Object.keys(r).forEach(function (k) { if (!seen[k]) { seen[k] = 1; cols.push(k); } });
+      });
+      if (!cols.length && cfg && cfg.kind === "maps") return ["Map", "Key", "Value"];
+      if (!cols.length && tab === "customer-master") return CUSTOMER_MASTER_COLUMNS.slice();
+      return cols;
+    }
+
+    function renderMaster() {
+      var m = state.master;
+      var html = '<h1 class="m-topbar__title">Master Tables</h1>';
+      html += '<p class="m-topbar__subtitle">Editable configuration — the org chart and the project (customer) mapping that drive name canonicalization and category scoping.</p>';
+      html += '<div class="m-master-caution">Edits take effect on next data load. No sign-in protection yet (Phase 1).</div>';
+
+      html += '<div class="m-tabs" style="margin-bottom:16px;">';
+      MASTER_CONFIGS.forEach(function (cfg) {
+        html += '<button class="m-tab' + (m.tab === cfg.key ? " is-active" : "") + '" data-master-tab="' + cfg.key + '">' +
+          esc(cfg.label) + (m.dirty[cfg.key] ? " •" : "") + "</button>";
+      });
+      html += "</div>";
+
+      html += '<div class="m-master-toolbar">';
+      html += '<input class="m-master-search" data-master-search placeholder="Filter rows…" value="' + esc(m.filter) + '" />';
+      html += '<button class="m-btn m-btn--ghost" data-master-add>+ Add Row</button>';
+      html += '<span class="m-master-count" id="masterCount"></span>';
+      html += '<span class="m-master-dirty" id="masterDirty"></span>';
+      html += '<div style="flex:1"></div>';
+      html += '<button class="m-btn m-btn--primary" data-master-save>Save changes</button>';
+      html += "</div>";
+
+      html += '<div class="m-master-scroll"><div id="masterBody"></div></div>';
+      html += '<div class="m-master-status" id="masterStatus"></div>';
+
+      $content.innerHTML = html;
+      if (m.status) document.getElementById("masterStatus").innerHTML = m.status;
+      ensureMasterLoaded();
+    }
+
+    function setMasterBodyHTML(h) { var b = document.getElementById("masterBody"); if (b) b.innerHTML = h; }
+
+    function ensureMasterLoaded() {
+      var m = state.master, tab = m.tab, cfg = masterCfg(tab);
+      if (m.loaded[tab]) { renderMasterBody(); return; }
+      setMasterBodyHTML(emptyState("Loading " + cfg.label + "…", "Fetching " + cfg.endpoint + "."));
+      getJSON(cfg.endpoint)
+        .then(function (payload) {
+          m.data[tab] = masterParse(cfg, payload);
+          m.loaded[tab] = true;
+          renderMasterBody();
+        })
+        .catch(function (e) {
+          setMasterBodyHTML(emptyState("Could not load " + cfg.label,
+            String((e && e.message) || e) + " — the config endpoint may not be deployed yet."));
+        });
+    }
+
+    // Rewrites ONLY the grid body (+ counts/dirty) so the search box keeps focus.
+    function renderMasterBody() {
+      var m = state.master, tab = m.tab;
+      var cols = masterColumns(tab);
+      var rows = m.data[tab] || [];
+      var body = document.getElementById("masterBody");
+      if (!body) return;
+
+      var f = (m.filter || "").trim().toLowerCase();
+      var idxs = [];
+      rows.forEach(function (r, i) {
+        if (!f) { idxs.push(i); return; }
+        var hay = cols.map(function (c) { return String(r[c] == null ? "" : r[c]); }).join(" ").toLowerCase();
+        if (hay.indexOf(f) >= 0) idxs.push(i);
+      });
+
+      if (!cols.length) {
+        body.innerHTML = emptyState("Nothing to edit", "This config returned no tabular rows.");
+      } else {
+        var h = '<table class="m-master-grid"><thead><tr>';
+        cols.forEach(function (c) { h += "<th>" + esc(c) + "</th>"; });
+        h += "<th></th></tr></thead><tbody>";
+        idxs.forEach(function (i) {
+          var r = rows[i];
+          h += "<tr>";
+          cols.forEach(function (c) {
+            h += '<td contenteditable="true" data-r="' + i + '" data-c="' + esc(c) + '">' + esc(r[c] == null ? "" : r[c]) + "</td>";
+          });
+          h += '<td><button class="m-master-del" data-master-del="' + i + '" title="Delete row">✕</button></td>';
+          h += "</tr>";
+        });
+        h += "</tbody></table>";
+        body.innerHTML = h;
+      }
+
+      var countEl = document.getElementById("masterCount");
+      if (countEl) countEl.textContent = idxs.length + " of " + rows.length + " row" + (rows.length === 1 ? "" : "s") + (f ? " (filtered)" : "");
+      updateMasterDirtyUI();
+    }
+
+    function updateMasterDirtyUI() {
+      var m = state.master;
+      var dirtyEl = document.getElementById("masterDirty");
+      if (dirtyEl) dirtyEl.textContent = m.dirty[m.tab] ? "Unsaved changes" : "";
+      MASTER_CONFIGS.forEach(function (cfg) {
+        var btn = document.querySelector('[data-master-tab="' + cfg.key + '"]');
+        if (btn) btn.textContent = cfg.label + (m.dirty[cfg.key] ? " •" : "");
+      });
+    }
+
+    function masterSetTab(tab) {
+      state.master.tab = tab;
+      state.master.filter = "";
+      state.master.status = null;
+      renderMaster();
+    }
+
+    function masterAddRow() {
+      var m = state.master, tab = m.tab, cfg = masterCfg(tab), cols = masterColumns(tab);
+      var row = {}; cols.forEach(function (c) { row[c] = ""; });
+      // For the org-chart maps, default the Map column to the first map so a new row saves.
+      if (cfg && cfg.kind === "maps" && cfg.maps && cfg.maps.length) row.Map = cfg.maps[0];
+      if (!m.data[tab]) m.data[tab] = [];
+      m.data[tab].push(row);
+      m.dirty[tab] = true;
+      // Clear any filter so the new (empty) row is visible, then scroll to it.
+      m.filter = "";
+      var s = document.querySelector("[data-master-search]"); if (s) s.value = "";
+      renderMasterBody();
+      var scroll = document.querySelector(".m-master-scroll"); if (scroll) scroll.scrollTop = scroll.scrollHeight;
+    }
+
+    function masterDelRow(i) {
+      var m = state.master, tab = m.tab;
+      if (m.data[tab] && i >= 0 && i < m.data[tab].length) {
+        m.data[tab].splice(i, 1);
+        m.dirty[tab] = true;
+        renderMasterBody();
+      }
+    }
+
+    function masterStatusHTML(kind, msg) {
+      var border = kind === "ok" ? "var(--green)" : "var(--red)";
+      var bg = kind === "ok" ? "#E8F5E9" : "#FFEBEE";
+      var fg = kind === "ok" ? "#2e7d32" : "#c62828";
+      return '<div style="background:' + bg + ';border-left:4px solid ' + border + ';border-radius:6px;padding:12px 16px;color:' + fg + ';font-size:13px;">' + msg + "</div>";
+    }
+    function setMasterStatus(html) {
+      state.master.status = html;
+      var el = document.getElementById("masterStatus");
+      if (el) el.innerHTML = html || "";
+    }
+
+    function masterSave(btn) {
+      var m = state.master, tab = m.tab, cfg = masterCfg(tab);
+      var rows = m.data[tab] || [];
+      var orig = btn.textContent;
+      btn.disabled = true; btn.textContent = "Saving…";
+      setMasterStatus("");
+      fetch(cfg.endpoint, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(masterPutBody(cfg, rows))
+      })
+        .then(function (r) {
+          return r.text().then(function (txt) {
+            var j = null; try { j = txt ? JSON.parse(txt) : null; } catch (e) {}
+            return { ok: r.ok, status: r.status, j: j };
+          });
+        })
+        .then(function (res) {
+          var success = res.ok && (!res.j || res.j.success !== false);
+          if (success) {
+            m.dirty[tab] = false;
+            var n = (res.j && res.j.count != null) ? res.j.count : rows.length;
+            setMasterStatus(masterStatusHTML("ok", "Saved " + esc(cfg.label) + " — " + n + " row" + (n === 1 ? "" : "s") + " written."));
+            updateMasterDirtyUI();
+          } else {
+            var msg = (res.j && res.j.error && res.j.error.message) ? res.j.error.message : ("HTTP " + res.status);
+            setMasterStatus(masterStatusHTML("err", "Save failed: " + esc(msg) + ". Nothing was changed on the server."));
+          }
+        })
+        .catch(function (e) { setMasterStatus(masterStatusHTML("err", "Save error: " + esc(e.message) + ". Nothing was changed on the server.")); })
+        .then(function () { btn.disabled = false; btn.textContent = orig; });
+    }
+
+    /* =====================================================================
        MAIN RENDER
        ===================================================================== */
     function render() {
@@ -1162,6 +1464,12 @@
       if (state.view === "history") {
         $content.innerHTML = viewHistory();
         wireCharts();
+        return;
+      }
+
+      // Admin view: editable Master Tables (no toolbar/band)
+      if (state.view === "master") {
+        renderMaster();
         return;
       }
 
@@ -1190,7 +1498,7 @@
         case "productivity": html += viewProductivity(d); break;
         case "coverage-gap": html += viewCoverageGap(d); break;
         case "renege-watch": html += viewRenegeWatch(d); break;
-        case "client": html += viewClient(d); break;
+        case "scope": html += viewScope(d); break;
         default: html += viewRecruitment(d);
       }
 
@@ -1254,7 +1562,7 @@
        EVENTS (delegated)
        ===================================================================== */
     document.addEventListener("click", function (ev) {
-      var t = ev.target.closest("[data-nav],[data-client-view],[data-month],[data-week-report],[data-quarter],[data-tab],[data-rag-toggle],[data-export],[data-reprocess],.m-team__chevron");
+      var t = ev.target.closest("[data-nav],[data-scope-view],[data-month],[data-week-report],[data-quarter],[data-tab],[data-rag-toggle],[data-export],[data-reprocess],[data-master-tab],[data-master-add],[data-master-save],[data-master-del],.m-team__chevron");
       if (!t) return;
 
       // Expand/collapse chevron. Supports nested levels (director → AM → recruiter):
@@ -1282,9 +1590,9 @@
         render();
         return;
       }
-      if (t.hasAttribute("data-client-view")) {
-        state.client = t.getAttribute("data-client-view");
-        state.view = "client";
+      if (t.hasAttribute("data-scope-view")) {
+        state.scope = t.getAttribute("data-scope-view");
+        state.view = "scope";
         state.ragOpen = false;
         render();
         return;
@@ -1327,19 +1635,52 @@
         reprocess(t.getAttribute("data-reprocess"), t);
         return;
       }
+      if (t.hasAttribute("data-master-tab")) { masterSetTab(t.getAttribute("data-master-tab")); return; }
+      if (t.hasAttribute("data-master-add")) { masterAddRow(); return; }
+      if (t.hasAttribute("data-master-del")) { masterDelRow(Number(t.getAttribute("data-master-del"))); return; }
+      if (t.hasAttribute("data-master-save")) { masterSave(t); return; }
+    });
+
+    // Master Tables: inline cell edits + live filter (delegated 'input').
+    document.addEventListener("input", function (ev) {
+      var el = ev.target;
+      if (!el || !el.hasAttribute) return;
+      if (el.hasAttribute("data-master-search")) {
+        state.master.filter = el.value;
+        clearTimeout(masterSearchTimer);
+        masterSearchTimer = setTimeout(renderMasterBody, 120);
+        return;
+      }
+      if (el.hasAttribute("data-c") && el.getAttribute("contenteditable") === "true") {
+        var m = state.master, tab = m.tab;
+        var i = Number(el.getAttribute("data-r")), c = el.getAttribute("data-c");
+        if (m.data[tab] && m.data[tab][i]) {
+          m.data[tab][i][c] = el.textContent;
+          if (!m.dirty[tab]) { m.dirty[tab] = true; updateMasterDirtyUI(); }
+        }
+        return;
+      }
+    });
+
+    // Enter commits a Master Tables cell (keeps cells single-line) instead of newline.
+    document.addEventListener("keydown", function (ev) {
+      var el = ev.target;
+      if (ev.key === "Enter" && el && el.hasAttribute && el.hasAttribute("data-c") && el.getAttribute("contenteditable") === "true") {
+        ev.preventDefault(); el.blur();
+      }
     });
 
     document.addEventListener("change", function (ev) {
-      if (ev.target && ev.target.hasAttribute && ev.target.hasAttribute("data-client")) {
+      if (ev.target && ev.target.hasAttribute && ev.target.hasAttribute("data-scope")) {
         var name = ev.target.value;
         if (name) {
-          // Scope to the chosen client — same view the sidebar shortcuts open.
-          state.client = name;
-          state.view = "client";
+          // Scope to the chosen category/client — same view the sidebar shortcuts open.
+          state.scope = name;
+          state.view = "scope";
         } else {
-          // "Select Client" cleared — drop the client scope and return to Recruitment.
-          state.client = "";
-          if (state.view === "client") state.view = "recruitment";
+          // Placeholder re-selected — drop the scope and return to Recruitment.
+          state.scope = "";
+          if (state.view === "scope") state.view = "recruitment";
         }
         state.ragOpen = false;
         render();

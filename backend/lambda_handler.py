@@ -33,7 +33,21 @@ FILE_TYPES = [
     'Weekly Renege Report',
     'Weekly Joiners Report',
     'Weekly Exits Report',
-    'Staffing Report for YTJ & YTE'
+    'Staffing Report for YTJ & YTE',
+    'YTJ Report',
+    'YTE Report'
+]
+
+# Core files a weekly upload must contain. Submissions (Avg Subs) and the standalone
+# Weekly Exits file are optional: some weeks arrive without them (e.g. exits are then
+# derived from the Staffing 'Exit Report' sheet). Keep this in sync with the pipeline
+# validation below.
+CORE_FILE_TYPES = [
+    'Coverage Raw Report',
+    'Weekly Selects Report',
+    'Weekly Renege Report',
+    'Weekly Joiners Report',
+    'Staffing Report for YTJ & YTE',
 ]
 
 # ============================================================================
@@ -249,9 +263,9 @@ class DataPipelineProcessor:
     def _execute_part_a(self):
         """PART A: Ceipal Exports (Steps 1-29)"""
         try:
-            # Step 1-4: Validate Ceipal files
-            required_files = ['Coverage Raw Report', 'Submissions (Avg Subs) Raw Report',
-                            'Weekly Selects Report', 'Weekly Renege Report']
+            # Step 1-4: Validate core Ceipal files (Submissions/Avg Subs is optional -
+            # some weeks arrive without it; the dashboard degrades recruiters to null)
+            required_files = ['Coverage Raw Report', 'Weekly Selects Report', 'Weekly Renege Report']
             for file_type in required_files:
                 if file_type not in self.files:
                     raise ValueError(f"Missing required file: {file_type}")
@@ -273,9 +287,10 @@ class DataPipelineProcessor:
     def _execute_part_b(self):
         """PART B: HRMS Exports (Steps 30-54)"""
         try:
-            # Step 30-32: Validate HRMS files
-            required_files = ['Weekly Joiners Report', 'Weekly Exits Report',
-                            'Staffing Report for YTJ & YTE']
+            # Step 30-32: Validate core HRMS files (a standalone Weekly Exits file is
+            # optional; when absent, weekly exits are derived from the Staffing
+            # workbook's 'Exit Report' sheet)
+            required_files = ['Weekly Joiners Report', 'Staffing Report for YTJ & YTE']
             for file_type in required_files:
                 if file_type not in self.files:
                     raise ValueError(f"Missing required file: {file_type}")
@@ -489,9 +504,31 @@ def health_check(event, context):
         }
     })
 
+# Filename keyword -> report type. Order matters: more specific keys first so e.g.
+# the Staffing workbook (which mentions 'YTJ & YTE') isn't mistaken for a YTE/YTJ
+# pivot, and 'joiner' matches both 'Weekly Joiner report' and 'Weekly Joiners Report'.
+FILE_TYPE_KEYWORDS = [
+    ('coverage', 'Coverage Raw Report'),
+    ('staffing', 'Staffing Report for YTJ & YTE'),
+    ('avg sub', 'Submissions (Avg Subs) Raw Report'),
+    ('submission', 'Submissions (Avg Subs) Raw Report'),
+    ('select', 'Weekly Selects Report'),
+    ('renege', 'Weekly Renege Report'),
+    ('joiner', 'Weekly Joiners Report'),
+    ('exit', 'Weekly Exits Report'),
+    ('yte', 'YTE Report'),
+    ('ytj', 'YTJ Report'),
+]
+
 def match_file_type(name):
-    """Match an uploaded filename to one of the 7 expected report types"""
+    """Classify an uploaded filename to a report type by keyword. Real-world exports
+    vary ('Weekly Joiner report', 'Staffing_weekly_Report_28th Jun 2026', 'YTE.xlsx'),
+    so match on distinctive keywords rather than the full canonical name."""
     base = name.lower().replace('.xlsx', '').replace('.xls', '')
+    for kw, ft in FILE_TYPE_KEYWORDS:
+        if kw in base:
+            return ft
+    # Fallback to the old full-name containment for anything unusual
     for ft in FILE_TYPES:
         if ft.lower() in base or base in ft.lower():
             return ft
@@ -906,6 +943,70 @@ def am_home_director(am):
     """Org chart is authoritative: canonical AM -> its home Director, else None."""
     return CANONICAL_ORG.get(am)
 
+# ============================================================================
+# EDITABLE MASTER CONFIG (Rhoni-owned) stored in S3 under config/.
+# Rhoni edits customer_master.json / org_chart.json via the API; the Lambda
+# reads them on each request, falling back to the embedded defaults above, so
+# an edit takes effect on the next call with no redeploy. No auth in Phase 1.
+# ============================================================================
+CONFIG_PREFIX = 'config/'
+
+# Snapshot the embedded defaults so we can always fall back / seed them.
+DEFAULT_ORG_CHART = {
+    'canonical_org': dict(CANONICAL_ORG),
+    'am_aliases': dict(AM_ALIASES),
+    'director_aliases': dict(DIRECTOR_ALIASES),
+}
+
+def _config_get(name):
+    """Read config/<name>.json from S3. Returns the parsed JSON or None if absent."""
+    try:
+        obj = s3_client.get_object(Bucket=S3_BUCKET, Key=f'{CONFIG_PREFIX}{name}.json')
+        return json.loads(obj['Body'].read())
+    except Exception:
+        return None
+
+def _config_put(name, data):
+    """Full-replace config/<name>.json, first copying any existing object to
+    config/history/<name>-<iso>.json so a bad edit stays recoverable (append-only)."""
+    key = f'{CONFIG_PREFIX}{name}.json'
+    try:
+        existing = s3_client.get_object(Bucket=S3_BUCKET, Key=key)
+        body = existing['Body'].read()
+        ts = datetime.utcnow().strftime('%Y-%m-%dT%H-%M-%SZ')
+        s3_client.put_object(Bucket=S3_BUCKET, Key=f'{CONFIG_PREFIX}history/{name}-{ts}.json',
+                             Body=body, ContentType='application/json')
+    except Exception:
+        pass  # nothing to archive (first write) or archive failed; proceed with the write
+    s3_client.put_object(Bucket=S3_BUCKET, Key=key,
+                         Body=json.dumps(data).encode('utf-8'), ContentType='application/json')
+
+def load_org_config():
+    """Refresh the org-chart globals from S3 config (if present) else the embedded
+    defaults, so canon_am / canon_dir / am_home_director reflect Rhoni's latest edit.
+    Returns the effective config with a 'source' of 's3' or 'default'."""
+    global CANONICAL_ORG, AM_ALIASES, DIRECTOR_ALIASES
+    cfg = _config_get('org_chart')
+    if isinstance(cfg, dict) and cfg.get('canonical_org') is not None:
+        CANONICAL_ORG = {clean(k): clean(v) for k, v in (cfg.get('canonical_org') or {}).items() if clean(k)}
+        AM_ALIASES = {_norm(k): clean(v) for k, v in (cfg.get('am_aliases') or {}).items() if clean(k)}
+        DIRECTOR_ALIASES = {_norm(k): clean(v) for k, v in (cfg.get('director_aliases') or {}).items() if clean(k)}
+        source = 's3'
+    else:
+        CANONICAL_ORG = dict(DEFAULT_ORG_CHART['canonical_org'])
+        AM_ALIASES = dict(DEFAULT_ORG_CHART['am_aliases'])
+        DIRECTOR_ALIASES = dict(DEFAULT_ORG_CHART['director_aliases'])
+        source = 'default'
+    return {'source': source, 'canonical_org': CANONICAL_ORG,
+            'am_aliases': AM_ALIASES, 'director_aliases': DIRECTOR_ALIASES}
+
+def load_customer_master():
+    """Customer master rows (list of 13-column dicts) from S3 config, or None if not
+    seeded yet. The Coverage 'Client' column holds Sub Unit values, so this maps every
+    client in the data to Unit + Category + ownership."""
+    data = _config_get('customer_master')
+    return data if isinstance(data, list) else None
+
 def num(v):
     try:
         return float(str(v).strip() or 0)
@@ -1042,8 +1143,80 @@ def parse_staffing_hc(sheets):
             e['closing'] += int(num(r[clo_i])) if len(r) > clo_i else 0
     return hc
 
+def serial_to_date(v):
+    """Excel serial number -> datetime (epoch 1899-12-30). None if not a positive serial."""
+    n = num(v)
+    if n <= 0:
+        return None
+    try:
+        return datetime(1899, 12, 30) + timedelta(days=int(n))
+    except (ValueError, OverflowError):
+        return None
+
+def period_bounds(metadata):
+    """(week_start, week_end) datetimes for the report's reporting week, from the
+    stored data_period ('DD-Mon-YYYY to DD-Mon-YYYY') or the week-ending Friday."""
+    dp = metadata.get('data_period')
+    if dp:
+        m = re.match(r'\s*(\d{1,2}-\w{3}-\d{4})\s+to\s+(\d{1,2}-\w{3}-\d{4})', str(dp))
+        if m:
+            try:
+                return (datetime.strptime(m.group(1), '%d-%b-%Y'),
+                        datetime.strptime(m.group(2), '%d-%b-%Y'))
+            except ValueError:
+                pass
+    dwe = metadata.get('data_week_ending')
+    if dwe:
+        try:
+            fri = datetime.strptime(str(dwe), '%d-%b-%Y')
+            return (fri - timedelta(days=4), fri)
+        except (ValueError, TypeError):
+            pass
+    return None, None
+
+def parse_staffing_exits(sheets, week_start, week_end):
+    """Fallback per-AM weekly exits from the Staffing workbook's 'Exit Report' sheet,
+    used when no standalone Weekly Exits file is uploaded. That sheet is a cumulative
+    exit list, so we count only rows whose Last Working Day (DOL) falls inside the
+    reporting week. Returns {canonical_am: count}, or None if the sheet/period is
+    unusable (never fabricate an exit number). Verified against the Staffing
+    'Summary - Deployed' weekly Exit column: DOL-in-week reproduces the director
+    totals almost exactly (June: 25 vs 26; 4 of 5 directors exact)."""
+    if not sheets or not week_start or not week_end:
+        return None
+    target = hdr = None
+    for sh in sheets:
+        for r in sh[:4]:
+            low = [clean(c).lower() for c in r]
+            if 'am' in low and 'dol' in low and 'emp no' in low:
+                target, hdr = sh, low
+                break
+        if target:
+            break
+    if not target:
+        return None
+    ami = hdr.index('am')
+    doli = hdr.index('dol')
+    empi = hdr.index('emp no')
+    out = {}
+    for r in target[1:]:
+        emp = clean(r[empi]) if len(r) > empi else ''
+        if not emp or not emp.isdigit():   # skip banner / client-group separator rows
+            continue
+        dol = serial_to_date(r[doli]) if len(r) > doli else None
+        if not dol or not (week_start <= dol <= week_end):
+            continue
+        am = canon_am(r[ami]) if len(r) > ami else ''
+        if am:
+            out[am] = out.get(am, 0) + 1
+    return out
+
 def compute_dashboard_data(report_id):
     """Aggregate the report's raw files to AM level (Coverage/Selects/Renege/Joiners/Exits)."""
+    # Refresh editable master config from S3 first so this request reflects Rhoni's
+    # latest org-chart / customer-master edits without a redeploy.
+    load_org_config()
+    customer_master = load_customer_master()
     metadata = get_report_metadata(report_id)
     type_to_key = {f.get('file_type'): f.get('key') for f in metadata.get('files', [])}
 
@@ -1059,10 +1232,16 @@ def compute_dashboard_data(report_id):
     dir_votes = {}       # canonical AM -> {canonical Director: rows}  (fallback only)
     clients = {}
 
-    # Recruiter counts (Avg Subs) and head count (Staffing) are file-level parses
-    recruiters_by_am, recruiters_by_dir, total_recruiters, details_by_am, unattached_blank = parse_recruiters(
-        load('Submissions (Avg Subs) Raw Report'))
-    hc_by_dir = parse_staffing_hc(load('Staffing Report for YTJ & YTE'))
+    # Recruiter counts (Avg Subs) and head count (Staffing) are file-level parses.
+    # The Avg Subs file is optional: when absent, recruiter metrics degrade to null
+    # (never 0) rather than crash.
+    avg_sheets = load('Submissions (Avg Subs) Raw Report')
+    if avg_sheets:
+        recruiters_by_am, recruiters_by_dir, total_recruiters, details_by_am, unattached_blank = parse_recruiters(avg_sheets)
+    else:
+        recruiters_by_am, recruiters_by_dir, total_recruiters, details_by_am, unattached_blank = {}, {}, None, {}, []
+    staffing_sheets = load('Staffing Report for YTJ & YTE')
+    hc_by_dir = parse_staffing_hc(staffing_sheets)
     mtd_by_am, mtd_by_dir = {}, {}
     report_month = norm_key(metadata.get('month'))
 
@@ -1134,16 +1313,28 @@ def compute_dashboard_data(report_id):
                     if report_month and mon == report_month:
                         mtd_by_am[am] = mtd_by_am.get(am, 0) + 1
 
-    # Exits: EXITED + APPROVED only (exclude pending SUBMITTED)
+    # Exits: prefer the standalone Weekly Exits file (EXITED + APPROVED only). When
+    # it's absent, fall back to the Staffing 'Exit Report' sheet filtered to the
+    # reporting week. If neither yields anything, exits_source stays None so the
+    # frontend can show exits as unknown rather than a fabricated 0.
+    exits_source = None
     sheets = load('Weekly Exits Report')
     if sheets:
         sh, hi, cm = sheet_with_header(sheets, 'Employee Id', 'Account Manager')
         if sh:
+            exits_source = 'weekly_exits_file'
             for r in sh[hi + 1:]:
                 am = canon_am(cg(r, cm, 'Account Manager'))
                 if am and clean(cg(r, cm, 'HRMS Status')).upper() in ('EXITED', 'APPROVED'):
                     rec(am)['exits'] += 1
                     vote_dir(am, canon_dir(cg(r, cm, 'GM', 'Director')))
+    else:
+        week_start, week_end = period_bounds(metadata)
+        ex_by_am = parse_staffing_exits(staffing_sheets, week_start, week_end)
+        if ex_by_am is not None:
+            exits_source = 'staffing_exit_report'
+            for am, n in ex_by_am.items():
+                rec(am)['exits'] += n
 
     # Resolve each AM's Director: org chart wins; otherwise the modal file BU Head;
     # otherwise the AM stays out of am_dir and lands under 'Unassigned'. Blank-AM
@@ -1230,6 +1421,43 @@ def compute_dashboard_data(report_id):
             avg_sub=round(c['submissions'] / c['positions'], 2) if c['positions'] else 0))
     client_list.sort(key=lambda x: -x['positions'])
 
+    # Category rollup: the customer master maps Sub Unit (== Coverage 'Client') to
+    # Unit + Category. Group the per-client rollup by Category; clients with no master
+    # row go into an honest 'Uncategorized' bucket (never guessed).
+    sub_map = {}
+    if customer_master:
+        for row in customer_master:
+            su = clean(row.get('sub_unit'))
+            if su:
+                sub_map[su] = row
+    cats = {}
+    matched_clients = 0
+    for cl, c in clients.items():
+        row = sub_map.get(clean(cl))
+        if row:
+            matched_clients += 1
+        cat = (clean(row.get('category')) if row else '') or 'Uncategorized'
+        unit = clean(row.get('unit')) if row else ''
+        e = cats.setdefault(cat, dict(positions=0, submissions=0, jobs_with_subs=0, sub_units=0, units=set()))
+        e['positions'] += c['positions']
+        e['submissions'] += c['submissions']
+        e['jobs_with_subs'] += c['jobs_with_subs']
+        e['sub_units'] += 1
+        if unit:
+            e['units'].add(unit)
+    category_list = []
+    for cat, e in cats.items():
+        category_list.append(dict(
+            name=cat,
+            positions=round(e['positions'], 2),
+            submissions=round(e['submissions'], 2),
+            jobs_with_subs=round(e['jobs_with_subs'], 2),
+            coverage_pct=round(100.0 * e['jobs_with_subs'] / e['positions'], 1) if e['positions'] else 0,
+            avg_sub=round(e['submissions'] / e['positions'], 2) if e['positions'] else 0,
+            units=len(e['units']),
+            sub_units=e['sub_units']))
+    category_list.sort(key=lambda x: (x['name'] == 'Uncategorized', -x['positions']))
+
     return {
         'report_id': report_id,
         'data_week_ending': metadata.get('data_week_ending'),
@@ -1239,7 +1467,11 @@ def compute_dashboard_data(report_id):
         'totals': dict(enrich(grand), recruiters=total_recruiters),
         'directors': dir_list,
         'clients': client_list,
-        'unattached_recruiters': unattached_recruiters
+        'categories': category_list,
+        'category_match': {'matched': matched_clients, 'total': len(clients),
+                           'source': 's3' if customer_master is not None else 'unseeded'},
+        'unattached_recruiters': unattached_recruiters,
+        'exits_source': exits_source
     }
 
 def get_dashboard_data(event, context):
@@ -1388,6 +1620,63 @@ def get_reporting_period(event, context):
         return error_response(500, 'PERIOD_DETECTION_FAILED', str(e))
 
 # ============================================================================
+# CONFIG ENDPOINTS (editable master tables; no auth in Phase 1)
+# ============================================================================
+
+def config_customer_master(event, context):
+    """GET/PUT /api/config/customer-master. PUT full-replaces the master (array of
+    13-column row dicts); the previous version is archived under config/history/."""
+    method = event.get('httpMethod', 'GET')
+    if method == 'GET':
+        data = load_customer_master()
+        return response(200, {
+            'success': True,
+            'config': 'customer-master',
+            'source': 's3' if data is not None else 'unseeded',
+            'count': len(data or []),
+            'rows': data or []
+        })
+    try:
+        body = json.loads(event.get('body') or '{}')
+        rows = body.get('rows') if isinstance(body, dict) else body
+        if not isinstance(rows, list):
+            return error_response(400, 'BAD_CONFIG', 'Expected a JSON array of rows or {"rows": [...]}')
+        _config_put('customer_master', rows)
+        log_event('ConfigPutCustomerMaster', {'count': len(rows)})
+        return response(200, {'success': True, 'config': 'customer-master', 'count': len(rows),
+                              'message': f'Customer master saved ({len(rows)} rows); previous version archived to config/history/'})
+    except Exception as e:
+        return error_response(400, 'CONFIG_PUT_FAILED', str(e))
+
+def config_org_chart(event, context):
+    """GET/PUT /api/config/org-chart. Body/return shape:
+    {canonical_org:{AM:Director}, am_aliases:{alias:AM}, director_aliases:{alias:Director}}.
+    PUT full-replaces; the previous version is archived under config/history/."""
+    method = event.get('httpMethod', 'GET')
+    if method == 'GET':
+        cfg = load_org_config()
+        return response(200, {'success': True, 'config': 'org-chart', **cfg})
+    try:
+        body = json.loads(event.get('body') or '{}')
+        if not isinstance(body, dict) or not isinstance(body.get('canonical_org'), dict):
+            return error_response(400, 'BAD_CONFIG', 'Expected {canonical_org:{}, am_aliases:{}, director_aliases:{}}')
+        payload = {
+            'canonical_org': body.get('canonical_org') or {},
+            'am_aliases': body.get('am_aliases') or {},
+            'director_aliases': body.get('director_aliases') or {},
+        }
+        _config_put('org_chart', payload)
+        load_org_config()  # apply immediately for subsequent calls in this container
+        log_event('ConfigPutOrgChart', {'ams': len(payload['canonical_org'])})
+        return response(200, {'success': True, 'config': 'org-chart',
+                              'canonical_org_count': len(payload['canonical_org']),
+                              'am_aliases_count': len(payload['am_aliases']),
+                              'director_aliases_count': len(payload['director_aliases']),
+                              'message': 'Org chart saved; previous version archived to config/history/'})
+    except Exception as e:
+        return error_response(400, 'CONFIG_PUT_FAILED', str(e))
+
+# ============================================================================
 # LAMBDA HANDLER
 # ============================================================================
 
@@ -1422,6 +1711,12 @@ def lambda_handler(event, context):
 
         elif path == '/api/trends' and method == 'GET':
             return get_trends(event, context)
+
+        elif path == '/api/config/customer-master' and method in ('GET', 'PUT'):
+            return config_customer_master(event, context)
+
+        elif path == '/api/config/org-chart' and method in ('GET', 'PUT'):
+            return config_org_chart(event, context)
 
         elif path.startswith('/api/reports/') and method == 'GET':
             report_id = path.split('/')[-1]
