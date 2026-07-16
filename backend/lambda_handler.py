@@ -11,8 +11,9 @@ import boto3
 import io
 import re
 import zipfile
+import calendar
 import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from decimal import Decimal
 from urllib.parse import parse_qs
 
@@ -92,6 +93,111 @@ def error_response(status_code, code, message):
             'message': message
         }
     })
+
+# ============================================================================
+# CALENDAR-ALIGNED WEEK NUMBERING
+# ----------------------------------------------------------------------------
+# Weeks are the month's Mon-Fri working-day segments, split at weekends.
+#
+# RULE: a week is a contiguous run of working days (Mon-Fri). Weekends (Sat/Sun)
+# break one segment from the next. The FIRST segment starts on the 1st of the
+# month whatever weekday that is (so W1 can be a partial week of 1-4 days); if
+# the 1st falls on Sat/Sun there simply is no working day until the first Monday,
+# so W1 starts that Monday. The last segment ends on the month's last working
+# day. Segments are numbered W1..Wn in calendar order. A report's week number is
+# the segment whose date range contains its data_week_ending (a Friday).
+#
+# This is deliberately NOT Monday-to-Friday week *counting* (which would make the
+# first full Mon-Fri block W1 and lose the partial opening week). Examples:
+#   Jul 2026 (1st = Wed): W1 1-3, W2 6-10, W3 13-17, W4 20-24, W5 27-31
+#   May 2026 (1st = Fri): W1 1,   W2 4-8,  W3 11-15, W4 18-22, W5 25-29
+# So the existing May report (data week 25-29 May) is W5, not W1.
+
+def month_week_segments(year, month):
+    """Return the calendar-aligned week segments for a month as a list of dicts
+    {n, start(date), end(date), working_days}, numbered W1..Wn in order.
+
+    A segment is a contiguous run of Mon-Fri days; a weekend closes the current
+    segment and opens the next. The first segment begins on the first working
+    day on/after the 1st (which is the 1st itself unless it is Sat/Sun)."""
+    days_in_month = calendar.monthrange(year, month)[1]
+    segments = []
+    cur = None
+    for day in range(1, days_in_month + 1):
+        d = date(year, month, day)
+        if d.weekday() < 5:  # Mon(0)..Fri(4) is a working day
+            if cur is None:
+                cur = {'start': d, 'end': d, 'working_days': 1}
+            else:
+                cur['end'] = d
+                cur['working_days'] += 1
+        elif cur is not None:  # Sat/Sun closes the running segment
+            segments.append(cur)
+            cur = None
+    if cur is not None:
+        segments.append(cur)
+    for i, seg in enumerate(segments):
+        seg['n'] = i + 1
+    return segments
+
+def week_number_for_date(d):
+    """Week number (1-based) of the segment containing date d. If d is a weekend
+    (or otherwise not inside a segment), it maps to the last segment that starts
+    on/before it, so a Friday-ending date always resolves to its own week."""
+    if isinstance(d, datetime):
+        d = d.date()
+    segments = month_week_segments(d.year, d.month)
+    for seg in segments:
+        if seg['start'] <= d <= seg['end']:
+            return seg['n']
+    num = 1
+    for seg in segments:
+        if seg['start'] <= d:
+            num = seg['n']
+    return num
+
+def _parse_week_ending(s):
+    """Parse a 'dd-Mon-YYYY' week-ending string to a date; None if unparseable."""
+    try:
+        return datetime.strptime(str(s), '%d-%b-%Y').date()
+    except (ValueError, TypeError):
+        return None
+
+def _corrected_week(rep):
+    """Authoritative week for a stored report: computed from its data_week_ending
+    (calendar-aligned), falling back to any stored 'week' only when the date is
+    missing/unparseable."""
+    d = _parse_week_ending(rep.get('data_week_ending'))
+    if d:
+        return week_number_for_date(d)
+    try:
+        return int(rep.get('week', 1) or 1)
+    except (ValueError, TypeError):
+        return 1
+
+def build_weeks_structure(year, month, reports):
+    """Full week structure for a data month, for data-driven week chips:
+    [{n, start:'YYYY-MM-DD', end:'YYYY-MM-DD', label:'W1', working_days, has_report, report_id|null}].
+    A segment is flagged has_report when some report's data_week_ending falls in it."""
+    report_by_week = {}
+    for rep in reports or []:
+        d = _parse_week_ending(rep.get('data_week_ending'))
+        if d and d.year == year and d.month == month:
+            wn = week_number_for_date(d)
+            report_by_week.setdefault(wn, rep.get('report_id'))
+    out = []
+    for seg in month_week_segments(year, month):
+        rid = report_by_week.get(seg['n'])
+        out.append({
+            'n': seg['n'],
+            'start': seg['start'].isoformat(),
+            'end': seg['end'].isoformat(),
+            'label': f"W{seg['n']}",
+            'working_days': seg['working_days'],
+            'has_report': rid is not None,
+            'report_id': rid,
+        })
+    return out
 
 # ============================================================================
 # FILE PROCESSING
@@ -475,13 +581,17 @@ def upload_files(event, context):
         period_start, period_end = extract_data_period(file_map)
         data_week_ending = None
         data_period = None
+        week_num = None
         if period_end:
             friday = period_end + timedelta(days=4 - period_end.weekday())
             data_week_ending = friday.strftime('%d-%b-%Y')
             data_period = f"{period_start.strftime('%d-%b-%Y')} to {period_end.strftime('%d-%b-%Y')}"
+            # Calendar-aligned week from the week-ending Friday (not the upload date)
+            week_num = week_number_for_date(friday.date())
 
         report_data = {
             'report_id': report_id,
+            'week': week_num or 1,
             'month': (period_end or datetime.utcnow()).strftime('%B %Y'),
             'file_count': len(stored_files),
             'files': stored_files
@@ -533,6 +643,24 @@ def list_reports(event, context):
         response_data = table.scan(Limit=50)
 
         reports = response_data.get('Items', [])
+
+        # Emit the calendar-aligned week for every report (computed from its
+        # data_week_ending). Back-fill the stored 'week' attribute when it drifts,
+        # so existing rows that were written as week=1 self-correct on first read.
+        for rep in reports:
+            corrected = _corrected_week(rep)
+            if int(rep.get('week', 0) or 0) != corrected:
+                rep['week'] = corrected
+                try:
+                    table.update_item(
+                        Key={'report_id': rep['report_id']},
+                        UpdateExpression='SET #w = :w',
+                        ExpressionAttributeNames={'#w': 'week'},
+                        ExpressionAttributeValues={':w': corrected}
+                    )
+                except Exception as e:
+                    print(f"list_reports: week back-fill failed for {rep.get('report_id')}: {e}")
+
         reports.sort(key=lambda x: x.get('created_at', ''), reverse=True)
 
         log_event('ListReports', {'count': len(reports)})
@@ -821,12 +949,26 @@ def norm_key(s):
     """Loose key for cross-file month matching, e.g. 'July-2026' == 'July 2026'."""
     return re.sub(r'[^a-z0-9]', '', str(s or '').lower())
 
+def numn(v):
+    """Number or None. Blank/absent -> None (never 0-filled); a literal 0 stays 0."""
+    s = clean(v)
+    if s == '':
+        return None
+    try:
+        f = float(s)
+        return int(f) if f == int(f) else round(f, 2)
+    except (ValueError, TypeError):
+        return None
+
 def parse_recruiters(sheets):
     """Avg Subs (multi-sheet): one data row per recruiter, Reporting Manager = AM,
-    BU/DU Head = Director. Returns (recruiters_by_am, recruiters_by_dir, total)."""
+    BU/DU Head = Director. Returns (by_am, by_dir, total, details_by_am, unattached_blank).
+    details_by_am maps canonical AM -> [recruiter detail dicts]; unattached_blank holds
+    recruiters whose row has no Reporting Manager (can't resolve to any AM)."""
     by_am, by_dir, total = {}, {}, 0
+    details_by_am, unattached_blank = {}, []
     if not sheets:
-        return by_am, by_dir, total
+        return by_am, by_dir, total, details_by_am, unattached_blank
     for sh in sheets:
         hi, cm = find_header(sh, 'Reporting Manager')
         if hi is None:
@@ -838,11 +980,20 @@ def parse_recruiters(sheets):
             total += 1
             am = canon_am(cg(r, cm, 'Reporting Manager'))
             dirn = canon_dir(cg(r, cm, 'BU Head', 'DU Head'))
+            detail = dict(
+                name=name,
+                submissions=numn(cg(r, cm, 'Total Submissions', 'Current Week Submissions', 'Submissions')),
+                target=numn(cg(r, cm, 'Submissions Target')),
+                leave_count=numn(cg(r, cm, 'Leave Count', 'Leave')),
+                comments=(clean(cg(r, cm, 'Comments', 'Reason')) or None))
             if am:
                 by_am[am] = by_am.get(am, 0) + 1
+                details_by_am.setdefault(am, []).append(detail)
+            else:
+                unattached_blank.append(dict(detail, reporting_manager=None))
             if dirn:
                 by_dir[dirn] = by_dir.get(dirn, 0) + 1
-    return by_am, by_dir, total
+    return by_am, by_dir, total, details_by_am, unattached_blank
 
 def parse_staffing_hc(sheets):
     """Staffing 'Summary - Deployed': per-director head count read off the subtotal
@@ -909,7 +1060,7 @@ def compute_dashboard_data(report_id):
     clients = {}
 
     # Recruiter counts (Avg Subs) and head count (Staffing) are file-level parses
-    recruiters_by_am, recruiters_by_dir, total_recruiters = parse_recruiters(
+    recruiters_by_am, recruiters_by_dir, total_recruiters, details_by_am, unattached_blank = parse_recruiters(
         load('Submissions (Avg Subs) Raw Report'))
     hc_by_dir = parse_staffing_hc(load('Staffing Report for YTJ & YTE'))
     mtd_by_am, mtd_by_dir = {}, {}
@@ -1033,6 +1184,7 @@ def compute_dashboard_data(report_id):
                 grand[k] += d[k]
             am_obj = dict(name=am, **enrich(d))
             am_obj['recruiters'] = recruiters_by_am.get(am)   # None => AM not in Avg Subs (often a name-form mismatch)
+            am_obj['recruiter_details'] = details_by_am.get(am)  # list[{name,submissions,target,leave_count,comments}] or None
             am_obj['mtd_joiners'] = mtd_by_am.get(am, 0)
             am_list.append(am_obj)
         dobj = dict(name=dname, totals=enrich(dtot), ams=am_list)
@@ -1058,6 +1210,15 @@ def compute_dashboard_data(report_id):
                              rpr=round(mtd / closing, 2) if closing else None))
     dir_list.sort(key=lambda x: (x['name'] == 'Unassigned', -x['totals']['positions']))
 
+    # Recruiters whose Reporting Manager didn't resolve to an AM shown in the tree are
+    # surfaced (not dropped) at the top level, tagged with their unresolved manager.
+    attached_am = {a['name'] for d in dir_list for a in d['ams'] if a['name'] in details_by_am}
+    unattached_recruiters = list(unattached_blank)
+    for am, lst in details_by_am.items():
+        if am not in attached_am:
+            for det in lst:
+                unattached_recruiters.append(dict(det, reporting_manager=am))
+
     client_list = []
     for cl, c in clients.items():
         client_list.append(dict(
@@ -1073,9 +1234,12 @@ def compute_dashboard_data(report_id):
         'report_id': report_id,
         'data_week_ending': metadata.get('data_week_ending'),
         'data_period': metadata.get('data_period'),
+        'week': _corrected_week(metadata),
+        'month': metadata.get('month'),
         'totals': dict(enrich(grand), recruiters=total_recruiters),
         'directors': dir_list,
-        'clients': client_list
+        'clients': client_list,
+        'unattached_recruiters': unattached_recruiters
     }
 
 def get_dashboard_data(event, context):
@@ -1083,14 +1247,20 @@ def get_dashboard_data(event, context):
     try:
         params = event.get('queryStringParameters') or {}
         report_id = params.get('report_id')
+        table = dynamodb.Table(DYNAMODB_TABLE)
+        reports = table.scan(Limit=50).get('Items', [])
         if not report_id:
-            table = dynamodb.Table(DYNAMODB_TABLE)
-            reports = table.scan(Limit=50).get('Items', [])
             if not reports:
                 return error_response(404, 'NO_REPORTS', 'No reports uploaded yet')
             report_id = max(reports, key=lambda x: x.get('created_at', '')).get('report_id')
 
         data = compute_dashboard_data(report_id)
+
+        # Full week structure for the report's data month, so the frontend can
+        # render week chips data-driven (which weeks exist, which have reports).
+        anchor = _parse_week_ending(data.get('data_week_ending'))
+        data['weeks'] = build_weeks_structure(anchor.year, anchor.month, reports) if anchor else []
+
         log_event('GetDashboardData', {'report_id': report_id})
         return response(200, dict(success=True, **data, timestamp=datetime.utcnow().isoformat()))
     except Exception as e:
@@ -1113,9 +1283,12 @@ def get_trends(event, context):
             except Exception as e:
                 print(f"trends: skipping {rid}: {e}")
                 continue
+            week_ending = data.get('data_week_ending') or rep.get('data_week_ending')
+            wd = _parse_week_ending(week_ending)
             weeks.append({
                 'report_id': rid,
-                'week_ending': data.get('data_week_ending') or rep.get('data_week_ending'),
+                'week_ending': week_ending,
+                'week': week_number_for_date(wd) if wd else _corrected_week(rep),
                 'month': rep.get('month'),
                 'totals': data['totals']
             })
@@ -1176,15 +1349,20 @@ def get_reporting_period(event, context):
         # Friday of the week the data belongs to (Mon=0 .. Fri=4; Sat/Sun map back to that Friday)
         week_ending = latest_dt + timedelta(days=4 - latest_dt.weekday())
 
-        # All Fridays in that month drive the sidebar week list
-        d = latest_dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        d = d + timedelta(days=(4 - d.weekday()) % 7)
-        fridays = []
-        while d.month == latest_dt.month:
-            fridays.append(d)
-            d += timedelta(days=7)
+        # Calendar-aligned week segments for the data month drive both the week
+        # number and the data-driven week chips.
+        weeks = build_weeks_structure(latest_dt.year, latest_dt.month, reports)
+        week_num = week_number_for_date(week_ending.date())
+        seg = next((w for w in weeks if w['n'] == week_num), None)
+        # week_start/week_end reflect the actual segment (partial opening weeks included)
+        week_start_str = seg['start'] if seg else (week_ending - timedelta(days=4)).strftime('%Y-%m-%d')
+        week_end_str = seg['end'] if seg else week_ending.strftime('%Y-%m-%d')
 
-        week_num = next((i + 1 for i, f in enumerate(fridays) if f.date() == week_ending.date()), 1)
+        def _fmt(iso):
+            try:
+                return datetime.strptime(iso, '%Y-%m-%d').strftime('%d-%b-%Y')
+            except (ValueError, TypeError):
+                return iso
 
         log_event('GetReportingPeriod', {'month': latest_dt.strftime('%B %Y'), 'week': week_num})
 
@@ -1195,9 +1373,11 @@ def get_reporting_period(event, context):
                 'month_number': latest_dt.month,
                 'week': week_num,
                 'week_ending': week_ending.strftime('%d-%b-%Y'),
-                'week_endings': [f.strftime('%d-%b-%Y') for f in fridays],
-                'week_start': (week_ending - timedelta(days=4)).strftime('%d-%b-%Y'),
-                'week_end': week_ending.strftime('%d-%b-%Y'),
+                # Segment end dates (last working day of each week) for the sidebar list
+                'week_endings': [_fmt(w['end']) for w in weeks],
+                'week_start': _fmt(week_start_str),
+                'week_end': _fmt(week_end_str),
+                'weeks': weeks,
                 'source': source,
                 'report_id': report_id
             },

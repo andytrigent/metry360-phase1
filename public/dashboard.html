@@ -26,6 +26,24 @@
       padding: 14px 24px 0;
     }
 
+    /* Recruiter sub-rows (one level below AM in the Recruitment view). Extra
+       indent + lighter weight so the recruiter → AM → director nesting reads. */
+    .m-table tbody tr.m-subrow--deep .m-team { padding-left: 48px; }
+    .m-table tbody tr.m-subrow--deep .m-team__name { font-weight: 400; color: var(--text-body); }
+    /* Muted tag for recruiter comments like "New Joiner" / "Saturday Working". */
+    .m-tag {
+      display: inline-block;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--text-subtle);
+      background: var(--page-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 5px;
+      padding: 1px 6px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
     /* Report History cards (operational view, restyled with DS tokens). */
     .rh-list { display: grid; gap: 16px; }
     .rh-card { padding: 20px 22px; }
@@ -115,9 +133,20 @@
       return { y: Number(p[1]), m: mi + 1 };
     }
     function monthKey(y, m) { return y + "-" + m; }
-    function weekOfMonth(dateStr) {
-      var d = parseWeekEnding(dateStr);
-      return d ? Math.ceil(d.getDate() / 7) : 0;
+    function pad2(n) { return (n < 10 ? "0" : "") + n; }
+    // "2026-07-01" -> Date (local midnight)
+    function parseISO(s) {
+      var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || "").trim());
+      return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
+    }
+    // A weeks[] entry's date range -> "01–03 Jul" (same month) / "01 May" (single day)
+    // / "28 Jul – 01 Aug" (spans two months). Purely for the chip tooltip.
+    function prettyDateRange(startISO, endISO) {
+      var s = parseISO(startISO), e = parseISO(endISO);
+      if (!s || !e) return String(startISO) + "–" + String(endISO);
+      if (s.getMonth() === e.getMonth() && s.getDate() === e.getDate()) return pad2(s.getDate()) + " " + MONTHS[s.getMonth()];
+      if (s.getMonth() === e.getMonth()) return pad2(s.getDate()) + "–" + pad2(e.getDate()) + " " + MONTHS[s.getMonth()];
+      return pad2(s.getDate()) + " " + MONTHS[s.getMonth()] + " – " + pad2(e.getDate()) + " " + MONTHS[e.getMonth()];
     }
     // Fiscal year label for "Select Cycle": FY starts in April. Jul 2026 -> "26-27".
     function fiscalCycleLabel(y, m) {
@@ -384,6 +413,15 @@
     /* =====================================================================
        TOOLBAR
        ===================================================================== */
+    // Calendar weeks for the active month, taken from that month's report payload
+    // (weeks[]). Empty when the active month has no uploaded report.
+    function activeMonthWeeks() {
+      var am = monthModel().filter(function (mo) { return monthKey(mo.y, mo.m) === state.activeMonthKey; })[0];
+      if (!am || !am.reportId) return [];
+      var dd = state.dataById[am.reportId];
+      return (dd && Array.isArray(dd.weeks)) ? dd.weeks : [];
+    }
+
     function renderToolbar() {
       var months = monthModel();
       var d = activeData();
@@ -419,22 +457,19 @@
       });
       html += "</div>";
 
-      // Week chips for the active month
+      // Week chips for the active month — rendered straight from the API's weeks[]
+      // (calendar-anchored: W1 starts on the 1st, weeks end Friday, so W5 can exist).
+      // No client-side week math. A chip is clickable only when that week has a
+      // report; its report_id drives navigation. Active = the week being viewed.
       html += '<div class="m-toolbar__group">';
-      var activeMonth = months.filter(function (mo) { return monthKey(mo.y, mo.m) === state.activeMonthKey; })[0];
-      var repWeek = 0;
-      if (activeMonth && activeMonth.reportId) {
-        var rep = reportById(activeMonth.reportId);
-        repWeek = rep ? weekOfMonth(rep.data_week_ending) : 0;
-      }
-      var maxWeek = Math.max(4, repWeek);
-      for (var w = 1; w <= maxWeek; w++) {
-        var enabled = (w === repWeek);
-        var isActive = enabled && activeMonth && activeMonth.reportId === state.activeReportId;
+      activeMonthWeeks().forEach(function (wk) {
+        var isActive = wk.has_report && wk.report_id === state.activeReportId;
+        var title = wk.label + " · " + prettyDateRange(wk.start, wk.end) + (wk.has_report ? "" : " · no report");
         html += '<button class="m-chip m-chip--week' + (isActive ? " is-active" : "") + '"' +
-          (enabled ? ' data-week="' + w + '"' : ' disabled title="No report for this week"') +
-          ' style="' + (enabled ? "" : "opacity:.45;") + '">W' + w + "</button>";
-      }
+          (wk.has_report ? ' data-week-report="' + esc(wk.report_id) + '"' : " disabled") +
+          ' title="' + esc(title) + '"' +
+          ' style="' + (wk.has_report ? "" : "opacity:.45;") + '">' + esc(wk.label) + "</button>";
+      });
       html += "</div>";
 
       html += '<div class="m-toolbar__spacer"></div>';
@@ -626,6 +661,69 @@
       return html;
     }
 
+    /* =====================================================================
+       RECRUITER LEVEL (one below AM)
+       Only SUBMISSION (raw per-recruiter count) and ACHIEVE (submissions vs the
+       Avg Subs file's per-recruiter target) are real at this level — everything
+       else (health/coverage/selection/renege/MTD/trend) genuinely doesn't exist
+       per recruiter, so it renders "—". Nulls are never fabricated into zeros.
+       ===================================================================== */
+    function recruiterAchievement(rec) {
+      var t = num(rec.target);
+      if (rec.target == null || t <= 0) return null;
+      return (num(rec.submissions) / t) * 100;
+    }
+    // Submission-vs-target achievement RAG (no CLAUDE.md threshold for this one;
+    // hit target = green, within 25% = amber, further = red).
+    function ragAchievement(pct) { return pct >= 100 ? "green" : pct >= 75 ? "amber" : "red"; }
+
+    function recruiterCells(rec) {
+      var dash = '<td class="m-val--muted">—</td>';
+      var html = "";
+      html += dash;   // Health
+      html += dash;   // Coverage
+      html += (rec.submissions == null) ? dash : '<td class="m-val--muted">' + fmtInt(rec.submissions) + "</td>"; // Submission (real)
+      html += dash;   // Selection
+      html += dash;   // Renege
+      html += dash;   // MTD
+      var ach = recruiterAchievement(rec);
+      html += (ach == null) ? dash : '<td class="m-val--' + ragAchievement(ach) + '">' + Math.round(ach) + "%</td>"; // Achieve (real)
+      html += dash;   // Trend
+      return html;
+    }
+
+    // The Avg Subs file uses "NA"/"-" as filler for an empty comment — treat those
+    // as no comment so we don't render a meaningless tag.
+    function meaningfulComment(c) {
+      if (c == null) return false;
+      var s = String(c).trim().toLowerCase();
+      return s !== "" && s !== "na" && s !== "n/a" && s !== "-" && s !== "none";
+    }
+    // Recruiter name + muted comment tag; leave/target (and mgr for unattached) on the sub-line.
+    function recruiterTeamCell(rec, showMgr) {
+      var h = '<div class="m-team"><div class="m-team__names"><span class="m-team__name">' + esc(rec.name);
+      if (meaningfulComment(rec.comments)) h += '<span class="m-tag">' + esc(String(rec.comments).trim()) + "</span>";
+      h += "</span>";
+      var meta = [];
+      var lc = num(rec.leave_count);
+      if (rec.leave_count != null && lc > 0) meta.push(lc + " day" + (lc === 1 ? "" : "s") + " leave");
+      if (rec.target != null) meta.push("target " + fmtInt(rec.target));
+      if (showMgr && rec.reporting_manager) meta.push("mgr: " + esc(String(rec.reporting_manager)));
+      if (meta.length) h += '<span class="m-team__sub">' + meta.join(" · ") + "</span>";
+      h += "</div></div>";
+      return h;
+    }
+
+    // True if the payload carries recruiter-level detail anywhere (new backend).
+    // Old payloads lack it entirely → Recruitment view keeps its flat AM behavior.
+    function anyRecruiterDetails(d) {
+      if (!d) return false;
+      if (Array.isArray(d.unattached_recruiters) && d.unattached_recruiters.length) return true;
+      return (d.directors || []).some(function (dir) {
+        return (dir.ams || []).some(function (am) { return Array.isArray(am.recruiter_details) && am.recruiter_details.length; });
+      });
+    }
+
     function tableHead(title) {
       var tabs = ["health","coverage","renege","achievement"];
       var labels = { health: "Health", coverage: "Coverage", renege: "Renege", achievement: "Achievement" };
@@ -659,9 +757,17 @@
     }
 
     /* =====================================================================
-       VIEW: RECRUITMENT (flat AM rows)
+       VIEW: RECRUITMENT
+       Recruiter → AM → Director hierarchy when the payload carries recruiter
+       detail; otherwise the original flat AM list (old-payload fallback).
        ===================================================================== */
     function viewRecruitment(d) {
+      return anyRecruiterDetails(d) ? viewRecruitmentDeep(d) : viewRecruitmentFlat(d);
+    }
+
+    // Old behavior: flat AM rows tagged with their director. Kept intact so an
+    // old /api/dashboard-data payload (no recruiter_details) renders as before.
+    function viewRecruitmentFlat(d) {
       var ams = sortByTab(activeAMs());
       var body = "";
       ams.forEach(function (am) {
@@ -678,6 +784,60 @@
       html += intelligenceCard(d);
       html += velocityCard("Velocity & Health");
       html += "</div>";
+      return html;
+    }
+
+    // New behavior: director group (management rollup) → AM rows expand → recruiter
+    // sub-rows. Tab sorting applies at both the director and the AM level.
+    function viewRecruitmentDeep(d) {
+      var dash8 = '<td class="m-val--muted">—</td>';
+      var dirs = sortByTab((d.directors || []).map(function (dir) {
+        return Object.assign({ _dir: dir }, dir.totals, { name: dir.name, mtd_joiners: dir.mtd_joiners });
+      }));
+      var body = "";
+      dirs.forEach(function (row) {
+        var dir = row._dir;
+        var dkey = "d-" + dir.name.replace(/\W+/g, "");
+        var ams = sortByTab((dir.ams || []).slice());
+        var coverLess = !hasCoverage(dir.totals);
+        var sub = coverLess
+          ? dir.name + (dir.hc && dir.hc.closing != null ? " · HC only (" + fmtInt(dir.hc.closing) + " deployed)" : " · Staffing only")
+          : dir.name;
+        body += '<tr data-expand="' + dkey + '"><td>' + teamCell("Team " + firstWord(dir.name), sub, ams.length > 0, false) + "</td>" +
+          metricCells(row, { kind: "director", name: dir.name }) + "</tr>";
+        ams.forEach(function (am) {
+          var recs = Array.isArray(am.recruiter_details) ? am.recruiter_details : [];
+          var akey = dkey + "-am-" + String(am.name).replace(/\W+/g, "");
+          var amSub = recs.length ? recs.length + " recruiter" + (recs.length === 1 ? "" : "s") : "";
+          body += '<tr class="m-subrow is-hidden" data-child="' + dkey + '"' + (recs.length ? ' data-expand="' + akey + '"' : "") + '><td>' +
+            teamCell(am.name, amSub, recs.length > 0, false) + "</td>" +
+            metricCells(am, { kind: "am", name: am.name }) + "</tr>";
+          recs.forEach(function (rec) {
+            body += '<tr class="m-subrow m-subrow--deep is-hidden" data-child="' + akey + '"><td>' +
+              recruiterTeamCell(rec) + "</td>" + recruiterCells(rec) + "</tr>";
+          });
+        });
+      });
+
+      // Recruiters whose AM didn't resolve — grouped at the bottom, honest label.
+      var un = Array.isArray(d.unattached_recruiters) ? d.unattached_recruiters : [];
+      if (un.length) {
+        var ukey = "unassigned-recruiters";
+        body += '<tr data-expand="' + ukey + '"><td>' +
+          teamCell("Unassigned recruiters", un.length + " recruiter" + (un.length === 1 ? "" : "s") + " · AM unresolved", true, false) + "</td>" +
+          dash8 + dash8 + dash8 + dash8 + dash8 + dash8 + dash8 + dash8 + "</tr>";
+        un.forEach(function (rec) {
+          body += '<tr class="m-subrow m-subrow--deep is-hidden" data-child="' + ukey + '"><td>' +
+            recruiterTeamCell(rec, true) + "</td>" + recruiterCells(rec) + "</tr>";
+        });
+      }
+
+      if (!dirs.length && !un.length) body = emptyRow();
+
+      var html = renderBand(d);
+      html += '<div class="m-card m-tablecard m-section">' + tableHead("Recruitment") +
+        '<div class="m-table-scroll"><table class="m-table">' + tableColHead() + "<tbody>" + body + "</tbody></table></div></div>";
+      html += '<div class="m-panels m-panels--2">' + intelligenceCard(d) + velocityCard("Velocity & Health") + "</div>";
       return html;
     }
 
@@ -918,6 +1078,19 @@
       h += "</div></div>";
       return h;
     }
+    // Hide a row's entire subtree: direct children plus, recursively, any
+    // grandchildren, resetting nested chevrons. Used when collapsing a level.
+    function collapseSubtree(key) {
+      document.querySelectorAll('[data-child="' + key + '"]').forEach(function (c) {
+        c.classList.add("is-hidden");
+        var childKey = c.getAttribute("data-expand");
+        if (childKey) {
+          var chev = c.querySelector(".m-team__chevron");
+          if (chev) chev.classList.remove("is-open");
+          collapseSubtree(childKey);
+        }
+      });
+    }
     function emptyRow() {
       return '<tr><td colspan="' + TABLE_HEADERS.length + '" style="padding:0;">' +
         emptyState("No data", "No rows for this selection.") + "</td></tr>";
@@ -1081,18 +1254,22 @@
        EVENTS (delegated)
        ===================================================================== */
     document.addEventListener("click", function (ev) {
-      var t = ev.target.closest("[data-nav],[data-client-view],[data-month],[data-week],[data-quarter],[data-tab],[data-rag-toggle],[data-export],[data-reprocess],.m-team__chevron");
+      var t = ev.target.closest("[data-nav],[data-client-view],[data-month],[data-week-report],[data-quarter],[data-tab],[data-rag-toggle],[data-export],[data-reprocess],.m-team__chevron");
       if (!t) return;
 
-      // Expand/collapse chevron
+      // Expand/collapse chevron. Supports nested levels (director → AM → recruiter):
+      // opening reveals only direct children; closing collapses the whole subtree
+      // and resets nested chevrons so a re-open starts from a clean state.
       if (t.classList.contains("m-team__chevron")) {
         var tr = t.closest("tr");
         var key = tr && tr.getAttribute("data-expand");
         if (key) {
           var nowOpen = t.classList.toggle("is-open");
-          document.querySelectorAll('[data-child="' + key + '"]').forEach(function (c) {
-            c.classList.toggle("is-hidden", !nowOpen);
-          });
+          if (nowOpen) {
+            document.querySelectorAll('[data-child="' + key + '"]').forEach(function (c) { c.classList.remove("is-hidden"); });
+          } else {
+            collapseSubtree(key);
+          }
         }
         return;
       }
@@ -1120,10 +1297,15 @@
         selectMonth(t.getAttribute("data-month"));
         return;
       }
-      if (t.hasAttribute("data-week")) {
-        // clicking the (only enabled) week re-selects that month's report
-        var mo = monthModel().filter(function (x) { return monthKey(x.y, x.m) === state.activeMonthKey; })[0];
-        if (mo && mo.reportId) { state.activeReportId = mo.reportId; render(); }
+      if (t.hasAttribute("data-week-report")) {
+        // Load the report for the clicked week (weeks[].report_id). Keep the month
+        // key aligned to that report's month.
+        var rid = t.getAttribute("data-week-report");
+        state.activeReportId = rid;
+        var wrep = reportById(rid);
+        var wpm = wrep ? parseMonthLabel(wrep.month) : null;
+        if (wpm) state.activeMonthKey = monthKey(wpm.y, wpm.m);
+        render();
         return;
       }
       if (t.hasAttribute("data-tab")) {

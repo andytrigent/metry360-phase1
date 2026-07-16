@@ -20,6 +20,14 @@ The dashboard frontend was **fully rebuilt to the new Metry360 design brief** (`
 - `public/dashboard.html` — single-page app, all views: Recruitment (pixel-faithful to Recruitment.png), Management View (expandable director→AM rows), Director Drilldown, AM Productivity, Renege Watch, Coverage Gap, Amazon Ops, ITS (client-scoped), Report History (restyled), plus quarter cycle + month/W1–W4 week chips driven by real report data. Export PDF = window.print() with print stylesheet; CSV export kept.
 - Design decisions: "RENGE" typo in the PNG corrected to "RENEGE"; W1–W4 chips per design but subtitle/trend labels use real dates; a small `DIRECTOR_ALIASES` map merges verified name variants (Sivaranjani/Sivaranjani Pandian; Jyosthna/Jyothsna) — real fix is the canonical name Config (CLAUDE.md open item #4).
 
+## Later same-day additions (all deployed + verified)
+
+- **Canonical org chart**: Lambda embeds CANONICAL_ORG from `../Hirearchy Tracker.xlsx` — org chart wins over per-file BU Head; verified aliases only (Jyosthna/Jyothsna, Sivaranjani/Sivaranjani Pandian, Roshan D, etc.). Unassigned now = truly blank AMs only (July 939 pos). ~8 AMs in live data are missing from the org tracker (stale org, grouped by real BU Head). Open question for business: Vivek Singh Sengar / Praveen Kumar M are both AMs under Sanjib AND their own Staffing director blocks (shown both ways). "Sarvasiddi Venkata Divya Lakshmi" probably = DivyaLakshmi — unconfirmed, kept separate.
+- **Recruiter-level hierarchy**: each AM carries `recruiter_details:[{name,submissions,target,leave_count,comments}]` + top-level `unattached_recruiters` (July 38/102, May 25/90 — managers not in org config; adding names to CANONICAL_ORG/AM_ALIASES auto-attaches them). Recruitment view renders recruiter → AM → director with real per-recruiter ACHIEVE % (submissions/target — the Avg Subs file has per-recruiter targets).
+- **Calendar-anchored weeks** (user requirement): W1 starts the 1st of month, weeks end Friday, W5 exists. July: W1=01–03 (3 working days), report=W2. May: W1=May 1 alone, report=**W5** (25–29). API emits corrected `week` + `weeks:[{n,start,end,label,working_days,has_report,report_id}]`; chips render from it, no client-side week math.
+- **No design-placeholder data**: sidebar client views + Select Client dropdown driven by real `clients[]` (top-3 by positions). Frontend alias stopgap removed (names canonical server-side).
+- **Targets discovery**: `../C2H_SOJPE_May_Week_2_17 May 2026_f.xlsx` has a real `Targets` sheet (per-AM monthly Entry/Exit, FY Apr–Mar) — could unlock Monthly Target/MTD/Achieve KPIs; NOT wired in (confirm currency with Rhoni first). `SOJPE_Config.xlsx` is an empty stub. More backend changes expected from product owner.
+
 ## Backend API (Lambda `sojpe-data-pipeline`, deployed)
 
 - Renege bug FIXED: column matcher `cg()` now matches exact → whole-word → substring ('Count' no longer binds to 'Account Manager'). July reneges = 5 (was 0).
