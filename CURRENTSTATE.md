@@ -1,4 +1,16 @@
-# CURRENT STATE — SOJPE C2H Phase 1 (as of 2026-07-16, post design-rebuild)
+# CURRENT STATE — SOJPE C2H Phase 1 (as of 2026-07-17, post targets-master)
+
+## 2026-07-17: Targets master + Monthly Rollup (ALL LIVE, commit 722599b)
+
+- **Targets master** (from `../Targets.xlsx`): S3 `config/targets.json`, GET/PUT `/api/config/targets` (history-archived like the other masters), 16 per-AM rows with FY Apr 2026–Mar 2027 monthly Entry/Exit targets + C FWD + HC End; editable "Targets" grid in Master Tables. Floor totals validate (Jul 193 / Jun 154 / May 152 entries).
+- **Target-name aliasing is code-side only** (org master untouched): "Sathish - IT" + "Sathish - Non IT" SUM to Sathish Kumar B (Jul 21/21); "Praveen" → Praveen Kumar M. Director rollup follows the canonical org chart (Praveen/Vivek/Rumman/Sachin/Sankeerth targets under Sanjib Saha = Jul 108), NOT the targets file's director column (display-only).
+- **New metrics on every AM/director/grand row** (when a target exists): `monthly_target`, `monthly_exit_target`, `weekly_target` = monthly ÷ 21 × week's working days (uses config `working_days_per_month`), `target_achievement_pct` = MTD joiners ÷ monthly target, `rpr` = MTD joiners ÷ recruiter count (product-owner spec; null when recruiter count unknown — June has no Avg Subs file). Top-level `targets_available`.
+- **`GET /api/monthly?month=YYYY-MM`** (default latest report's month): sums weekly actuals across the month's reports, point-in-time MTD/recruiters from the latest report, contributing-week list; months with no uploads still show targets with null actuals. Frontend "Monthly Rollup" view (month selector, KPI cards, director→AM table, week chips).
+- **Weekly tables** gained Target / Ach % / RPR columns + ⓘ formula popovers, gated on `targets_available` (layout unchanged for pre-targets payloads). Intelligence-report efficiency alert now uses recruiter-based RPR (silent when null).
+- **Recruiter-level coverage FLAGGED IMPOSSIBLE**: Ceipal Coverage export has no assign-to column. Parser is ready — an "Assigned To"/"Assigned Recruiter" column will auto-emit per-AM `recruiter_coverage`; until then recruiter coverage cells show "—" + ⓘ.
+- Divya Lakshmi confirmed already correct in org master (DivyaLakshmi → Manisha Jishtu + aliases); org chart NOT modified.
+
+# Previous state (2026-07-16, post design-rebuild)
 
 Handoff doc for a new session. Read alongside `../CLAUDE.md` (business rules, metric formulas, 83-step spec) and `README.md` (architecture, API reference, deploy steps).
 
