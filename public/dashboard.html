@@ -86,6 +86,21 @@
     .m-master-grid td[contenteditable]:focus { background: var(--page-bg); box-shadow: inset 0 0 0 2px var(--primary); }
     .m-master-grid tr:hover td { background: var(--page-bg); }
     .m-master-del { cursor: pointer; color: var(--red); border: none; background: none; font-size: 15px; line-height: 1; padding: 0 4px; }
+
+    /* Wide Targets grid: freeze the first two columns (director, am) while the 24
+       month entry/exit columns scroll horizontally. Fixed widths give the 2nd column
+       a known left offset (plain CSS, no JS measurement). */
+    .m-master-grid--wide td:nth-child(1), .m-master-grid--wide th:nth-child(1) {
+      position: sticky; left: 0; min-width: 130px; max-width: 130px; background: var(--card-bg); z-index: 1;
+    }
+    .m-master-grid--wide td:nth-child(2), .m-master-grid--wide th:nth-child(2) {
+      position: sticky; left: 130px; min-width: 150px; max-width: 150px; background: var(--card-bg); z-index: 1;
+      box-shadow: 1px 0 0 var(--card-border);
+    }
+    .m-master-grid--wide thead th:nth-child(1),
+    .m-master-grid--wide thead th:nth-child(2) { z-index: 3; }
+    .m-master-grid--wide tr:hover td:nth-child(1),
+    .m-master-grid--wide tr:hover td:nth-child(2) { background: var(--page-bg); }
     .m-master-status { margin-top: 16px; }
 
     /* ---- "i" info icons + click popover (metric definitions) ---- */
@@ -142,12 +157,15 @@
       infoKey: null,             // open metric-info popover key (one at a time)
       scope: "",                 // selected category (or client fallback) for the scoped view
       loadError: false,
+      // Monthly Rollup view. data/error/loading keyed by "YYYY-MM"; month = selected key.
+      monthly: { data: {}, error: {}, loading: {}, month: null },
       // Master Tables (editable config grids). data/dirty/loaded keyed by config name.
       master: {
         tab: "customer-master",
-        data: { "org-chart": null, "customer-master": null },
-        loaded: { "org-chart": false, "customer-master": false },
-        dirty: { "org-chart": false, "customer-master": false },
+        data: { "org-chart": null, "customer-master": null, "targets": null },
+        loaded: { "org-chart": false, "customer-master": false, "targets": false },
+        dirty: { "org-chart": false, "customer-master": false, "targets": false },
+        meta: {},              // per-config extras (targets: fiscal_year, working_days_per_month)
         loading: false,
         filter: "",
         section: "",           // Org Chart section filter (map name) or "" for all
@@ -220,6 +238,10 @@
        ===================================================================== */
     function ragCoverage(p) { p = num(p); return p >= 80 ? "green" : p >= 70 ? "amber" : "red"; }
     function ragAvgSub(v) { v = num(v); return v >= 4 ? "green" : v >= 3 ? "amber" : "red"; }
+    // Target Achievement % (MTD joiners / monthly target): ≥100 green, 75–99 amber, <75 red.
+    function ragAchievePct(p) { p = num(p); return p >= 100 ? "green" : p >= 75 ? "amber" : "red"; }
+    // RPR (recruiter productivity ratio): ≥1.0 green, else red (no amber, per CLAUDE.md).
+    function ragRPR(v) { return num(v) >= 1 ? "green" : "red"; }
     // Honest partial composite: only Coverage vs 80 + Avg Sub vs 4 are computable today.
     function healthComposite(cov, sub) {
       var c = Math.min(num(cov) / 80, 1);
@@ -233,12 +255,25 @@
     // Directors that exist only in Staffing/Joiners have positions 0 but real HC/RPR.
     function hasCoverage(e) { return num(e.positions) > 0; }
 
+    // True when the active report carries joiner-target fields (backend deployed the
+    // targets config). Gates the weekly TARGET / ACHIEVE % / RPR table columns and the
+    // Monthly Target KPI so an old payload (no targets) keeps its exact current layout.
+    function targetsAvailable() { var d = activeData(); return !!(d && d.targets_available); }
+
     /* =====================================================================
        DIRECTOR ROLLUPS
        Names arrive already canonicalized server-side (backend merges duplicate
        directors against the org chart, Hirearchy Tracker.xlsx). The frontend
        renders them as-is — no client-side alias/merge stopgap.
        ===================================================================== */
+    // Total MTD joiners — from totals when present, otherwise summed over directors
+    // (the weekly totals block doesn't always carry mtd_joiners).
+    function totalMTD(d) {
+      if (d.totals && d.totals.mtd_joiners != null) return num(d.totals.mtd_joiners);
+      var any = false, sum = 0;
+      (d.directors || []).forEach(function (dir) { if (dir.mtd_joiners != null) { sum += num(dir.mtd_joiners); any = true; } });
+      return any ? sum : null;
+    }
     // Global RPR = Σ director MTD joiners / Σ director closing HC (totals.rpr is absent).
     function globalRPR(d) {
       var mtd = 0, hc = 0, any = false;
@@ -365,6 +400,42 @@
       return out;
     }
 
+    var MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    function isoMonthKey(y, m) { return y + "-" + pad2(m); }   // "2026-07" (for /api/monthly)
+    // Months available in the Monthly Rollup selector: every month spanned by the reports
+    // (gap-filled by monthModel) plus the current calendar month, ascending.
+    function monthlyMonthList() {
+      var list = monthModel().map(function (mo) {
+        return { key: isoMonthKey(mo.y, mo.m), y: mo.y, m: mo.m, label: mo.label, hasReport: !!mo.reportId };
+      });
+      var now = new Date(), cy = now.getFullYear(), cm = now.getMonth() + 1, ck = isoMonthKey(cy, cm);
+      if (!list.some(function (x) { return x.key === ck; })) {
+        list.push({ key: ck, y: cy, m: cm, label: MONTH_NAMES[cm - 1] + " " + cy, hasReport: false });
+      }
+      list.sort(function (a, b) { return (a.y * 12 + a.m) - (b.y * 12 + b.m); });
+      return list;
+    }
+    function monthlyLabelFor(key) {
+      var hit = monthlyMonthList().filter(function (x) { return x.key === key; })[0];
+      if (hit) return hit.label;
+      var p = /^(\d{4})-(\d{2})$/.exec(String(key || ""));
+      return p ? MONTH_NAMES[Number(p[2]) - 1] + " " + p[1] : String(key || "");
+    }
+    // Fetch /api/monthly for a month (once). Absent endpoint (backend not deployed) is
+    // caught into state.monthly.error so the view degrades to a friendly panel.
+    function loadMonthly(monthStr) {
+      var st = state.monthly;
+      if (!monthStr || st.data[monthStr] || st.loading[monthStr]) return Promise.resolve();
+      st.loading[monthStr] = true;
+      return getJSON("/api/monthly?month=" + encodeURIComponent(monthStr))
+        .then(function (d) {
+          if (d && d.success) { st.data[monthStr] = d; delete st.error[monthStr]; }
+          else { st.error[monthStr] = (d && d.error && d.error.message) || "No monthly data returned."; }
+        })
+        .catch(function (e) { st.error[monthStr] = String((e && e.message) || e); })
+        .then(function () { st.loading[monthStr] = false; });
+    }
+
     /* =====================================================================
        SIDEBAR
        ===================================================================== */
@@ -372,7 +443,8 @@
       { view: "management", label: "Management View" },
       { view: "director", label: "Director Drilldown" },
       { view: "productivity", label: "AM Productivity" },
-      { view: "recruitment", label: "Recruitment" }
+      { view: "recruitment", label: "Recruitment" },
+      { view: "monthly", label: "Monthly Rollup" }
     ];
     // Metric-driven exception views only. Client shortcuts are rendered separately
     // from the API's clients[] (see renderSidebar) — never hardcoded from the design.
@@ -631,12 +703,27 @@
       html += '<div class="m-card m-card--pad"><div class="m-eyebrow">Effort\'s Brief</div><p class="m-brief__body">' + effortBrief(d) + "</p></div>";
       html += '<div class="m-kpis">';
 
-      // KPI 1: Monthly Target — no target config available
+      // KPI 1: Monthly Target — real MTD-vs-target when the payload carries targets,
+      // otherwise the honest "—/—" placeholder (no target config server-side yet).
+      var mtValue, mtStatusCls, mtStatusText;
+      if (targetsAvailable() && t.monthly_target != null) {
+        var mtdT = totalMTD(d);
+        mtValue = (mtdT == null ? "—" : fmtInt(mtdT)) + '<span class="m-kpi__suffix">/ ' + fmtInt(t.monthly_target) + '</span>';
+        var mtBand = (t.target_achievement_pct != null) ? ragAchievePct(t.target_achievement_pct) : "amber";
+        mtStatusCls = mtBand;
+        mtStatusText = (t.target_achievement_pct != null)
+          ? Math.round(num(t.target_achievement_pct)) + "% of monthly target"
+          : "MTD joiners vs monthly target";
+      } else {
+        mtValue = '—<span class="m-kpi__suffix">/ —</span>';
+        mtStatusCls = "amber";
+        mtStatusText = "Needs monthly target config";
+      }
       html += '<div class="m-card m-card--pad m-kpi">' +
         '<div class="m-kpi__icon m-kpi__icon--blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg></div>' +
         '<div class="m-kpi__label">Monthly Target' + infoIcon("kpi-target", "Monthly Target") + '</div>' +
-        '<div class="m-kpi__value">—<span class="m-kpi__suffix">/ —</span></div>' +
-        '<div class="m-kpi__status m-kpi__status--amber">Needs monthly target config</div></div>';
+        '<div class="m-kpi__value">' + mtValue + '</div>' +
+        '<div class="m-kpi__status m-kpi__status--' + mtStatusCls + '">' + mtStatusText + '</div></div>';
 
       // KPI 2: Coverage
       html += '<div class="m-card m-card--pad m-kpi">' +
@@ -717,7 +804,16 @@
       "col-MTD": { t: "Submissions vs Target", b: "Weekly submissions actual vs target (subs_actual / target). Target = sum of recruiter weekly targets from the Avg Subs file, rolled up recruiter → AM → director. Shows “—” when no Avg Subs file was uploaded (e.g. June)." },
       "col-Achieve": { t: "Achievement %", b: "subs_actual ÷ target × 100. Green ≥100, amber 75–99, red <75. Same source and rollup as the Submissions-vs-Target column. Shows “—” with no Avg Subs file." },
       "col-Trend": { t: "Trend", b: "Sparkline of the unit's Average Submission across uploaded weeks. Green if the latest week is at or above the first, red if it declined. Needs ≥2 weeks of data to render." },
-      "kpi-target": { t: "Monthly Target", b: "MTD joiners vs the monthly joiner target. Not yet available — the monthly target per AM isn't configured in Phase 1." },
+      "kpi-target": { t: "Monthly Target", b: "MTD joiners ÷ monthly joiner target × 100. The monthly target per AM comes from the Targets config (Master Tables → Targets). Shows “—/—” until that config is loaded server-side." },
+      "col-WkTarget": { t: "Weekly Target", b: "Weekly joiner target = Monthly Target ÷ 21 × working days in this report week. From the Targets config (Master Tables → Targets), rolled up AM → director. Shows “—” for rows without a configured target." },
+      "col-TgtAchieve": { t: "Achievement %", b: "MTD Joiners ÷ Monthly Target × 100. Green ≥100, amber 75–99, red <75. Distinct from the submission-based Achieve column — this one measures joiners against the monthly joiner target." },
+      "col-RPR": { t: "RPR", b: "Recruiter Productivity Ratio = MTD Joiners ÷ Recruiter Count. Green ≥1.0, red <1.0. Blank when the recruiter count is unknown for that row (e.g. a week with no Avg Subs file)." },
+      "recruiter-coverage": { t: "Recruiter coverage", b: "Recruiter-level coverage needs an “Assigned To” column in the Ceipal Coverage export — not present yet. Coverage is only computable at AM level today, so recruiter rows show “—”." },
+      "mr-target-entry": { t: "Target (Entry)", b: "Monthly joiner target for the selected month, summed across directors/AMs. From the Targets config (Master Tables → Targets)." },
+      "mr-mtd": { t: "MTD Joiners", b: "Month-to-date joiners across the weekly reports uploaded for this month. Shown against the monthly joiner target." },
+      "mr-achieve": { t: "Achievement %", b: "MTD Joiners ÷ Monthly Target × 100. Green ≥100, amber 75–99, red <75." },
+      "mr-rpr": { t: "RPR", b: "Recruiter Productivity Ratio = MTD Joiners ÷ Recruiter Count for the month. Green ≥1.0, red <1.0." },
+      "mr-exits": { t: "Exits vs Exit Target", b: "Actual exits this month against the monthly exit target from the Targets config. Lower actual vs target is better." },
       "kpi-coverage": { t: "Coverage", b: "Portfolio coverage: positions with ≥1 submission ÷ open positions (Ceipal Coverage report). Green ≥80%, amber 70–80%, red <70%." },
       "kpi-avgsub": { t: "Average Submission", b: "Total submissions ÷ open positions across the portfolio (Ceipal Coverage + Submissions reports). Green ≥4, amber 3–4, red <3." },
       "kpi-renege": { t: "Reneges", b: "Total reneges this week (Weekly Renege report). Shown as a count — Renege % needs Offers data, which isn't available yet." },
@@ -751,7 +847,31 @@
       state.infoKey = key;
     }
 
-    var TABLE_HEADERS = ["Team","Health","Coverage","Submission","Selection","Renege","MTD","Achieve","Trend"];
+    // Column model. The joiner-target trio (Target / Ach % / RPR) sits before Trend and
+    // renders only when the active payload has targets_available — otherwise the table
+    // keeps its exact current 9-column shape.
+    function tableHeaderDefs() {
+      var defs = [
+        { label: "Team",       key: "col-Team" },
+        { label: "Health",     key: "col-Health" },
+        { label: "Coverage",   key: "col-Coverage" },
+        { label: "Submission", key: "col-Submission" },
+        { label: "Selection",  key: "col-Selection" },
+        { label: "Renege",     key: "col-Renege" },
+        { label: "MTD",        key: "col-MTD" },
+        { label: "Achieve",    key: "col-Achieve" }
+      ];
+      if (targetsAvailable()) {
+        defs.push({ label: "Target", key: "col-WkTarget" });
+        defs.push({ label: "Ach %",  key: "col-TgtAchieve" });
+        defs.push({ label: "RPR",    key: "col-RPR" });
+      }
+      defs.push({ label: "Trend", key: "col-Trend" });
+      return defs;
+    }
+    // Number of metric <td>s a row must emit (everything after the Team cell).
+    function metricColCount() { return tableHeaderDefs().length - 1; }
+    function dashCells(n) { var s = ""; for (var i = 0; i < n; i++) s += '<td class="m-val--muted">—</td>'; return s; }
 
     // Returns the 8 metric <td>s (everything after the TEAM cell).
     // trend: {kind, name} to build the sparkline, or null.
@@ -788,6 +908,18 @@
         html += '<td class="m-val--' + ragAchievement(ap) + '">' + Math.round(ap) + "%</td>";
       } else {
         html += dash;
+      }
+      // Joiner-target trio (only when the payload carries targets). Each cell falls back
+      // to "—" for rows the backend didn't attach a target to.
+      if (targetsAvailable()) {
+        html += (e.weekly_target != null) ? '<td class="m-val--muted">' + fmtInt(e.weekly_target) + "</td>" : dash;
+        if (e.target_achievement_pct != null) {
+          var tap = num(e.target_achievement_pct);
+          html += '<td class="m-val--' + ragAchievePct(tap) + '">' + Math.round(tap) + "%</td>";
+        } else { html += dash; }
+        if (e.rpr != null) {
+          html += '<td class="m-val--' + ragRPR(e.rpr) + '">' + num(e.rpr).toFixed(2) + "</td>";
+        } else { html += dash; }
       }
       if (trend && cover) {
         var ts = trendSeries(trend.kind, trend.name);
@@ -827,12 +959,21 @@
         var rb = healthBand(rh);
         html += '<td class="m-val--' + rb + '">' + rh + '<span class="m-val__tag">' + healthTag(rb) + "</span></td>";
       }
-      html += dash;   // Coverage — no recruiter column in the Coverage report
+      // Coverage — recruiter-level coverage needs an "Assigned To" column in the Ceipal
+      // Coverage export (not present yet). Render the backend's per-recruiter value once
+      // it lands; until then a muted "—" with an ⓘ note explaining why.
+      var recCov = (rec.recruiter_coverage != null) ? rec.recruiter_coverage : rec.coverage_pct;
+      if (recCov != null) {
+        html += '<td class="m-val--' + ragCoverage(recCov) + '">' + num(recCov) + "</td>";
+      } else {
+        html += '<td class="m-val--muted">—' + infoIcon("recruiter-coverage", "Recruiter coverage") + "</td>";
+      }
       html += (rec.submissions == null) ? dash : '<td class="m-val--muted">' + fmtInt(rec.submissions) + "</td>"; // Submission (real)
       html += dash;   // Selection — not per recruiter
       html += dash;   // Renege — not per recruiter
       html += dash;   // MTD — submissions-vs-target rolls up; per-recruiter shown in Submission/Achieve
       html += (ach == null) ? dash : '<td class="m-val--' + ragAchievement(ach) + '">' + Math.round(ach) + "%</td>"; // Achieve (real)
+      if (targetsAvailable()) { html += dash + dash + dash; }   // Target / Ach % / RPR — not per recruiter
       html += dash;   // Trend
       return html;
     }
@@ -877,7 +1018,11 @@
     // pulling target/subs_actual/achieve_pct from either totals or the director.
     function flattenDir(dir) {
       var flat = Object.assign({ _dir: dir }, dir.totals, { name: dir.name, mtd_joiners: dir.mtd_joiners });
-      ["target", "subs_actual", "achieve_pct"].forEach(function (k) { if (flat[k] == null && dir[k] != null) flat[k] = dir[k]; });
+      // Pull director-level extras that don't live under dir.totals (submissions-vs-target
+      // AND the joiner-target trio) so the metric row can render them.
+      ["target", "subs_actual", "achieve_pct",
+       "monthly_target", "monthly_exit_target", "weekly_target", "target_achievement_pct", "rpr"]
+        .forEach(function (k) { if (flat[k] == null && dir[k] != null) flat[k] = dir[k]; });
       return flat;
     }
 
@@ -932,7 +1077,7 @@
 
     function tableColHead() {
       var h = "<thead><tr>";
-      TABLE_HEADERS.forEach(function (c) { h += "<th>" + esc(c) + infoIcon("col-" + c, c) + "</th>"; });
+      tableHeaderDefs().forEach(function (c) { h += "<th>" + esc(c.label) + infoIcon(c.key, c.label) + "</th>"; });
       h += "</tr></thead>";
       return h;
     }
@@ -985,7 +1130,6 @@
     // New behavior: director group (management rollup) → AM rows expand → recruiter
     // sub-rows. Tab sorting applies at both the director and the AM level.
     function viewRecruitmentDeep(d) {
-      var dash8 = '<td class="m-val--muted">—</td>';
       var dirs = sortByTab((d.directors || []).map(flattenDir));
       var body = "";
       dirs.forEach(function (row) {
@@ -1008,7 +1152,7 @@
         var ukey = "unassigned-recruiters";
         body += '<tr data-expand="' + ukey + '"><td>' +
           teamCell("Unassigned recruiters", un.length + " recruiter" + (un.length === 1 ? "" : "s") + " · AM unresolved", true, false) + "</td>" +
-          dash8 + dash8 + dash8 + dash8 + dash8 + dash8 + dash8 + dash8 + "</tr>";
+          dashCells(metricColCount()) + "</tr>";
         un.forEach(function (rec) {
           body += '<tr class="m-subrow m-subrow--deep is-hidden" data-child="' + ukey + '"><td>' +
             recruiterTeamCell(rec, true, 20) + "</td>" + recruiterCells(rec) + "</tr>";
@@ -1156,6 +1300,198 @@
     }
 
     /* =====================================================================
+       VIEW: MONTHLY ROLLUP (/api/monthly)
+       Month selector → header KPIs (Target Entry, MTD Joiners, Achieve %, RPR,
+       Exits vs Exit Target) → director→AM expandable table. Everything renders
+       from /api/monthly; a month with no uploads still shows its targets.
+       ===================================================================== */
+    function currentMonthlyMonth() {
+      if (!state.monthly.month) {
+        var rep = reportById(state.activeReportId);
+        var mm = rep ? parseMonthLabel(rep.month) : null;
+        var list = monthlyMonthList();
+        state.monthly.month = mm ? isoMonthKey(mm.y, mm.m) : (list.length ? list[list.length - 1].key : null);
+      }
+      return state.monthly.month;
+    }
+
+    // One header KPI card (reuses the m-kpi component). value/status already HTML-safe.
+    function monthlyKpi(iconVariant, iconSvg, label, infoKey, valueHTML, statusCls, statusText) {
+      return '<div class="m-card m-card--pad m-kpi">' +
+        '<div class="m-kpi__icon m-kpi__icon--' + iconVariant + '">' + iconSvg + "</div>" +
+        '<div class="m-kpi__label">' + esc(label) + infoIcon(infoKey, label) + "</div>" +
+        '<div class="m-kpi__value">' + valueHTML + "</div>" +
+        '<div class="m-kpi__status m-kpi__status--' + statusCls + '">' + statusText + "</div></div>";
+    }
+
+    var MR_ICONS = {
+      target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>',
+      people: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15 20c0-2.5 1.4-4.2 3.6-4.2"/></svg>',
+      gauge: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18a8 8 0 0 1 16 0"/><path d="M12 18l4-5"/></svg>',
+      ratio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 19L19 5"/><circle cx="7.5" cy="7.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></svg>',
+      exit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 4h4v16h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h8"/></svg>'
+    };
+
+    // The 9 metric <td>s for a monthly row (everything after the Team cell).
+    function monthlyMetricCells(o) {
+      o = o || {};
+      var dash = '<td class="m-val--muted">—</td>';
+      function cnt(v) { return v == null ? dash : '<td class="m-val--muted">' + fmtInt(v) + "</td>"; }
+      var html = "";
+      html += cnt(o.target_entry);
+      html += cnt(o.target_exit);
+      html += cnt(o.mtd_joiners);
+      html += cnt(o.joiners);
+      html += cnt(o.selections);
+      html += cnt(o.reneges);
+      html += cnt(o.exits);
+      html += (o.achieve_pct == null) ? dash
+        : '<td class="m-val--' + ragAchievePct(o.achieve_pct) + '">' + Math.round(num(o.achieve_pct)) + "%</td>";
+      html += (o.rpr == null) ? dash
+        : '<td class="m-val--' + ragRPR(o.rpr) + '">' + num(o.rpr).toFixed(2) + "</td>";
+      return html;
+    }
+
+    var MONTHLY_HEADERS = [
+      { label: "Team",        key: "col-Team" },
+      { label: "Target",      key: "mr-target-entry" },
+      { label: "Exit Target", key: "mr-exits" },
+      { label: "MTD Joiners", key: "mr-mtd" },
+      { label: "Joiners",     key: "col-Team" },
+      { label: "Selection",   key: "col-Selection" },
+      { label: "Renege",      key: "col-Renege" },
+      { label: "Exits",       key: "col-Renege" },
+      { label: "Achieve %",   key: "mr-achieve" },
+      { label: "RPR",         key: "mr-rpr" }
+    ];
+    function monthlyColHead() {
+      var h = "<thead><tr>";
+      MONTHLY_HEADERS.forEach(function (c) { h += "<th>" + esc(c.label) + infoIcon(c.key, c.label) + "</th>"; });
+      return h + "</tr></thead>";
+    }
+
+    function viewMonthly() {
+      var monthStr = currentMonthlyMonth();
+      var st = state.monthly;
+      var months = monthlyMonthList();
+
+      var html = '<h1 class="m-topbar__title">Monthly Rollup</h1>';
+      html += '<p class="m-topbar__subtitle">Month-to-date joiners and exits against the monthly targets, rolled up director → AM.</p>';
+
+      // Month selector (dropdown of available + current months).
+      html += '<div class="m-toolbar"><div class="m-dropdown"><select class="m-dropdown__select" data-monthly-month>';
+      months.forEach(function (mo) {
+        html += '<option value="' + esc(mo.key) + '"' + (mo.key === monthStr ? " selected" : "") + ">" +
+          esc(mo.label) + (mo.hasReport ? "" : " (no uploads)") + "</option>";
+      });
+      html += "</select></div><div class=\"m-toolbar__spacer\"></div>";
+      html += '<button class="m-btn m-btn--primary" data-export="pdf">Export PDF</button></div>';
+
+      // Loading / error / data branches.
+      if (st.loading[monthStr] && !st.data[monthStr]) {
+        html += '<div class="m-card m-section">' + emptyState("Loading " + esc(monthlyLabelFor(monthStr)) + "…", "Fetching /api/monthly.") + "</div>";
+        return html;
+      }
+      if (st.error[monthStr] && !st.data[monthStr]) {
+        html += '<div class="m-card m-section">' + emptyState("Monthly rollup not available yet",
+          "The /api/monthly endpoint isn’t reachable — the backend update that adds monthly targets hasn’t deployed. This view will populate once it does.") + "</div>";
+        return html;
+      }
+      var d = st.data[monthStr];
+      if (!d) {
+        html += '<div class="m-card m-section">' + emptyState("Loading…", "Preparing the monthly rollup.") + "</div>";
+        return html;
+      }
+
+      var tot = d.totals || {};
+      var reports = Array.isArray(d.reports) ? d.reports : [];
+      var noUploads = reports.length === 0;
+
+      // Header KPI cards.
+      html += '<div class="m-section" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;">';
+      html += monthlyKpi("blue", MR_ICONS.target, "Target (Entry)", "mr-target-entry",
+        (tot.target_entry == null ? "—" : fmtInt(tot.target_entry)),
+        "blue", "Monthly joiner target");
+      var mtdStatusCls = (tot.achieve_pct != null) ? ragAchievePct(tot.achieve_pct) : "amber";
+      html += monthlyKpi("green", MR_ICONS.people, "MTD Joiners", "mr-mtd",
+        (tot.mtd_joiners == null ? "—" : fmtInt(tot.mtd_joiners)) +
+          '<span class="m-kpi__suffix">/ ' + (tot.target_entry == null ? "—" : fmtInt(tot.target_entry)) + "</span>",
+        mtdStatusCls, noUploads ? "No weekly uploads yet" : "Month to date");
+      html += monthlyKpi("amber", MR_ICONS.gauge, "Achieve %", "mr-achieve",
+        (tot.achieve_pct == null ? "—" : Math.round(num(tot.achieve_pct)) + "%"),
+        (tot.achieve_pct != null ? ragAchievePct(tot.achieve_pct) : "amber"),
+        (tot.achieve_pct == null ? "Awaiting joiners" : "MTD ÷ target"));
+      html += monthlyKpi("green", MR_ICONS.ratio, "RPR", "mr-rpr",
+        (tot.rpr == null ? "—" : num(tot.rpr).toFixed(2)),
+        (tot.rpr != null ? ragRPR(tot.rpr) : "amber"),
+        (tot.rpr == null ? "Recruiter count unknown" : "Joiners ÷ recruiters"));
+      var exitCls = (tot.target_exit != null && tot.exits != null) ? (num(tot.exits) <= num(tot.target_exit) ? "green" : "red") : "amber";
+      html += monthlyKpi("red", MR_ICONS.exit, "Exits vs Exit Target", "mr-exits",
+        (tot.exits == null ? "—" : fmtInt(tot.exits)) +
+          '<span class="m-kpi__suffix">/ ' + (tot.target_exit == null ? "—" : fmtInt(tot.target_exit)) + "</span>",
+        exitCls, "Actual vs monthly exit target");
+      html += "</div>";
+
+      // Contributing weekly reports (chips) or honest empty banner.
+      if (noUploads) {
+        html += '<p class="view-note">No weekly reports uploaded for ' + esc(monthlyLabelFor(monthStr)) +
+          " yet — targets are shown; joiners, selections, reneges and exits will populate once a week is uploaded.</p>";
+      } else {
+        html += '<div class="m-toolbar__group m-section" style="flex-wrap:wrap;gap:8px;">';
+        html += '<span class="m-master-count" style="margin-right:4px;">Contributing weeks:</span>';
+        reports.forEach(function (r) {
+          var wl = r.week_label || ("W" + (r.week_n != null ? r.week_n : "?"));
+          var wd = (r.working_days != null) ? " · " + r.working_days + "d" : "";
+          html += '<span class="m-chip" style="cursor:default;" title="' + esc(r.report_id || "") + '">' + esc(wl) + esc(wd) + "</span>";
+        });
+        html += "</div>";
+      }
+
+      // Director → AM expandable table.
+      var dirsObj = d.directors || {};
+      var dirNames = Object.keys(dirsObj).sort();
+      var body = "";
+      dirNames.forEach(function (dn) {
+        var dir = dirsObj[dn] || {};
+        var amsObj = dir.ams || {};
+        var amNames = Object.keys(amsObj).sort();
+        var key = "mo-" + dn.replace(/\W+/g, "");
+        var expandable = amNames.length > 0;
+        body += '<tr' + (expandable ? ' data-expand="' + key + '"' : "") + '><td>' +
+          teamCell(dn, amNames.length ? amNames.length + " AM" + (amNames.length === 1 ? "" : "s") : "", expandable, false) + "</td>" +
+          monthlyMetricCells(dir) + "</tr>";
+        amNames.forEach(function (an) {
+          body += '<tr class="m-subrow is-hidden" data-child="' + key + '"><td>' +
+            teamCell(an, "", false, false, 20) + "</td>" + monthlyMetricCells(amsObj[an]) + "</tr>";
+        });
+      });
+
+      html += '<div class="m-card m-tablecard m-section"><div class="m-tablecard__head"><h2 class="m-card__title">' +
+        esc(monthlyLabelFor(monthStr)) + ' — Director Rollup</h2></div>';
+      if (!dirNames.length) {
+        html += emptyState("No rollup rows", noUploads
+          ? "No targets or uploads exist for this month yet."
+          : "This month’s reports produced no director rows.");
+      } else {
+        html += '<div class="m-table-scroll"><table class="m-table">' + monthlyColHead() +
+          "<tbody>" + body + "</tbody></table></div>";
+      }
+      html += "</div>";
+      return html;
+    }
+
+    function renderMonthly() {
+      var monthStr = currentMonthlyMonth();
+      renderSidebar();
+      $content.innerHTML = viewMonthly();
+      wireCharts();
+      var st = state.monthly;
+      if (monthStr && !st.data[monthStr] && !st.error[monthStr] && !st.loading[monthStr]) {
+        loadMonthly(monthStr).then(function () { if (state.view === "monthly") renderMonthly(); });
+      }
+    }
+
+    /* =====================================================================
        SHARED CARDS: Intelligence, Focus, Velocity
        ===================================================================== */
     function intelligenceCard(d) {
@@ -1194,10 +1530,15 @@
       if (num(t.coverage_pct) < 70) {
         out.push({ type: "blocker", kicker: "Critical Blocker", body: "<strong>Coverage crisis:</strong> overall coverage is " + num(t.coverage_pct) + "% against a 70% floor, across " + fmtInt(t.positions) + " positions." });
       }
-      // BLOCKER: global RPR below 1.0 (MTD joiners per deployed HC, summed over directors that have HC)
-      var grpr = globalRPR(d);
+      // BLOCKER: global RPR below 1.0. When the real recruiter-based RPR is available
+      // (targets deployed) it is authoritative — MTD joiners ÷ recruiter count, NULL when
+      // recruiter count is unknown (no alert then). Only old payloads fall back to the
+      // HC-based composite so existing behavior doesn't regress.
+      var grpr, grprBasis;
+      if (targetsAvailable()) { grpr = (t.rpr != null) ? num(t.rpr) : null; grprBasis = "MTD joiners per recruiter"; }
+      else { grpr = globalRPR(d); grprBasis = "MTD joiners per deployed head count"; }
       if (grpr != null && grpr < 1.0) {
-        out.push({ type: "blocker", kicker: "Critical Blocker", body: "<strong>Efficiency crisis:</strong> global RPR is " + grpr.toFixed(2) + " (MTD joiners per deployed head count) — far below the 1.0 target." });
+        out.push({ type: "blocker", kicker: "Critical Blocker", body: "<strong>Efficiency crisis:</strong> global RPR is " + grpr.toFixed(2) + " (" + grprBasis + ") — far below the 1.0 target." });
       }
       // BLOCKER: an AM with a large position bucket and low coverage (e.g. unassigned/spread-thin)
       var worst = null;
@@ -1278,7 +1619,7 @@
       });
     }
     function emptyRow() {
-      return '<tr><td colspan="' + TABLE_HEADERS.length + '" style="padding:0;">' +
+      return '<tr><td colspan="' + tableHeaderDefs().length + '" style="padding:0;">' +
         emptyState("No data", "No rows for this selection.") + "</td></tr>";
     }
     function emptyState(title, text) {
@@ -1348,17 +1689,34 @@
     // editing and rebuild into the 3-dict object on save.
     var MASTER_CONFIGS = [
       { key: "org-chart",       endpoint: "/api/config/org-chart",       label: "Org Chart",       kind: "maps", maps: ["canonical_org", "am_aliases", "director_aliases", "recruiter_org"] },
-      { key: "customer-master", endpoint: "/api/config/customer-master", label: "Project Mapping", kind: "rows" }
+      { key: "customer-master", endpoint: "/api/config/customer-master", label: "Project Mapping", kind: "rows" },
+      { key: "targets",         endpoint: "/api/config/targets",         label: "Targets",        kind: "targets" }
     ];
     // Fallback columns for the customer master when the array is empty, so Add Row
     // still produces a usable row. Real columns are derived from the data when present.
     var CUSTOMER_MASTER_COLUMNS = ["Unit","Sub Unit","HRPOC ID","HRPOC Name","Billing Approver ID","Billing Approver Name","Account Manager ID","Account Manager Name","Sr. Director ID","Sr. Director Name","Director ID","Director Name","Category"];
+    // Fallback columns for an empty Targets grid (FY Apr–Mar entry/exit per AM). Real
+    // columns come from the data when present, preserving the backend's own key order.
+    var TARGETS_COLUMNS = ["director","am","c_fwd",
+      "april_entry","april_exit","may_entry","may_exit","june_entry","june_exit",
+      "july_entry","july_exit","august_entry","august_exit","september_entry","september_exit",
+      "october_entry","october_exit","november_entry","november_exit","december_entry","december_exit",
+      "january_entry","january_exit","february_entry","february_exit","march_entry","march_exit","hc_end"];
     var masterSearchTimer = null;
 
     function masterCfg(tab) { return MASTER_CONFIGS.filter(function (c) { return c.key === tab; })[0]; }
 
     // Turn a config GET payload into editable rows (per config kind).
     function masterParse(cfg, payload) {
+      if (cfg.kind === "targets") {
+        // Stash the top-level meta (fiscal_year, working_days_per_month) so a Save round-
+        // trips them unchanged; edit only the rows array.
+        state.master.meta[cfg.key] = {
+          fiscal_year: payload ? payload.fiscal_year : undefined,
+          working_days_per_month: payload ? payload.working_days_per_month : undefined
+        };
+        return (payload && Array.isArray(payload.rows)) ? payload.rows.slice() : [];
+      }
       if (cfg.kind === "maps") {
         var rows = [];
         (cfg.maps || []).forEach(function (mapName) {
@@ -1379,6 +1737,13 @@
 
     // Reconstruct the PUT body for a config (per kind).
     function masterPutBody(cfg, rows) {
+      if (cfg.kind === "targets") {
+        var meta = (state.master.meta && state.master.meta[cfg.key]) || {};
+        var body = { rows: rows };
+        if (meta.fiscal_year != null) body.fiscal_year = meta.fiscal_year;
+        if (meta.working_days_per_month != null) body.working_days_per_month = meta.working_days_per_month;
+        return body;
+      }
       if (cfg.kind === "maps") {
         var out = {}; (cfg.maps || []).forEach(function (m) { out[m] = {}; });
         rows.forEach(function (r) {
@@ -1403,6 +1768,7 @@
       });
       if (!cols.length && cfg && cfg.kind === "maps") return ["Map", "Key", "Value"];
       if (!cols.length && tab === "customer-master") return CUSTOMER_MASTER_COLUMNS.slice();
+      if (!cols.length && tab === "targets") return TARGETS_COLUMNS.slice();
       return cols;
     }
 
@@ -1410,7 +1776,8 @@
     var SECTION_LABELS = { canonical_org: "Canonical org", am_aliases: "AM aliases", director_aliases: "Director aliases", recruiter_org: "Recruiter → AM" };
     var MASTER_SUBTITLES = {
       "org-chart": "Org chart & mappings — canonical names, AM/director aliases, and recruiter → AM. Fix a mapping (e.g. an unattached recruiter) here directly; changes take effect on the next data load.",
-      "customer-master": "Project (customer) mapping — Sub Unit → Unit → Category and the manager chain. Edits take effect on the next data load."
+      "customer-master": "Project (customer) mapping — Sub Unit → Unit → Category and the manager chain. Edits take effect on the next data load.",
+      "targets": "Monthly joiner/exit targets per AM (fiscal year Apr–Mar). Entry = joiner target, Exit = exit target. Weekly targets and Achievement % derive from these. Edits take effect on the next data load."
     };
 
     function renderMaster() {
@@ -1491,7 +1858,9 @@
       if (!cols.length) {
         body.innerHTML = emptyState("Nothing to edit", "This config returned no tabular rows.");
       } else {
-        var h = '<table class="m-master-grid"><thead><tr>';
+        // Targets is a wide 28-column grid — sticky first two columns (director, am).
+        var gridCls = "m-master-grid" + (tab === "targets" ? " m-master-grid--wide" : "");
+        var h = '<table class="' + gridCls + '"><thead><tr>';
         cols.forEach(function (c) { h += "<th>" + esc(c) + "</th>"; });
         h += "<th></th></tr></thead><tbody>";
         idxs.forEach(function (i) {
@@ -1508,7 +1877,15 @@
       }
 
       var countEl = document.getElementById("masterCount");
-      if (countEl) countEl.textContent = idxs.length + " of " + rows.length + " row" + (rows.length === 1 ? "" : "s") + ((f || sec) ? " (filtered)" : "");
+      if (countEl) {
+        var countText = idxs.length + " of " + rows.length + " row" + (rows.length === 1 ? "" : "s") + ((f || sec) ? " (filtered)" : "");
+        var meta = (cfg && cfg.kind === "targets") ? (state.master.meta[tab] || {}) : null;
+        if (meta) {
+          if (meta.fiscal_year != null) countText += " · FY " + meta.fiscal_year;
+          if (meta.working_days_per_month != null) countText += " · " + meta.working_days_per_month + " working days/mo";
+        }
+        countEl.textContent = countText;
+      }
       updateMasterDirtyUI();
     }
 
@@ -1618,6 +1995,12 @@
       // Admin view: editable Master Tables (no toolbar/band)
       if (state.view === "master") {
         renderMaster();
+        return;
+      }
+
+      // Monthly Rollup: its own month selector + KPIs + rollup table (no weekly toolbar)
+      if (state.view === "monthly") {
+        renderMonthly();
         return;
       }
 
@@ -1851,6 +2234,11 @@
       if (ev.target && ev.target.hasAttribute && ev.target.hasAttribute("data-master-section")) {
         state.master.section = ev.target.value;
         renderMasterBody();
+      }
+      // Monthly Rollup month selector.
+      if (ev.target && ev.target.hasAttribute && ev.target.hasAttribute("data-monthly-month")) {
+        state.monthly.month = ev.target.value;
+        renderMonthly();
       }
     });
 

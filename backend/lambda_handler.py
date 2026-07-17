@@ -1036,6 +1036,82 @@ def load_customer_master():
     data = _config_get('customer_master')
     return data if isinstance(data, list) else None
 
+# ============================================================================
+# MONTHLY JOINER TARGETS (editable master; S3 config/targets.json)
+# ----------------------------------------------------------------------------
+# The targets master carries a per-AM monthly entry (joiner) + exit target for
+# every fiscal-year month. It is Rhoni-owned and edited via /api/config/targets;
+# the Lambda reads it per request and joins it onto the AM aggregation. The
+# master's own 'director' column is display-only: director attribution for
+# rollups follows the CANONICAL ORG (org chart wins), never that column.
+#
+# A few target rows use labels that are not live canonical AM names: the master
+# splits one live AM across two rows (Sathish IT / Non-IT) or uses a short name
+# (Praveen). TARGET_AM_ALIASES maps those labels to the live canonical AM, and
+# rows resolving to the same AM are SUMMED. This aliasing lives in code and
+# touches ONLY the targets join - the org master in S3 is never modified.
+TARGET_AM_ALIASES = {
+    'sathish - it':     'Sathish Kumar B',
+    'sathish - non it': 'Sathish Kumar B',
+    'sathish - non-it': 'Sathish Kumar B',
+    'praveen':          'Praveen Kumar M',
+}
+
+TARGET_MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july',
+                 'august', 'september', 'october', 'november', 'december']
+
+def load_targets_config():
+    """Monthly targets master from S3 config/targets.json. Returns
+    {available, fiscal_year, working_days_per_month, rows}. When the object is
+    absent, available is False and rows is [] - targets are never embedded in
+    code; seeding happens via PUT."""
+    data = _config_get('targets')
+    if isinstance(data, dict) and isinstance(data.get('rows'), list):
+        return {
+            'available': True,
+            'fiscal_year': data.get('fiscal_year'),
+            'working_days_per_month': data.get('working_days_per_month'),
+            'rows': data.get('rows'),
+        }
+    return {'available': False, 'fiscal_year': None,
+            'working_days_per_month': None, 'rows': []}
+
+def canon_target_am(name):
+    """Resolve a targets-file AM label to its live canonical AM: the targets-only
+    TARGET_AM_ALIASES first, then the shared AM aliasing/canonicalization."""
+    c = clean(name)
+    if not c:
+        return ''
+    aliased = TARGET_AM_ALIASES.get(_norm(c))
+    return canon_am(aliased) if aliased else canon_am(c)
+
+def month_target_column(month_name):
+    """Full English month name ('July' or 'July 2026') -> the lower-case targets
+    column prefix ('july'), or None when it isn't a recognised month."""
+    mon = clean(month_name).lower().split(' ')[0]
+    return mon if mon in TARGET_MONTHS else None
+
+def targets_by_am_for_month(targets_cfg, month_name):
+    """{canonical AM -> {'entry': int, 'exit': int}} monthly target for the given
+    calendar month, summing target rows that resolve to the same AM. Null cells are
+    ignored (never coerced to 0). Returns {} when the month has no target columns."""
+    mon = month_target_column(month_name)
+    if not mon:
+        return {}
+    ekey, xkey = f'{mon}_entry', f'{mon}_exit'
+    out = {}
+    for row in targets_cfg.get('rows') or []:
+        am = canon_target_am(row.get('am'))
+        if not am:
+            continue
+        slot = out.setdefault(am, {'entry': 0, 'exit': 0})
+        ev, xv = row.get(ekey), row.get(xkey)
+        if isinstance(ev, (int, float)) and not isinstance(ev, bool):
+            slot['entry'] += ev
+        if isinstance(xv, (int, float)) and not isinstance(xv, bool):
+            slot['exit'] += xv
+    return out
+
 def num(v):
     try:
         return float(str(v).strip() or 0)
@@ -1264,6 +1340,8 @@ def compute_dashboard_data(report_id):
     am_dir = {}          # canonical AM -> resolved Director (filled after all joins)
     dir_votes = {}       # canonical AM -> {canonical Director: rows}  (fallback only)
     clients = {}
+    recruiter_coverage = {}   # canonical AM -> {recruiter: {positions, submissions, jobs_with_subs}}
+                              # populated only when Coverage carries an 'Assigned To' column
 
     # Recruiter counts (Avg Subs) and head count (Staffing) are file-level parses.
     # The Avg Subs file is optional: when absent, recruiter metrics degrade to null
@@ -1294,6 +1372,10 @@ def compute_dashboard_data(report_id):
     if sheets:
         sh, hi, cm = sheet_with_header(sheets, 'Job Code', 'Account Manager')
         if sh:
+            # The Coverage export has no recruiter column today; the business will add
+            # an 'Assigned To' (a.k.a. Assigned Recruiter) column later. Detect it up
+            # front so per-recruiter coverage is emitted the moment it appears.
+            has_assigned = any(re.search(r'assigned', h.lower()) for h in cm)
             for r in sh[hi + 1:]:
                 if clean(cg(r, cm, 'Job Status')) != 'Active':
                     continue
@@ -1302,6 +1384,14 @@ def compute_dashboard_data(report_id):
                 d['positions'] += num(cg(r, cm, '# Open Positions'))
                 d['submissions'] += num(cg(r, cm, '#Of Submissions'))
                 d['jobs_with_subs'] += num(cg(r, cm, '#Of Jobs With Submissions'))
+                if has_assigned:
+                    recruiter = clean(cg(r, cm, 'Assigned To', 'Assigned Recruiter'))
+                    if recruiter:
+                        rcov = recruiter_coverage.setdefault(am, {}).setdefault(
+                            recruiter, dict(positions=0, submissions=0, jobs_with_subs=0))
+                        rcov['positions'] += num(cg(r, cm, '# Open Positions'))
+                        rcov['submissions'] += num(cg(r, cm, '#Of Submissions'))
+                        rcov['jobs_with_subs'] += num(cg(r, cm, '#Of Jobs With Submissions'))
                 vote_dir(am, canon_dir(cg(r, cm, 'BU Head', 'Director')))
                 cl = clean(cg(r, cm, 'Client'))
                 if cl:
@@ -1414,6 +1504,46 @@ def compute_dashboard_data(report_id):
         out['avg_sub'] = round(d['submissions'] / d['positions'], 2) if d['positions'] else 0
         return out
 
+    # ---- Monthly joiner targets (editable master; joined per canonical org) ----
+    targets_cfg = load_targets_config()
+    targets_available = targets_cfg['available']
+    wd_month = targets_cfg.get('working_days_per_month') or 21
+    targets_for_am = (targets_by_am_for_month(targets_cfg, metadata.get('month'))
+                      if targets_available else {})
+    # Working days of THIS report's week, from the calendar-aligned segment.
+    week_working_days = None
+    _anchor = _parse_week_ending(metadata.get('data_week_ending'))
+    if _anchor:
+        _wn = week_number_for_date(_anchor)
+        for _seg in month_week_segments(_anchor.year, _anchor.month):
+            if _seg['n'] == _wn:
+                week_working_days = _seg['working_days']
+                break
+    # Director-level target rollup follows the canonical org (org chart wins over the
+    # targets file's own director column), so e.g. Praveen Kumar M / Vivek Singh Sengar
+    # AM targets fold into Sanjib Saha's director total.
+    targets_by_dir = {}
+    for _am, _t in targets_for_am.items():
+        _top = resolve_top_director(_am) or am_dir.get(_am) or 'Unassigned'
+        _slot = targets_by_dir.setdefault(_top, {'entry': 0, 'exit': 0})
+        _slot['entry'] += _t['entry']
+        _slot['exit'] += _t['exit']
+
+    def target_fields(entry, exit_, mtd, recruiters):
+        """The five monthly-target fields for an AM/director/grand row. weekly_target
+        prorates the monthly entry target by this week's working days; achievement and
+        rpr are null when their denominator is unknown/zero (never fabricated).
+        RPR = MTD joiners / recruiter count (per product-owner spec)."""
+        wt = (round(entry / wd_month * week_working_days, 1)
+              if (entry is not None and wd_month and week_working_days) else None)
+        return {
+            'monthly_target': entry,
+            'monthly_exit_target': exit_,
+            'weekly_target': wt,
+            'target_achievement_pct': round(mtd / entry * 100, 1) if entry else None,
+            'rpr': round(mtd / recruiters, 2) if recruiters else None,
+        }
+
     directors = {}
     for am, d in ams.items():
         directors.setdefault(am_dir.get(am, 'Unassigned'), {})[am] = d
@@ -1454,6 +1584,18 @@ def compute_dashboard_data(report_id):
                 am_obj['achieve_pct'] = round(sub / tgt * 100) if tgt > 0 else None
             else:
                 am_obj['target'] = am_obj['subs_actual'] = am_obj['achieve_pct'] = None
+            # Monthly joiner-target fields (only when this AM has a target row)
+            _t = targets_for_am.get(am)
+            if _t:
+                am_obj.update(target_fields(_t['entry'], _t['exit'],
+                                            am_obj['mtd_joiners'], am_obj['recruiters']))
+            # Per-recruiter coverage, only once Coverage carries an 'Assigned To' column
+            _rcov = recruiter_coverage.get(am)
+            if _rcov:
+                am_obj['recruiter_coverage'] = {
+                    rn: {k: round(v, 2) for k, v in vals.items()}
+                    for rn, vals in _rcov.items()
+                }
             am_list.append(am_obj)
         dobj = dict(name=dname, totals=enrich(dtot), ams=am_list)
         dobj['recruiters'] = recruiters_by_topdir.get(dname)
@@ -1466,6 +1608,12 @@ def compute_dashboard_data(report_id):
         dobj['target'] = sum(_tgts) if _tgts else None
         dobj['subs_actual'] = sum(_subs) if _subs else None
         dobj['achieve_pct'] = round(dobj['subs_actual'] / dobj['target'] * 100) if dobj['target'] else None
+        # Monthly joiner-target fields (targets summed over this director's AMs per
+        # canonical org). This also sets the product-owner RPR = MTD / recruiter count.
+        _td = targets_by_dir.get(dname)
+        if _td:
+            dobj.update(target_fields(_td['entry'], _td['exit'],
+                                      dobj['mtd_joiners'], dobj['recruiters']))
         dir_list.append(dobj)
 
     # Surface directors that appear in Staffing/Joiners but have no Coverage AM rows
@@ -1473,15 +1621,20 @@ def compute_dashboard_data(report_id):
     # so their real head count / MTD / RPR aren't lost. Coverage metrics stay 0.
     seen = {d['name'] for d in dir_list}
     zeros = dict(positions=0, submissions=0, jobs_with_subs=0, selections=0, reneges=0, joiners=0, exits=0)
-    for dname in (set(hc_by_topdir) | set(mtd_by_dir)) - seen:
+    for dname in (set(hc_by_topdir) | set(mtd_by_dir) | set(targets_by_dir)) - seen:
         hc = hc_by_topdir.get(dname)
         mtd = mtd_by_dir.get(dname, 0)
         closing = (hc or {}).get('closing')
-        dir_list.append(dict(name=dname, totals=enrich(dict(zeros)), ams=[],
-                             recruiters=recruiters_by_topdir.get(dname), hc=hc,
-                             mtd_joiners=mtd,
-                             rpr=round(mtd / closing, 2) if closing else None,
-                             target=None, subs_actual=None, achieve_pct=None))
+        recs = recruiters_by_topdir.get(dname)
+        row = dict(name=dname, totals=enrich(dict(zeros)), ams=[],
+                   recruiters=recs, hc=hc,
+                   mtd_joiners=mtd,
+                   rpr=round(mtd / closing, 2) if closing else None,
+                   target=None, subs_actual=None, achieve_pct=None)
+        _td = targets_by_dir.get(dname)
+        if _td:
+            row.update(target_fields(_td['entry'], _td['exit'], mtd, recs))
+        dir_list.append(row)
     dir_list.sort(key=lambda x: (x['name'] == 'Unassigned', -x['totals']['positions']))
 
     # Recruiters whose Reporting Manager didn't resolve to an AM shown in the tree are
@@ -1549,14 +1702,24 @@ def compute_dashboard_data(report_id):
     grand_subs = sum(_all_sub) if _all_sub else None
     grand_achieve = round(grand_subs / grand_target * 100) if grand_target else None
 
+    # Grand monthly joiner-target rollup (sum of all AM targets for the report month)
+    total_mtd = sum(mtd_by_am.values())
+    grand_five = {}
+    if targets_available and targets_for_am:
+        _ge = sum(t['entry'] for t in targets_for_am.values())
+        _gx = sum(t['exit'] for t in targets_for_am.values())
+        grand_five = target_fields(_ge, _gx, total_mtd, total_recruiters)
+
     return {
         'report_id': report_id,
         'data_week_ending': metadata.get('data_week_ending'),
         'data_period': metadata.get('data_period'),
         'week': _corrected_week(metadata),
         'month': metadata.get('month'),
+        'targets_available': targets_available,
         'totals': dict(enrich(grand), recruiters=total_recruiters,
-                       target=grand_target, subs_actual=grand_subs, achieve_pct=grand_achieve),
+                       target=grand_target, subs_actual=grand_subs, achieve_pct=grand_achieve,
+                       mtd_joiners=total_mtd, **grand_five),
         'directors': dir_list,
         'clients': client_list,
         'categories': category_list,
@@ -1782,6 +1945,265 @@ def config_org_chart(event, context):
     except Exception as e:
         return error_response(400, 'CONFIG_PUT_FAILED', str(e))
 
+def config_targets(event, context):
+    """GET/PUT /api/config/targets. Monthly joiner-target master stored at
+    config/targets.json. Shape: {fiscal_year, working_days_per_month, rows:[{director,
+    am, <month>_entry, <month>_exit, ...}]}.
+    GET returns {success, targets_available, fiscal_year, working_days_per_month, count,
+    rows}; when the object is absent it is honest (targets_available False, rows []).
+    PUT accepts {rows, fiscal_year?, working_days_per_month?}; fiscal_year /
+    working_days_per_month omitted from the body are preserved from the existing
+    config. The prior version is archived to config/history/ before overwrite."""
+    method = event.get('httpMethod', 'GET')
+    if method == 'GET':
+        cfg = load_targets_config()
+        return response(200, {
+            'success': True,
+            'config': 'targets',
+            'source': 's3' if cfg['available'] else 'unseeded',
+            'targets_available': cfg['available'],
+            'fiscal_year': cfg['fiscal_year'],
+            'working_days_per_month': cfg['working_days_per_month'],
+            'count': len(cfg['rows']),
+            'rows': cfg['rows'],
+        })
+    try:
+        body = json.loads(event.get('body') or '{}')
+        if not isinstance(body, dict):
+            return error_response(400, 'BAD_CONFIG', 'Expected a JSON object {"rows": [...]}')
+        rows = body.get('rows')
+        if not isinstance(rows, list):
+            return error_response(400, 'BAD_CONFIG', 'Expected "rows" to be a JSON array')
+        existing = _config_get('targets') or {}
+        payload = {
+            'fiscal_year': body.get('fiscal_year', existing.get('fiscal_year')),
+            'working_days_per_month': body.get('working_days_per_month',
+                                               existing.get('working_days_per_month')),
+            'rows': rows,
+        }
+        _config_put('targets', payload)
+        log_event('ConfigPutTargets', {'count': len(rows)})
+        return response(200, {'success': True, 'config': 'targets', 'count': len(rows),
+                              'message': f'Targets saved ({len(rows)} rows); previous version archived to config/history/'})
+    except Exception as e:
+        return error_response(400, 'CONFIG_PUT_FAILED', str(e))
+
+# ============================================================================
+# MONTHLY ROLLUP
+# ============================================================================
+
+def _week_working_days(d):
+    """Working days of the calendar-aligned week segment containing date d, or None."""
+    if not d:
+        return None
+    wn = week_number_for_date(d)
+    for seg in month_week_segments(d.year, d.month):
+        if seg['n'] == wn:
+            return seg['working_days']
+    return None
+
+def get_monthly(event, context):
+    """GET /api/monthly?month=YYYY-MM - monthly rolled-up view.
+
+    Sums weekly actuals (selections, joiners, reneges, exits, submissions) across every
+    report whose data week falls in the month; point-in-time figures (mtd_joiners,
+    positions, recruiters) come from the LATEST report in the month. Monthly targets are
+    shown independently of uploads, so a month with no reports still returns its targets
+    with honest null actuals. Directors/AMs are grouped by the canonical org."""
+    try:
+        load_org_config()
+        params = event.get('queryStringParameters') or {}
+        month_param = clean(params.get('month'))
+        table = dynamodb.Table(DYNAMODB_TABLE)
+        reports = table.scan(Limit=50).get('Items', [])
+
+        # Resolve the target (year, month): explicit YYYY-MM, else latest report's month.
+        year = mon = None
+        if re.match(r'^\d{4}-\d{2}$', month_param or ''):
+            year, mon = int(month_param[:4]), int(month_param[5:7])
+        elif reports:
+            latest = max(reports, key=lambda x: x.get('created_at', ''))
+            d = _parse_week_ending(latest.get('data_week_ending'))
+            if d:
+                year, mon = d.year, d.month
+        if year is None:
+            now = datetime.utcnow()
+            year, mon = now.year, now.month
+
+        # Reports whose data week ends inside the month, chronological.
+        month_reports = []
+        for rep in reports:
+            d = _parse_week_ending(rep.get('data_week_ending'))
+            if d and d.year == year and d.month == mon:
+                month_reports.append((d, rep))
+        month_reports.sort(key=lambda x: x[0])
+
+        computed = []
+        for d, rep in month_reports:
+            rid = rep.get('report_id')
+            if not rid:
+                continue
+            try:
+                computed.append((d, rep, compute_dashboard_data(rid)))
+            except Exception as e:
+                print(f"monthly: skipping {rid}: {e}")
+        has_reports = len(computed) > 0
+        latest_cd = computed[-1][2] if computed else None
+
+        # Targets for this month, rolled to directors per canonical org.
+        targets_cfg = load_targets_config()
+        month_name = calendar.month_name[mon]
+        targets_for_am = (targets_by_am_for_month(targets_cfg, month_name)
+                          if targets_cfg['available'] else {})
+        targets_by_dir = {}
+        for am, t in targets_for_am.items():
+            top = resolve_top_director(am) or 'Unassigned'
+            slot = targets_by_dir.setdefault(top, {'entry': 0, 'exit': 0})
+            slot['entry'] += t['entry']
+            slot['exit'] += t['exit']
+
+        # Accumulators keyed by canonical director -> AM.
+        directors = {}
+
+        def dslot(name):
+            return directors.setdefault(name, dict(
+                selections=0, joiners=0, reneges=0, exits=0, submissions=0,
+                mtd_joiners=0, positions=0, recruiters=None, ams={}))
+
+        def aslot(dname, am):
+            return dslot(dname)['ams'].setdefault(am, dict(
+                selections=0, joiners=0, reneges=0, exits=0, submissions=0,
+                mtd_joiners=0, positions=0, recruiters=None))
+
+        # Weekly actuals summed across all reports in the month.
+        for d, rep, cd in computed:
+            for dobj in cd['directors']:
+                ds = dslot(dobj['name'])
+                t = dobj['totals']
+                for k in ('selections', 'joiners', 'reneges', 'exits', 'submissions'):
+                    ds[k] += t.get(k, 0) or 0
+                for am in dobj['ams']:
+                    a = aslot(dobj['name'], am['name'])
+                    for k in ('selections', 'joiners', 'reneges', 'exits', 'submissions'):
+                        a[k] += am.get(k, 0) or 0
+
+        # Point-in-time figures from the latest report in the month.
+        if latest_cd:
+            for dobj in latest_cd['directors']:
+                ds = dslot(dobj['name'])
+                ds['mtd_joiners'] = dobj.get('mtd_joiners', 0) or 0
+                ds['positions'] = dobj['totals'].get('positions', 0) or 0
+                ds['recruiters'] = dobj.get('recruiters')
+                for am in dobj['ams']:
+                    a = aslot(dobj['name'], am['name'])
+                    a['mtd_joiners'] = am.get('mtd_joiners', 0) or 0
+                    a['positions'] = am.get('positions', 0) or 0
+                    a['recruiters'] = am.get('recruiters')
+
+        # Ensure every targeted director/AM has a slot even with no uploads this month.
+        for am in targets_for_am:
+            aslot(resolve_top_director(am) or 'Unassigned', am)
+
+        def _pit(v):
+            """Point-in-time value: honest null when the month has no reports."""
+            return v if has_reports else None
+
+        def _actual(v):
+            return v if has_reports else None
+
+        def finalize_am(dname, am, slot):
+            t = targets_for_am.get(am)
+            entry = t['entry'] if t else None
+            exit_ = t['exit'] if t else None
+            mtd = _pit(slot['mtd_joiners'])
+            rec = slot['recruiters']
+            return dict(
+                target_entry=entry, target_exit=exit_,
+                mtd_joiners=mtd,
+                joiners=_actual(slot['joiners']),
+                selections=_actual(slot['selections']),
+                reneges=_actual(slot['reneges']),
+                exits=_actual(slot['exits']),
+                submissions=_actual(slot['submissions']),
+                positions=_pit(slot['positions']),
+                recruiters=rec,
+                achieve_pct=round(mtd / entry * 100, 1) if (mtd is not None and entry) else None,
+                rpr=round(mtd / rec, 2) if (mtd is not None and rec) else None,
+            )
+
+        directors_out = {}
+        for dname, ds in directors.items():
+            t = targets_by_dir.get(dname)
+            entry = t['entry'] if t else None
+            exit_ = t['exit'] if t else None
+            mtd = _pit(ds['mtd_joiners'])
+            rec = ds['recruiters']
+            ams_out = {am: finalize_am(dname, am, slot) for am, slot in ds['ams'].items()}
+            directors_out[dname] = dict(
+                target_entry=entry, target_exit=exit_,
+                mtd_joiners=mtd,
+                joiners=_actual(ds['joiners']),
+                selections=_actual(ds['selections']),
+                reneges=_actual(ds['reneges']),
+                exits=_actual(ds['exits']),
+                submissions=_actual(ds['submissions']),
+                positions=_pit(ds['positions']),
+                recruiters=rec,
+                achieve_pct=round(mtd / entry * 100, 1) if (mtd is not None and entry) else None,
+                rpr=round(mtd / rec, 2) if (mtd is not None and rec) else None,
+                ams=ams_out,
+            )
+
+        # Grand totals: actuals summed across reports; mtd/recruiters point-in-time.
+        g = dict(selections=0, joiners=0, reneges=0, exits=0, submissions=0)
+        for d, rep, cd in computed:
+            t = cd['totals']
+            for k in g:
+                g[k] += t.get(k, 0) or 0
+        g_mtd = _pit(latest_cd['totals'].get('mtd_joiners', 0) if latest_cd else 0)
+        g_rec = latest_cd['totals'].get('recruiters') if latest_cd else None
+        g_pos = _pit(latest_cd['totals'].get('positions', 0) if latest_cd else 0)
+        g_entry = sum(t['entry'] for t in targets_for_am.values()) if targets_for_am else None
+        g_exit = sum(t['exit'] for t in targets_for_am.values()) if targets_for_am else None
+        totals = dict(
+            target_entry=g_entry, target_exit=g_exit,
+            mtd_joiners=g_mtd,
+            joiners=_actual(g['joiners']),
+            selections=_actual(g['selections']),
+            reneges=_actual(g['reneges']),
+            exits=_actual(g['exits']),
+            submissions=_actual(g['submissions']),
+            positions=g_pos,
+            recruiters=g_rec,
+            achieve_pct=round(g_mtd / g_entry * 100, 1) if (g_mtd is not None and g_entry) else None,
+            rpr=round(g_mtd / g_rec, 2) if (g_mtd is not None and g_rec) else None,
+        )
+
+        reports_out = []
+        for d, rep, cd in computed:
+            wn = cd.get('week')
+            reports_out.append({
+                'report_id': rep.get('report_id'),
+                'week_n': wn,
+                'week_label': f"W{wn}" if wn is not None else None,
+                'week_ending': rep.get('data_week_ending'),
+                'working_days': _week_working_days(d),
+            })
+
+        log_event('GetMonthly', {'month': f"{year:04d}-{mon:02d}", 'reports': len(reports_out)})
+        return response(200, {
+            'success': True,
+            'month': f"{year:04d}-{mon:02d}",
+            'label': f"{month_name} {year}",
+            'targets_available': targets_cfg['available'],
+            'reports': reports_out,
+            'totals': totals,
+            'directors': directors_out,
+            'timestamp': datetime.utcnow().isoformat(),
+        })
+    except Exception as e:
+        return error_response(500, 'MONTHLY_FAILED', str(e))
+
 # ============================================================================
 # LAMBDA HANDLER
 # ============================================================================
@@ -1818,11 +2240,17 @@ def lambda_handler(event, context):
         elif path == '/api/trends' and method == 'GET':
             return get_trends(event, context)
 
+        elif path == '/api/monthly' and method == 'GET':
+            return get_monthly(event, context)
+
         elif path == '/api/config/customer-master' and method in ('GET', 'PUT'):
             return config_customer_master(event, context)
 
         elif path == '/api/config/org-chart' and method in ('GET', 'PUT'):
             return config_org_chart(event, context)
+
+        elif path == '/api/config/targets' and method in ('GET', 'PUT'):
+            return config_targets(event, context)
 
         elif path.startswith('/api/reports/') and method == 'GET':
             report_id = path.split('/')[-1]
