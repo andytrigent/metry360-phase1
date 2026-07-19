@@ -1,4 +1,14 @@
-# CURRENT STATE — SOJPE C2H Phase 1 (as of 2026-07-17, post targets-master)
+# CURRENT STATE — SOJPE C2H Phase 1 (as of 2026-07-19, post rules-master)
+
+## 2026-07-19: Rules master + Rhoni 18-Jul feedback (ALL LIVE)
+
+- **Rules master** (4th editable master; S3 `config/rules.json`, GET/PUT `/api/config/rules`, history-archived): rows {rule, target, to, from, until, note, enabled}. Three types, all applied server-side in dashboard-data AND /api/monthly so totals always equal the visible rows: **ignore** (director dropped from views + all grand totals), **assign** (AM re-parented to a director for the date window), **replace** (AM's rows — coverage, recruiters, MTD, targets — fold into another AM for the window). from/until are ISO dates compared against each report's data week; blank = open-ended; reports with no parseable week apply undated rules only. `rules_applied` emitted in dashboard-data; footnote shown in UI.
+- **Seeded rules (Rhoni 18-Jul email)**: ignore Unassigned (blank-AM Ceipal noise — July coverage now honest 55.1%); ignore Phone Phetvixay (HC-only); assign Tanu Gupta → Sivaranjani Pandian from 2026-07-01 (Q1 reports keep her under Jyothsna, targets move with her); replace Shakshi Jain → Tanu Gupta from 2026-07-01 (her 184-pos book + recruiter folds into Tanu's July row; Q1 still shows Shakshi).
+- **Org master edit (authorized by Rhoni's email)**: am_aliases "kinnera doorvasulu"/"kinnera dooravasulu" → Vasu K (same person; one merged row under Sivaranjani, 344 pos + 7 recruiters).
+- **Frontend**: Rules grid (rule-type dropdown, from/until date inputs, Yes/No enabled); **75% UI density** (`html{zoom:0.75}` with `calc(100vh/0.75)` sidebar/shell compensation; print resets to 1); **Joiners column** (weekly `joiners`, between Renege and MTD, ⓘ notes it's distinct from MTD; recruiter/client rows honestly "—").
+- Recruitment-view target sources (Rhoni's question): per-recruiter targets = "Submissions Target" column of the weekly Avg Subs export; monthly joiner targets = Targets master (Master Tables → Targets). Ceipal API integration intentionally NOT addressed (separate track per Andy).
+
+# Previous state (2026-07-17, post targets-master)
 
 ## 2026-07-17: Targets master + Monthly Rollup (ALL LIVE, commit 722599b)
 
