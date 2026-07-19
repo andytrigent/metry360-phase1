@@ -1076,6 +1076,81 @@ def load_targets_config():
     return {'available': False, 'fiscal_year': None,
             'working_days_per_month': None, 'rows': []}
 
+# ============================================================================
+# DASHBOARD RULES (editable master; S3 config/rules.json)
+# ----------------------------------------------------------------------------
+# Rhoni-owned rules that shape what the dashboard shows. Rows:
+#   {rule: 'ignore', target: '<director name>', note: str, enabled: bool}
+# An enabled 'ignore' rule drops that director row from dashboard-data AND the
+# monthly rollup, including its contribution to every grand total, so the
+# displayed numbers still add up. First seeded rule: ignore 'Unassigned'.
+def load_rules_config():
+    """Rules master from S3 config/rules.json, or honest empty when unseeded."""
+    data = _config_get('rules')
+    rows = data.get('rows') if isinstance(data, dict) else None
+    return {'rows': rows if isinstance(rows, list) else [],
+            'source': 's3' if isinstance(data, dict) else 'unseeded'}
+
+def _rule_date(s):
+    """ISO yyyy-mm-dd -> date, else None (open-ended)."""
+    try:
+        return datetime.strptime(clean(s), '%Y-%m-%d').date()
+    except Exception:
+        return None
+
+def _rule_active(r, ref_date):
+    """A rule applies when ref_date falls inside its optional [from, until] window.
+    A missing bound leaves that side open; when there is no ref_date (report has no
+    parseable data week) only undated rules apply — never guess a period."""
+    f, u = _rule_date(r.get('from')), _rule_date(r.get('until'))
+    if ref_date is None:
+        return f is None and u is None
+    if f and ref_date < f:
+        return False
+    if u and ref_date > u:
+        return False
+    return True
+
+def _enabled_rules(rules_cfg, ref_date):
+    for r in rules_cfg['rows']:
+        if isinstance(r, dict) and r.get('enabled') is not False and _rule_active(r, ref_date):
+            yield r
+
+def ignored_director_set(rules_cfg, ref_date=None):
+    """Normalized director names covered by enabled, date-active 'ignore' rules."""
+    out = set()
+    for r in _enabled_rules(rules_cfg, ref_date):
+        if clean(r.get('rule') or 'ignore').lower() != 'ignore':
+            continue
+        t = clean(r.get('target'))
+        if t:
+            out.add(_norm(t))
+    return out
+
+def org_rule_overrides(rules_cfg, ref_date):
+    """(am_replaces, dir_assigns) from enabled, date-active rules.
+
+    'replace' {target, to, from?, until?}: the target AM's rows fold into 'to'
+    for reports in the window — a person replaced on the same book of business
+    (e.g. Shakshi Jain -> Tanu Gupta from Q2).
+    'assign' {target, to, from?, until?}: the target AM reports to a different
+    top director for the window — a mid-year move (e.g. Tanu Gupta -> Sivaranjani
+    from July) without rewriting Q1 history in the org master."""
+    reps, assigns = {}, {}
+    for r in _enabled_rules(rules_cfg, ref_date):
+        kind = clean(r.get('rule')).lower()
+        tgt, to = canon_am(r.get('target')), clean(r.get('to'))
+        if not tgt or not to:
+            continue
+        if kind == 'replace':
+            dst = canon_am(to)
+            if dst and dst != tgt:
+                reps[tgt] = dst
+        elif kind == 'assign':
+            d = canon_dir(to) or to
+            assigns[tgt] = resolve_top_director(d) or d
+    return reps, assigns
+
 def canon_target_am(name):
     """Resolve a targets-file AM label to its live canonical AM: the targets-only
     TARGET_AM_ALIASES first, then the shared AM aliasing/canonicalization."""
@@ -1474,6 +1549,41 @@ def compute_dashboard_data(report_id):
             voted = max(dir_votes[am].items(), key=lambda kv: kv[1])[0]
             am_dir[am] = resolve_top_director(voted) or voted
 
+    # ---- Time-scoped org rules (rules master) --------------------------------
+    # Applied before ANY director-level derivation so MTD/recruiter/target rollups
+    # can never disagree with the AM rows shown.
+    _rules_cfg = load_rules_config()
+    _rd = _parse_week_ending(metadata.get('data_week_ending'))
+    _ref_date = _rd.date() if hasattr(_rd, 'date') and callable(getattr(_rd, 'date')) else _rd
+    _am_replaces, _dir_assigns = org_rule_overrides(_rules_cfg, _ref_date)
+    for _src, _dst in _am_replaces.items():
+        if _src in ams:
+            _sd = ams.pop(_src)
+            _t = rec(_dst)
+            for _k, _v in _sd.items():
+                _t[_k] = _t.get(_k, 0) + _v
+        if _src in recruiters_by_am:
+            recruiters_by_am[_dst] = (recruiters_by_am.get(_dst) or 0) + recruiters_by_am.pop(_src)
+        if _src in details_by_am:
+            details_by_am.setdefault(_dst, []).extend(details_by_am.pop(_src))
+        if _src in mtd_by_am:
+            mtd_by_am[_dst] = mtd_by_am.get(_dst, 0) + mtd_by_am.pop(_src)
+        if _src in recruiter_coverage:
+            recruiter_coverage.setdefault(_dst, {}).update(recruiter_coverage.pop(_src))
+        am_dir.pop(_src, None)
+        if _dst in ams and _dst not in am_dir:
+            _home = resolve_top_director(_dst)
+            if _home:
+                am_dir[_dst] = _home
+    _moved_recruiters = []  # (old_top, new_top, n): recruiter counts follow moved AMs
+    for _am, _top in _dir_assigns.items():
+        _old = am_dir.get(_am)
+        if _am in ams or _am in details_by_am or _am in mtd_by_am:
+            am_dir[_am] = _top
+            _n = recruiters_by_am.get(_am)
+            if _old and _old != _top and _n:
+                _moved_recruiters.append((_old, _top, _n))
+
     # Director-level MTD follows the same canonical grouping (sum of its AMs' MTD),
     # so it can never disagree with the AM rows shown beneath it.
     for am, n in mtd_by_am.items():
@@ -1497,6 +1607,14 @@ def compute_dashboard_data(report_id):
     for d, n in recruiters_by_dir.items():
         top = resolve_top_director(d) or d
         recruiters_by_topdir[top] = recruiters_by_topdir.get(top, 0) + n
+    # Director recruiter counts follow AMs re-parented by 'assign' rules (the raw
+    # counts key on the file's BU Head, which still reflects the old director).
+    for _old, _new, _n in _moved_recruiters:
+        if recruiters_by_topdir.get(_old) is not None:
+            recruiters_by_topdir[_old] = max(0, recruiters_by_topdir[_old] - _n)
+            if recruiters_by_topdir[_old] == 0:
+                del recruiters_by_topdir[_old]
+        recruiters_by_topdir[_new] = recruiters_by_topdir.get(_new, 0) + _n
 
     def enrich(d):
         out = {k: round(v, 2) for k, v in d.items()}
@@ -1522,9 +1640,17 @@ def compute_dashboard_data(report_id):
     # Director-level target rollup follows the canonical org (org chart wins over the
     # targets file's own director column), so e.g. Praveen Kumar M / Vivek Singh Sengar
     # AM targets fold into Sanjib Saha's director total.
+    # Fold targets of AMs replaced in this period into their replacement first.
+    for _src, _dst in _am_replaces.items():
+        if _src in targets_for_am:
+            _t = targets_for_am.pop(_src)
+            _d = targets_for_am.setdefault(_dst, {'entry': 0, 'exit': 0})
+            _d['entry'] += _t['entry']
+            _d['exit'] += _t['exit']
     targets_by_dir = {}
     for _am, _t in targets_for_am.items():
-        _top = resolve_top_director(_am) or am_dir.get(_am) or 'Unassigned'
+        _top = (_dir_assigns.get(_am) or resolve_top_director(_am)
+                or am_dir.get(_am) or 'Unassigned')
         _slot = targets_by_dir.setdefault(_top, {'entry': 0, 'exit': 0})
         _slot['entry'] += _t['entry']
         _slot['exit'] += _t['exit']
@@ -1558,6 +1684,17 @@ def compute_dashboard_data(report_id):
             directors.setdefault(top, {})[mgr] = dict(
                 positions=0, submissions=0, jobs_with_subs=0,
                 selections=0, reneges=0, joiners=0, exits=0)
+
+    # ---- Rules master: drop directors covered by an enabled 'ignore' rule.
+    # Their AM rows, recruiters and every rollup contribution go with them, so
+    # the numbers shown still add up.
+    _ignore = ignored_director_set(_rules_cfg, _ref_date)
+    rules_applied = []
+    ignored_ams = set()
+    for _d in [d for d in directors if _norm(d) in _ignore]:
+        ignored_ams.update(directors[_d])
+        del directors[_d]
+        rules_applied.append(_d)
 
     dir_list = []
     grand = dict(positions=0, submissions=0, jobs_with_subs=0, selections=0, reneges=0, joiners=0, exits=0)
@@ -1622,6 +1759,10 @@ def compute_dashboard_data(report_id):
     seen = {d['name'] for d in dir_list}
     zeros = dict(positions=0, submissions=0, jobs_with_subs=0, selections=0, reneges=0, joiners=0, exits=0)
     for dname in (set(hc_by_topdir) | set(mtd_by_dir) | set(targets_by_dir)) - seen:
+        if _norm(dname) in _ignore:
+            if dname not in rules_applied:
+                rules_applied.append(dname)
+            continue
         hc = hc_by_topdir.get(dname)
         mtd = mtd_by_dir.get(dname, 0)
         closing = (hc or {}).get('closing')
@@ -1643,6 +1784,8 @@ def compute_dashboard_data(report_id):
     unattached_recruiters = list(unattached_blank)
     for am, lst in details_by_am.items():
         if am not in attached_am:
+            if am in ignored_ams:
+                continue  # their whole director is ignored by rule; don't resurface
             for det in lst:
                 unattached_recruiters.append(dict(det, reporting_manager=am))
 
@@ -1702,12 +1845,19 @@ def compute_dashboard_data(report_id):
     grand_subs = sum(_all_sub) if _all_sub else None
     grand_achieve = round(grand_subs / grand_target * 100) if grand_target else None
 
-    # Grand monthly joiner-target rollup (sum of all AM targets for the report month)
+    # Grand monthly joiner-target rollup (sum of all AM targets for the report month).
+    # Ignored directors' MTD / recruiters / targets are excluded so grand figures
+    # match the sum of the rows actually shown.
     total_mtd = sum(mtd_by_am.values())
+    if _ignore:
+        total_mtd -= sum(n for d, n in mtd_by_dir.items() if _norm(d) in _ignore)
+        _rec_ign = sum(n for d, n in recruiters_by_topdir.items() if _norm(d) in _ignore)
+        if total_recruiters is not None and _rec_ign:
+            total_recruiters -= _rec_ign
     grand_five = {}
     if targets_available and targets_for_am:
-        _ge = sum(t['entry'] for t in targets_for_am.values())
-        _gx = sum(t['exit'] for t in targets_for_am.values())
+        _ge = sum(v['entry'] for k, v in targets_by_dir.items() if _norm(k) not in _ignore)
+        _gx = sum(v['exit'] for k, v in targets_by_dir.items() if _norm(k) not in _ignore)
         grand_five = target_fields(_ge, _gx, total_mtd, total_recruiters)
 
     return {
@@ -1726,7 +1876,8 @@ def compute_dashboard_data(report_id):
         'category_match': {'matched': matched_clients, 'total': len(clients),
                            'source': 's3' if customer_master is not None else 'unseeded'},
         'unattached_recruiters': unattached_recruiters,
-        'exits_source': exits_source
+        'exits_source': exits_source,
+        'rules_applied': sorted(rules_applied)
     }
 
 def get_dashboard_data(event, context):
@@ -1988,6 +2139,31 @@ def config_targets(event, context):
     except Exception as e:
         return error_response(400, 'CONFIG_PUT_FAILED', str(e))
 
+def config_rules(event, context):
+    """GET/PUT /api/config/rules. Dashboard rules master stored at config/rules.json.
+    Rows: {rule ('ignore'), target (director name), note, enabled}. An enabled
+    'ignore' rule removes that director from dashboard-data and the monthly rollup,
+    including its share of every grand total, so displayed numbers still add up.
+    History-archived like the other masters."""
+    method = event.get('httpMethod', 'GET')
+    if method == 'GET':
+        cfg = load_rules_config()
+        return response(200, {'success': True, 'config': 'rules', 'source': cfg['source'],
+                              'count': len(cfg['rows']), 'rows': cfg['rows']})
+    try:
+        body = json.loads(event.get('body') or '{}')
+        if not isinstance(body, dict):
+            return error_response(400, 'BAD_CONFIG', 'Expected a JSON object {"rows": [...]}')
+        rows = body.get('rows')
+        if not isinstance(rows, list):
+            return error_response(400, 'BAD_CONFIG', 'Expected "rows" to be a JSON array')
+        _config_put('rules', {'rows': rows})
+        log_event('ConfigPutRules', {'count': len(rows)})
+        return response(200, {'success': True, 'config': 'rules', 'count': len(rows),
+                              'message': f'Rules saved ({len(rows)} rows); previous version archived to config/history/'})
+    except Exception as e:
+        return error_response(400, 'CONFIG_PUT_FAILED', str(e))
+
 # ============================================================================
 # MONTHLY ROLLUP
 # ============================================================================
@@ -2050,14 +2226,25 @@ def get_monthly(event, context):
         has_reports = len(computed) > 0
         latest_cd = computed[-1][2] if computed else None
 
-        # Targets for this month, rolled to directors per canonical org.
+        # Targets for this month, rolled to directors per canonical org, honoring
+        # the rules master as of this month (replace/assign windows, ignores).
         targets_cfg = load_targets_config()
         month_name = calendar.month_name[mon]
         targets_for_am = (targets_by_am_for_month(targets_cfg, month_name)
                           if targets_cfg['available'] else {})
+        rules_cfg = load_rules_config()
+        month_ref = date(year, mon, calendar.monthrange(year, mon)[1])
+        am_replaces, dir_assigns = org_rule_overrides(rules_cfg, month_ref)
+        ignore_set = ignored_director_set(rules_cfg, month_ref)
+        for src, dst in am_replaces.items():
+            if src in targets_for_am:
+                t = targets_for_am.pop(src)
+                d2 = targets_for_am.setdefault(dst, {'entry': 0, 'exit': 0})
+                d2['entry'] += t['entry']
+                d2['exit'] += t['exit']
         targets_by_dir = {}
         for am, t in targets_for_am.items():
-            top = resolve_top_director(am) or 'Unassigned'
+            top = dir_assigns.get(am) or resolve_top_director(am) or 'Unassigned'
             slot = targets_by_dir.setdefault(top, {'entry': 0, 'exit': 0})
             slot['entry'] += t['entry']
             slot['exit'] += t['exit']
@@ -2102,7 +2289,12 @@ def get_monthly(event, context):
 
         # Ensure every targeted director/AM has a slot even with no uploads this month.
         for am in targets_for_am:
-            aslot(resolve_top_director(am) or 'Unassigned', am)
+            aslot(dir_assigns.get(am) or resolve_top_director(am) or 'Unassigned', am)
+
+        # Drop directors covered by an enabled 'ignore' rule (e.g. Unassigned,
+        # Phone Phetvixay) — matches what compute_dashboard_data shows per week.
+        for dname in [d for d in directors if _norm(d) in ignore_set]:
+            del directors[dname]
 
         def _pit(v):
             """Point-in-time value: honest null when the month has no reports."""
@@ -2163,8 +2355,9 @@ def get_monthly(event, context):
         g_mtd = _pit(latest_cd['totals'].get('mtd_joiners', 0) if latest_cd else 0)
         g_rec = latest_cd['totals'].get('recruiters') if latest_cd else None
         g_pos = _pit(latest_cd['totals'].get('positions', 0) if latest_cd else 0)
-        g_entry = sum(t['entry'] for t in targets_for_am.values()) if targets_for_am else None
-        g_exit = sum(t['exit'] for t in targets_for_am.values()) if targets_for_am else None
+        _vis_tgt = {k: v for k, v in targets_by_dir.items() if _norm(k) not in ignore_set}
+        g_entry = sum(t['entry'] for t in _vis_tgt.values()) if _vis_tgt else None
+        g_exit = sum(t['exit'] for t in _vis_tgt.values()) if _vis_tgt else None
         totals = dict(
             target_entry=g_entry, target_exit=g_exit,
             mtd_joiners=g_mtd,
@@ -2251,6 +2444,9 @@ def lambda_handler(event, context):
 
         elif path == '/api/config/targets' and method in ('GET', 'PUT'):
             return config_targets(event, context)
+
+        elif path == '/api/config/rules' and method in ('GET', 'PUT'):
+            return config_rules(event, context)
 
         elif path.startswith('/api/reports/') and method == 'GET':
             report_id = path.split('/')[-1]

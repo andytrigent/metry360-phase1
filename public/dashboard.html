@@ -9,6 +9,20 @@
     /* Page-level scaffolding beyond the design system. Kept minimal. */
     html, body { margin: 0; }
 
+    /* Density: Rhoni asked for the dashboard at ~75%. `zoom` scales the whole app
+       (layout, sticky columns, and body-appended popovers alike). One wrinkle: `100vh`
+       measures the visual viewport, which zoom then scales down — so vh-sized fills (the
+       sticky sidebar, the shell min-height) come up ~25% short and leave a gap. Divide by
+       the zoom factor to fill the screen again. Reset all of this for print so the print
+       stylesheet lays out at its designed 100% scale. */
+    html { zoom: 0.75; }
+    .m-sidebar { height: calc(100vh / 0.75); }
+    .m-shell   { min-height: calc(100vh / 0.75); }
+    @media print {
+      html { zoom: 1; }
+      .m-shell { min-height: 100vh; }
+    }
+
     /* RAG rail becomes a positioning context so the popover can overlay the band. */
     .m-rail { position: relative; }
     .m-rail__pop {
@@ -103,6 +117,22 @@
     .m-master-grid--wide tr:hover td:nth-child(2) { background: var(--page-bg); }
     .m-master-status { margin-top: 16px; }
 
+    /* Rules tab: semantics caption + Yes/No select + weekly footnote. */
+    .m-rules-help {
+      font-size: 13px; color: var(--text-body); line-height: 1.5;
+      background: var(--primary-soft); border-left: 4px solid var(--primary);
+      border-radius: 6px; padding: 10px 14px; margin: 4px 0 16px;
+    }
+    .m-rules-help strong { color: var(--text-heading); font-weight: 700; }
+    .m-rule-enabled {
+      padding: 4px 8px; border: 1px solid var(--card-border); border-radius: 6px;
+      font-size: 12.5px; background: var(--card-bg); color: var(--text-body); font-family: inherit; cursor: pointer;
+    }
+    .m-rules-foot {
+      font-size: 12px; color: var(--text-subtle); margin: 16px 0 0; padding: 0 4px;
+    }
+    .m-rules-foot__hint { color: var(--text-muted); }
+
     /* ---- "i" info icons + click popover (metric definitions) ---- */
     .m-info {
       display: inline-flex; align-items: center; justify-content: center;
@@ -162,9 +192,9 @@
       // Master Tables (editable config grids). data/dirty/loaded keyed by config name.
       master: {
         tab: "customer-master",
-        data: { "org-chart": null, "customer-master": null, "targets": null },
-        loaded: { "org-chart": false, "customer-master": false, "targets": false },
-        dirty: { "org-chart": false, "customer-master": false, "targets": false },
+        data: { "org-chart": null, "customer-master": null, "targets": null, "rules": null },
+        loaded: { "org-chart": false, "customer-master": false, "targets": false, "rules": false },
+        dirty: { "org-chart": false, "customer-master": false, "targets": false, "rules": false },
         meta: {},              // per-config extras (targets: fiscal_year, working_days_per_month)
         loading: false,
         filter: "",
@@ -801,6 +831,7 @@
       "col-Submission": { t: "Average Submission", b: "Total submissions ÷ open positions for the unit (Ceipal Coverage + Submissions reports). Green ≥4, amber 3–4, red <3. At recruiter level this column instead shows that recruiter's raw submission count." },
       "col-Selection": { t: "Selections", b: "Count of weekly client selections (confirmations) from the Ceipal Weekly Selects report. Shown as a count — Select % needs a weekly target, not yet configured. Not tracked per recruiter." },
       "col-Renege": { t: "Reneges", b: "Count of candidates who accepted an offer then dropped, from the Weekly Renege report. Shown as a count — Renege % needs Offers data, which isn't available yet. Not tracked per recruiter." },
+      "col-Joiners": { t: "Joiners", b: "New hires who started during this reporting week (Weekly Joiners Report). Distinct from MTD, which runs from the 1st of the month to this week's end." },
       "col-MTD": { t: "Submissions vs Target", b: "Weekly submissions actual vs target (subs_actual / target). Target = sum of recruiter weekly targets from the Avg Subs file, rolled up recruiter → AM → director. Shows “—” when no Avg Subs file was uploaded (e.g. June)." },
       "col-Achieve": { t: "Achievement %", b: "subs_actual ÷ target × 100. Green ≥100, amber 75–99, red <75. Same source and rollup as the Submissions-vs-Target column. Shows “—” with no Avg Subs file." },
       "col-Trend": { t: "Trend", b: "Sparkline of the unit's Average Submission across uploaded weeks. Green if the latest week is at or above the first, red if it declined. Needs ≥2 weeks of data to render." },
@@ -814,6 +845,7 @@
       "mr-achieve": { t: "Achievement %", b: "MTD Joiners ÷ Monthly Target × 100. Green ≥100, amber 75–99, red <75." },
       "mr-rpr": { t: "RPR", b: "Recruiter Productivity Ratio = MTD Joiners ÷ Recruiter Count for the month. Green ≥1.0, red <1.0." },
       "mr-exits": { t: "Exits vs Exit Target", b: "Actual exits this month against the monthly exit target from the Targets config. Lower actual vs target is better." },
+      "rules-help": { t: "Visibility Rules", b: "Each row reshapes the dashboard server-side. Three types: <strong>ignore</strong> — target = a director name (e.g. “Unassigned”); that director is removed from every view, the Monthly Rollup, and all totals. <strong>assign</strong> — target = an AM, to = a director; the AM is re-parented under that director for the date window (e.g. Tanu Gupta → Sivaranjani Pandian from 2026-07-01). <strong>replace</strong> — target = an AM, to = another AM; the target’s rows fold into “to” for the window (e.g. Shakshi Jain → Tanu Gupta from 2026-07-01). <strong>from</strong>/<strong>until</strong> are optional yyyy-mm-dd dates compared against each report’s data week — blank = open-ended. <strong>enabled</strong> = No keeps a rule on file but inactive. Numbers always add up to exactly what’s shown." },
       "kpi-coverage": { t: "Coverage", b: "Portfolio coverage: positions with ≥1 submission ÷ open positions (Ceipal Coverage report). Green ≥80%, amber 70–80%, red <70%." },
       "kpi-avgsub": { t: "Average Submission", b: "Total submissions ÷ open positions across the portfolio (Ceipal Coverage + Submissions reports). Green ≥4, amber 3–4, red <3." },
       "kpi-renege": { t: "Reneges", b: "Total reneges this week (Weekly Renege report). Shown as a count — Renege % needs Offers data, which isn't available yet." },
@@ -858,6 +890,7 @@
         { label: "Submission", key: "col-Submission" },
         { label: "Selection",  key: "col-Selection" },
         { label: "Renege",     key: "col-Renege" },
+        { label: "Joiners",    key: "col-Joiners" },
         { label: "MTD",        key: "col-MTD" },
         { label: "Achieve",    key: "col-Achieve" }
       ];
@@ -895,6 +928,9 @@
         // never zeros that read as terrible performance.
         html += dash + dash + dash + dash + dash;
       }
+      // Joiners (weekly) — new hires who started this week. Independent of coverage;
+      // present on AM and director rows, absent ("—") on client/category rows.
+      html += (e.joiners == null) ? dash : '<td class="m-val--muted">' + fmtInt(e.joiners) + "</td>";
       // MTD column = weekly submissions vs target (subs_actual/target), from the Avg Subs
       // rollup. "—" when there's no Avg Subs file for the week (e.g. June).
       if (e.subs_actual != null && e.target != null) {
@@ -971,6 +1007,7 @@
       html += (rec.submissions == null) ? dash : '<td class="m-val--muted">' + fmtInt(rec.submissions) + "</td>"; // Submission (real)
       html += dash;   // Selection — not per recruiter
       html += dash;   // Renege — not per recruiter
+      html += dash;   // Joiners — not tracked per recruiter
       html += dash;   // MTD — submissions-vs-target rolls up; per-recruiter shown in Submission/Achieve
       html += (ach == null) ? dash : '<td class="m-val--' + ragAchievement(ach) + '">' + Math.round(ach) + "%</td>"; // Achieve (real)
       if (targetsAvailable()) { html += dash + dash + dash; }   // Target / Ach % / RPR — not per recruiter
@@ -1622,6 +1659,14 @@
       return '<tr><td colspan="' + tableHeaderDefs().length + '" style="padding:0;">' +
         emptyState("No data", "No rows for this selection.") + "</td></tr>";
     }
+    // Subtle footnote naming directors removed by an active visibility rule (top-level
+    // rules_applied on /api/dashboard-data). Empty/absent → nothing rendered.
+    function rulesFootnote(d) {
+      var names = (d && Array.isArray(d.rules_applied)) ? d.rules_applied.filter(function (n) { return n != null && String(n).trim(); }) : [];
+      if (!names.length) return "";
+      return '<p class="m-rules-foot">Hidden by rules: ' + names.map(esc).join(", ") +
+        ' <span class="m-rules-foot__hint">(see Master Tables → Rules)</span></p>';
+    }
     function emptyState(title, text) {
       return '<div class="m-empty"><div class="m-empty__icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg></div>' +
         '<p class="m-empty__title">' + esc(title) + '</p><p class="m-empty__text">' + esc(text) + "</p></div>";
@@ -1690,7 +1735,8 @@
     var MASTER_CONFIGS = [
       { key: "org-chart",       endpoint: "/api/config/org-chart",       label: "Org Chart",       kind: "maps", maps: ["canonical_org", "am_aliases", "director_aliases", "recruiter_org"] },
       { key: "customer-master", endpoint: "/api/config/customer-master", label: "Project Mapping", kind: "rows" },
-      { key: "targets",         endpoint: "/api/config/targets",         label: "Targets",        kind: "targets" }
+      { key: "targets",         endpoint: "/api/config/targets",         label: "Targets",        kind: "targets" },
+      { key: "rules",           endpoint: "/api/config/rules",           label: "Rules",          kind: "rules" }
     ];
     // Fallback columns for the customer master when the array is empty, so Add Row
     // still produces a usable row. Real columns are derived from the data when present.
@@ -1702,6 +1748,9 @@
       "july_entry","july_exit","august_entry","august_exit","september_entry","september_exit",
       "october_entry","october_exit","november_entry","november_exit","december_entry","december_exit",
       "january_entry","january_exit","february_entry","february_exit","march_entry","march_exit","hc_end"];
+    // Rules grid columns (visibility rules). enabled is a boolean (Yes/No select);
+    // from/until are optional ISO yyyy-mm-dd date-window bounds.
+    var RULES_COLUMNS = ["rule", "target", "to", "from", "until", "note", "enabled"];
     var masterSearchTimer = null;
 
     function masterCfg(tab) { return MASTER_CONFIGS.filter(function (c) { return c.key === tab; })[0]; }
@@ -1737,6 +1786,15 @@
 
     // Reconstruct the PUT body for a config (per kind).
     function masterPutBody(cfg, rows) {
+      if (cfg.kind === "rules") {
+        // Normalize enabled to a real boolean regardless of how the cell was edited.
+        var out = rows.map(function (r) {
+          var e = r.enabled;
+          var on = (e === true || String(e).toLowerCase() === "true" || String(e).toLowerCase() === "yes" || String(e) === "1");
+          return Object.assign({}, r, { enabled: on });
+        });
+        return { rows: out };
+      }
       if (cfg.kind === "targets") {
         var meta = (state.master.meta && state.master.meta[cfg.key]) || {};
         var body = { rows: rows };
@@ -1769,6 +1827,12 @@
       if (!cols.length && cfg && cfg.kind === "maps") return ["Map", "Key", "Value"];
       if (!cols.length && tab === "customer-master") return CUSTOMER_MASTER_COLUMNS.slice();
       if (!cols.length && tab === "targets") return TARGETS_COLUMNS.slice();
+      // Rules: always show the known columns in a sensible order (even if a row omits
+      // an optional field like `until`), then append any unknown keys so none are dropped.
+      if (tab === "rules") {
+        var extra = cols.filter(function (c) { return RULES_COLUMNS.indexOf(c) < 0; });
+        return RULES_COLUMNS.concat(extra);
+      }
       return cols;
     }
 
@@ -1777,7 +1841,8 @@
     var MASTER_SUBTITLES = {
       "org-chart": "Org chart & mappings — canonical names, AM/director aliases, and recruiter → AM. Fix a mapping (e.g. an unattached recruiter) here directly; changes take effect on the next data load.",
       "customer-master": "Project (customer) mapping — Sub Unit → Unit → Category and the manager chain. Edits take effect on the next data load.",
-      "targets": "Monthly joiner/exit targets per AM (fiscal year Apr–Mar). Entry = joiner target, Exit = exit target. Weekly targets and Achievement % derive from these. Edits take effect on the next data load."
+      "targets": "Monthly joiner/exit targets per AM (fiscal year Apr–Mar). Entry = joiner target, Exit = exit target. Weekly targets and Achievement % derive from these. Edits take effect on the next data load.",
+      "rules": "Visibility rules that reshape the dashboard. Each row is applied server-side on the next data load."
     };
 
     function renderMaster() {
@@ -1792,6 +1857,15 @@
           esc(cfg.label) + (m.dirty[cfg.key] ? " •" : "") + "</button>";
       });
       html += "</div>";
+
+      // Rules semantics caption (+ ⓘ). Only meaningful on the Rules tab.
+      if (m.tab === "rules") {
+        html += '<p class="m-rules-help"><strong>ignore</strong> (target = director → hidden from all views &amp; totals) · ' +
+          '<strong>assign</strong> (target = AM, to = director → AM re-parented) · ' +
+          '<strong>replace</strong> (target = AM, to = AM → target folds into “to”). ' +
+          '<strong>from</strong>/<strong>until</strong> are optional yyyy-mm-dd bounds (blank = open-ended); enabled = Yes activates the rule.' +
+          infoIcon("rules-help", "Visibility Rules") + "</p>";
+      }
 
       html += '<div class="m-master-toolbar">';
       html += '<input class="m-master-search" data-master-search placeholder="Filter rows…" value="' + esc(m.filter) + '" />';
@@ -1867,7 +1941,15 @@
           var r = rows[i];
           h += "<tr>";
           cols.forEach(function (c) {
-            h += '<td contenteditable="true" data-r="' + i + '" data-c="' + esc(c) + '">' + esc(r[c] == null ? "" : r[c]) + "</td>";
+            // Rules' `enabled` is a boolean → Yes/No select instead of a text cell.
+            if (tab === "rules" && c === "enabled") {
+              var on = (r[c] === true || String(r[c]).toLowerCase() === "true" || String(r[c]).toLowerCase() === "yes" || String(r[c]) === "1");
+              h += '<td><select class="m-rule-enabled" data-rule-enabled data-r="' + i + '">' +
+                '<option value="true"' + (on ? " selected" : "") + ">Yes</option>" +
+                '<option value="false"' + (!on ? " selected" : "") + ">No</option></select></td>";
+            } else {
+              h += '<td contenteditable="true" data-r="' + i + '" data-c="' + esc(c) + '">' + esc(r[c] == null ? "" : r[c]) + "</td>";
+            }
           });
           h += '<td><button class="m-master-del" data-master-del="' + i + '" title="Delete row">✕</button></td>';
           h += "</tr>";
@@ -2032,6 +2114,8 @@
         case "scope": html += viewScope(d); break;
         default: html += viewRecruitment(d);
       }
+
+      html += rulesFootnote(d);
 
       $content.innerHTML = html;
       wireCharts();
@@ -2239,6 +2323,15 @@
       if (ev.target && ev.target.hasAttribute && ev.target.hasAttribute("data-monthly-month")) {
         state.monthly.month = ev.target.value;
         renderMonthly();
+      }
+      // Rules grid: enabled Yes/No select.
+      if (ev.target && ev.target.hasAttribute && ev.target.hasAttribute("data-rule-enabled")) {
+        var m = state.master, tab = m.tab;
+        var ri = Number(ev.target.getAttribute("data-r"));
+        if (m.data[tab] && m.data[tab][ri]) {
+          m.data[tab][ri].enabled = (ev.target.value === "true");
+          if (!m.dirty[tab]) { m.dirty[tab] = true; updateMasterDirtyUI(); }
+        }
       }
     });
 
