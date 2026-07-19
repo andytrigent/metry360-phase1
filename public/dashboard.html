@@ -124,10 +124,12 @@
       border-radius: 6px; padding: 10px 14px; margin: 4px 0 16px;
     }
     .m-rules-help strong { color: var(--text-heading); font-weight: 700; }
-    .m-rule-enabled {
+    .m-rule-field {
       padding: 4px 8px; border: 1px solid var(--card-border); border-radius: 6px;
-      font-size: 12.5px; background: var(--card-bg); color: var(--text-body); font-family: inherit; cursor: pointer;
+      font-size: 12.5px; background: var(--card-bg); color: var(--text-body); font-family: inherit;
     }
+    select.m-rule-field { cursor: pointer; }
+    .m-rule-date { min-width: 130px; }
     .m-rules-foot {
       font-size: 12px; color: var(--text-subtle); margin: 16px 0 0; padding: 0 4px;
     }
@@ -1749,8 +1751,9 @@
       "october_entry","october_exit","november_entry","november_exit","december_entry","december_exit",
       "january_entry","january_exit","february_entry","february_exit","march_entry","march_exit","hc_end"];
     // Rules grid columns (visibility rules). enabled is a boolean (Yes/No select);
-    // from/until are optional ISO yyyy-mm-dd date-window bounds.
+    // from/until are optional ISO yyyy-mm-dd date-window bounds; rule is a fixed type.
     var RULES_COLUMNS = ["rule", "target", "to", "from", "until", "note", "enabled"];
+    var RULE_TYPES = ["ignore", "assign", "replace"];
     var masterSearchTimer = null;
 
     function masterCfg(tab) { return MASTER_CONFIGS.filter(function (c) { return c.key === tab; })[0]; }
@@ -1834,6 +1837,30 @@
         return RULES_COLUMNS.concat(extra);
       }
       return cols;
+    }
+
+    // Dedicated editing controls for the Rules grid: a <td> with a rule-type dropdown,
+    // a date picker (from/until), or an enabled Yes/No select. Returns null for columns
+    // that should stay plain editable text cells (target, to, note, or unknown extras).
+    function rulesControlCell(col, val, i) {
+      if (col === "rule") {
+        var cur = val == null ? "" : String(val);
+        var opts = "";
+        if (RULE_TYPES.indexOf(cur) < 0) opts += '<option value="' + esc(cur) + '" selected>' + esc(cur || "(select…)") + "</option>";
+        RULE_TYPES.forEach(function (t) { opts += '<option value="' + t + '"' + (t === cur ? " selected" : "") + ">" + t + "</option>"; });
+        return '<td><select class="m-rule-field" data-rule-field="rule" data-r="' + i + '">' + opts + "</select></td>";
+      }
+      if (col === "from" || col === "until") {
+        var d = val == null ? "" : String(val).trim();
+        return '<td><input type="date" class="m-rule-field m-rule-date" data-rule-field="' + col + '" data-r="' + i + '" value="' + esc(d) + '" /></td>';
+      }
+      if (col === "enabled") {
+        var on = (val === true || String(val).toLowerCase() === "true" || String(val).toLowerCase() === "yes" || String(val) === "1");
+        return '<td><select class="m-rule-field m-rule-enabled" data-rule-field="enabled" data-r="' + i + '">' +
+          '<option value="true"' + (on ? " selected" : "") + ">Yes</option>" +
+          '<option value="false"' + (!on ? " selected" : "") + ">No</option></select></td>";
+      }
+      return null;
     }
 
     // Friendly labels for the org-chart map sections.
@@ -1941,15 +1968,11 @@
           var r = rows[i];
           h += "<tr>";
           cols.forEach(function (c) {
-            // Rules' `enabled` is a boolean → Yes/No select instead of a text cell.
-            if (tab === "rules" && c === "enabled") {
-              var on = (r[c] === true || String(r[c]).toLowerCase() === "true" || String(r[c]).toLowerCase() === "yes" || String(r[c]) === "1");
-              h += '<td><select class="m-rule-enabled" data-rule-enabled data-r="' + i + '">' +
-                '<option value="true"' + (on ? " selected" : "") + ">Yes</option>" +
-                '<option value="false"' + (!on ? " selected" : "") + ">No</option></select></td>";
-            } else {
-              h += '<td contenteditable="true" data-r="' + i + '" data-c="' + esc(c) + '">' + esc(r[c] == null ? "" : r[c]) + "</td>";
-            }
+            // Rules grid gets dedicated inputs: rule-type dropdown, from/until date
+            // pickers, and an enabled Yes/No select. Everything else is a text cell.
+            var special = (tab === "rules") ? rulesControlCell(c, r[c], i) : null;
+            if (special != null) { h += special; }
+            else { h += '<td contenteditable="true" data-r="' + i + '" data-c="' + esc(c) + '">' + esc(r[c] == null ? "" : r[c]) + "</td>"; }
           });
           h += '<td><button class="m-master-del" data-master-del="' + i + '" title="Delete row">✕</button></td>';
           h += "</tr>";
@@ -2324,12 +2347,13 @@
         state.monthly.month = ev.target.value;
         renderMonthly();
       }
-      // Rules grid: enabled Yes/No select.
-      if (ev.target && ev.target.hasAttribute && ev.target.hasAttribute("data-rule-enabled")) {
+      // Rules grid dedicated controls: rule-type dropdown, from/until dates, enabled Yes/No.
+      if (ev.target && ev.target.hasAttribute && ev.target.hasAttribute("data-rule-field")) {
         var m = state.master, tab = m.tab;
         var ri = Number(ev.target.getAttribute("data-r"));
+        var field = ev.target.getAttribute("data-rule-field");
         if (m.data[tab] && m.data[tab][ri]) {
-          m.data[tab][ri].enabled = (ev.target.value === "true");
+          m.data[tab][ri][field] = (field === "enabled") ? (ev.target.value === "true") : ev.target.value;
           if (!m.dirty[tab]) { m.dirty[tab] = true; updateMasterDirtyUI(); }
         }
       }
